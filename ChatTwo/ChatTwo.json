@@ -1,0 +1,22 @@
+{
+  "Author": "Infi, Anna, 一只路过的拉拉肥",
+  "Name": "Chat 2 (CN)",
+  "InternalName": "ChatTwo",
+  "AssemblyVersion": "1.40.6.0",
+  "Description": "模仿了原生消息窗口的布局。",
+  "ApplicableVersion": "any",
+  "RepoUrl": "https://github.com/Infiziert90/ChatTwo",
+  "Tags": [
+    "Social",
+    "UI",
+    "Chat",
+    "Replacement"
+  ],
+  "DalamudApiLevel": 15,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "Punchline": "对原版Chat 2进行了一些改动",
+  "AcceptsFeedback": true
+}
