@@ -1,0 +1,28 @@
+[
+  {
+    "Author": "Infi, Anna, 一只路过的拉拉肥",
+    "Name": "Chat 2 (CN)",
+    "Punchline": "对原版 Chat 2 进行了一些改动",
+    "Description": "基于 ChatTwo 进行了一定程度的修改，对原生消息栏进行了拙劣的模仿。中文化界面、原生右键菜单复刻、输入框与字体行为调整。\n\n已知问题：右键菜单无可用项目时，占位的\"没有可以选择的指令\"文本无法移除（原生 ChatLog 被隐藏，无法调用其菜单清除逻辑）。",
+    "InternalName": "ChatTwoCN",
+    "AssemblyVersion": "1.40.6.1",
+    "TestingAssemblyVersion": "1.40.6.1",
+    "DalamudApiLevel": 15,
+    "TestingDalamudApiLevel": 15,
+    "ApplicableVersion": "any",
+    "DownloadLinkInstall": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.40.6-cn.1/ChatTwo-CN-v1.40.6-cn.1.zip",
+    "DownloadLinkTesting": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.40.6-cn.1/ChatTwo-CN-v1.40.6-cn.1.zip",
+    "DownloadLinkUpdate": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.40.6-cn.1/ChatTwo-CN-v1.40.6-cn.1.zip",
+    "IconUrl": "",
+    "Changelog": "首个版本：中文化 + 原生菜单复刻 + 输入框/字体调整",
+    "Tags": [
+      "Social",
+      "UI",
+      "Chat",
+      "Replacement",
+      "CN"
+    ],
+    "RepoUrl": "https://github.com/AmberPlume/ChatTwo-CN-",
+    "AcceptsFeedback": true
+  }
+]
