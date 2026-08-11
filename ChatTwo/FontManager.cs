@@ -110,6 +110,8 @@ public class FontManager
         }
 
         var ranges = new List<nint> { (nint)ImGui.GetIO().Fonts.GetGlyphRangesDefault() };
+        // 默认包含简体常用字（设置页/输入框需要完整 CJK——axis_12.fdt 只含游戏 UI 子集）
+        ranges.Add((nint)ImGui.GetIO().Fonts.GetGlyphRangesChineseSimplifiedCommon());
         foreach (var extraRange in Enum.GetValues<ExtraGlyphRanges>())
             if (Plugin.Config.ExtraGlyphRanges.HasFlag(extraRange))
                 ranges.Add(extraRange.Range());

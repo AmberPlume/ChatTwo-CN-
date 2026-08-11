@@ -1,6 +1,8 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
     <PropertyGroup>
         <Version>1.40.6</Version>
+        <AssemblyVersion>1.40.6.2</AssemblyVersion>
+        <FileVersion>1.40.6.2</FileVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <!-- DLL 文件名须匹配卫月的 InternalName（ChatTwoCN）才能从插件库安装 -->
         <AssemblyName>ChatTwoCN</AssemblyName>
