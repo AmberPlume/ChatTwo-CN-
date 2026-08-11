@@ -110,7 +110,74 @@ public sealed class Display : ISettingsTab
         ImGuiUtil.HelpText(Language.Options_SettingsFontSize_Description);
 
         ImGui.Spacing();
+
+        // ═══════════════ 从原版 Chat Two 迁移 ═══════════════
+        ImGui.Separator();
+        ImGui.Spacing();
+        ImGui.TextUnformatted("从原版 Chat Two 迁移");
+        ImGuiUtil.HelpText("复制原版 Chat Two（InternalName=ChatTwo）的设置与聊天历史到本插件。复制后需要重启游戏生效。");
+        DrawMigrationSection();
+        ImGui.Spacing();
     }
+
+    // 从原版 ChatTwo 迁移配置/历史（原版配置: pluginConfigs/ChatTwo.json，库: pluginConfigs/ChatTwo/chat-sqlite.db）
+    private void DrawMigrationSection()
+    {
+        var parentDir = Plugin.Interface.ConfigDirectory.Parent;
+        if (parentDir == null)
+            return;
+
+        var srcConfig = Path.Combine(parentDir.FullName, "ChatTwo.json");
+        var srcExists = File.Exists(srcConfig);
+
+        if (Mutable.MigratedFromChatTwo)
+        {
+            ImGui.TextColored(new System.Numerics.Vector4(0.49f, 0.78f, 0.49f, 1f), "已迁移过，请重启游戏生效。");
+            return;
+        }
+
+        if (!srcExists)
+        {
+            ImGui.TextUnformatted("未找到原版配置（pluginConfigs/ChatTwo.json）。");
+            return;
+        }
+
+        var alsoDb = _migrateAlsoDb;
+        ImGui.Checkbox("同时迁移聊天历史（数据库）", ref alsoDb);
+        _migrateAlsoDb = alsoDb;
+
+        if (ImGui.Button("迁移设置"))
+        {
+            try
+            {
+                // 备份当前配置
+                var dstConfig = Plugin.Interface.ConfigFile.FullName;
+                File.Copy(dstConfig, $"{dstConfig}.bak", true);
+
+                // 复制原版配置
+                File.Copy(srcConfig, dstConfig, true);
+
+                // 可选：复制聊天历史数据库
+                if (_migrateAlsoDb)
+                {
+                    var srcDb = Path.Combine(parentDir.FullName, "ChatTwo", "chat-sqlite.db");
+                    var dstDb = Path.Combine(Plugin.Interface.ConfigDirectory.FullName, "chat-sqlite.db");
+                    if (File.Exists(srcDb))
+                    {
+                        try { File.Copy(srcDb, dstDb, true); } catch { /* 数据库可能被占用，忽略 */ }
+                    }
+                }
+
+                Mutable.MigratedFromChatTwo = true;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.Error(ex, "迁移原版配置失败");
+            }
+        }
+    }
+
+    private bool _migrateAlsoDb = true;
 
     // 字体族下拉（替代内置 SingleFontChooserDialog——它自带字号/样式列无法隐藏，字号由"字体大小"统一控制）
     private void FontFamilyChooser(string label, SingleFontSpec current)
