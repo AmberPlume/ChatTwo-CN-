@@ -122,12 +122,11 @@ public class FontManager
     {
         SetUpRanges();
 
-        // 简化字体体系（用户要求）：
-        // - 固定字体：主字体 NotoSansCjkRegular + 日文 NotoSansCjkMedium
-        // - 字号统一由"字体大小"(FontSizeV2) 控制，符号字体并入主字体（跟随主字号）
-        // - 字体设置只保留"字体大小"和"输入字体大小"
-        var mainFontId = new DalamudAssetFontAndFamilyId(DalamudAsset.NotoSansCjkRegular);
-        var jpFontId = new DalamudAssetFontAndFamilyId(DalamudAsset.NotoSansCjkMedium);
+        // 字体体系（用户要求）：
+        // - 主字体由"自定义字体"（GlobalFontV2）选择，日文补充字体用 JapaneseFontV2
+        // - 字号统一由"字体大小"(FontSizeV2) 控制（忽略 GlobalFontV2.SizePt），符号字体并入主字体
+        var mainFontId = Plugin.Config.GlobalFontV2.FontId;
+        var jpFontId = Plugin.Config.JapaneseFontV2.FontId;
         var baseSizePt = Plugin.Config.FontSizeV2;
         // 输入区缩放（用户要求与卫月全局字体比例同逻辑：重建字体时字号乘比例，
         // 这样 drawList 手动渲染的文字（tab 文字）也自然缩放）
@@ -149,7 +148,7 @@ public class FontManager
         // 输入区图标字体：固定 12px（气泡/齿轮/隐藏/新人按钮同尺寸，不随主字体设置变化）
         FontAwesomeSmall = Plugin.Interface.UiBuilder.FontAtlas.NewDelegateFontHandle(e =>
         {
-            e.OnPreBuild(tk => tk.AddFontAwesomeIconFont(new SafeFontConfig { SizePx = 12f * inputScale }));
+            e.OnPreBuild(tk => tk.AddFontAwesomeIconFont(new SafeFontConfig { SizePx = 12f * inputScale * 0.9f }));
             e.OnPostBuild(tk => tk.FitRatio(tk.Font));
         });
 
@@ -175,7 +174,7 @@ public class FontManager
         ItalicFont = null;
 
         // 小号字体：固定 12pt（输入框频道名等 UI 元素，不随主字体设置变化）
-        var smallFontSizePt = 12f * inputScale;
+        var smallFontSizePt = 12f * inputScale * 0.9f;  // 频道名（输入框附近），×0.9 缩小
         SmallFont = Plugin.Interface.UiBuilder.FontAtlas.NewDelegateFontHandle(
             e => e.OnPreBuild(
                 tk =>
@@ -193,15 +192,16 @@ public class FontManager
                 }
             ));
 
-        // 输入框字体：大小由"输入字体大小"设置控制，输入框高度随字体自适应
+        // 输入框字体：大小只由"输入字体大小"设置控制（不乘 inputScale —— 输入区缩放不动输入框大小，
+        // 只放大频道名/标签页/图标等其他 UI，输入框位置随布局自然变化）
         InputFont = Plugin.Interface.UiBuilder.FontAtlas.NewDelegateFontHandle(
             e => e.OnPreBuild(
                 tk =>
                 {
-                    var config = new SafeFontConfig {SizePt = Plugin.Config.InputFontSize * inputScale, GlyphRanges = Ranges};
+                    var config = new SafeFontConfig {SizePt = Plugin.Config.InputFontSize, GlyphRanges = Ranges};
                     config.MergeFont = mainFontId.AddToBuildToolkit(tk, config);
 
-                    config.SizePt = Plugin.Config.InputFontSize * inputScale;
+                    config.SizePt = Plugin.Config.InputFontSize;
                     config.GlyphRanges = JpRange;
                     jpFontId.AddToBuildToolkit(tk, config);
 

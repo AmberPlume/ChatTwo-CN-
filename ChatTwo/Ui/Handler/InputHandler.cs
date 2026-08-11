@@ -97,10 +97,15 @@ public class InputHandler
             using (ImRaii.Disabled(!isChatEnabled))
             {
                 var flags = InputFlags | (!isChatEnabled ? ImGuiInputTextFlags.ReadOnly : ImGuiInputTextFlags.None);
-                var inputPadding = ImGui.GetStyle().FramePadding with { Y = ImGui.GetStyle().FramePadding.Y * 0.7f };
-                using var inputPad = ImRaii.PushStyle(ImGuiStyleVar.FramePadding, inputPadding);
-                ImGui.SetNextItemWidth(inputWidth);
-                ImGui.InputTextWithHint("##chat2-input", isChatEnabled ? "": Language.ChatLog_DisabledInput, ref ChatInput, 500, flags, Callback);
+                // 单行输入框贴字：InputText 高度 = FontSize + FramePadding.Y×2，把 Y Push 成 0 → 高度 = FontSize
+                {
+                    var inputPad = new Vector2(ImGui.GetStyle().FramePadding.X, 0f);
+                    using (ImRaii.PushStyle(ImGuiStyleVar.FramePadding, inputPad))
+                    {
+                        ImGui.SetNextItemWidth(inputWidth);
+                        ImGui.InputTextWithHint("##chat2-input", isChatEnabled ? "" : Language.ChatLog_DisabledInput, ref ChatInput, 500, flags, Callback);
+                    }
+                }
             }
             var inputActive = ImGui.IsItemActive();
             InputFocused = isChatEnabled && inputActive;

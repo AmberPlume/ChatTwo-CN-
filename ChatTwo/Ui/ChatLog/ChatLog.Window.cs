@@ -393,9 +393,8 @@ public partial class ChatLog : Window, IChatWindow
     public override void Draw()
     {
         DrewThisFrame = true;
-        // 聊天内容用 Axis 游戏字体（FF14 原生聊天框字体，用户要求与原生一致）；
-        // 窗口级字体是 SettingsFont，消息文字必须在这里推 Axis
-        using var mainFont = Plugin.FontManager.Axis.Push();
+        // 聊天内容：默认 Axis 游戏字体（原生观感）；用户选了自定义字体后改用 RegularFont
+        using var mainFont = (Plugin.Config.FontsEnabled ? Plugin.FontManager.RegularFont : Plugin.FontManager.Axis).Push();
         try
         {
             DrawChatLog();
@@ -607,12 +606,12 @@ public partial class ChatLog : Window, IChatWindow
         // 气泡/输入框/右侧图标 这一行的底边 = 输入框底边（行内最高元素）。
         // 输入字体变化时输入框向上延伸、底边不动；两侧图标底部对齐输入框底边，保持不动
         var rowTop = ImGui.GetCursorPosY();
+        // 输入框高度：单行 InputText 实际渲染高度 = FontSize + FramePadding.Y×2（GetFrameHeight），
+        // 但渲染处已把 FramePadding.Y Push 成 0 → rect = FontSize。这里用 FontSize 与之一致，图标底部对齐
         float inputBoxHeight;
         using (Plugin.FontManager.InputFont.Push())
         {
-            var pad = ImGui.GetStyle().FramePadding with { Y = ImGui.GetStyle().FramePadding.Y * 0.7f };
-            using (ImRaii.PushStyle(ImGuiStyleVar.FramePadding, pad))
-                inputBoxHeight = ImGui.GetFrameHeight();
+            inputBoxHeight = ImGui.GetFontSize();
         }
         float iconButtonHeight;
         using (Plugin.FontManager.FontAwesomeSmall.Push())

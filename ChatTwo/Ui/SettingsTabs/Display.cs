@@ -83,8 +83,19 @@ public sealed class Display : ISettingsTab
         ImGui.Spacing();
 
         // ═══════════════ 字体 ═══════════════
-        // 固定使用内置字体（Noto Sans CJK），符号字体已并入主字体；
-        // 聊天主字体 / 输入框 / 设置界面各有独立的大小设置
+        // 自定义字体：字体族下拉（无字号/样式列——字号统一由下面的"字体大小"控制）
+        ImGui.TextUnformatted(Language.Options_Font_Name);
+        FontFamilyChooser(Language.Options_Font_Name, Mutable.GlobalFontV2);
+        ImGui.SameLine();
+        if (ImGui.Button("Reset##global-font"))
+        {
+            Mutable.GlobalFontV2 = new SingleFontSpec { FontId = new DalamudAssetFontAndFamilyId(DalamudAsset.NotoSansCjkRegular), SizePt = Mutable.FontSizeV2 };
+            Mutable.FontsEnabled = false;  // Reset → 回到 Axis 游戏字体
+        }
+        ImGuiUtil.HelpText(Language.Options_Font_Description);
+        ImGui.Spacing();
+
+        // 主字体大小
         ImGuiUtil.FontSizeCombo(Language.Options_FontSize_Name, ref Mutable.FontSizeV2);
         ImGuiUtil.HelpText(string.Format(Language.Options_Font_Description, Plugin.PluginName));
         ImGui.Spacing();
@@ -100,4 +111,33 @@ public sealed class Display : ISettingsTab
 
         ImGui.Spacing();
     }
+
+    // 字体族下拉（替代内置 SingleFontChooserDialog——它自带字号/样式列无法隐藏，字号由"字体大小"统一控制）
+    private void FontFamilyChooser(string label, SingleFontSpec current)
+    {
+        var families = _fontFamilies.Value;
+        // 当前字体可能带样式（如 Regular），匹配所属字体族（族下任一字体包含当前 FontId 即命中）
+        var currentName = current.FontId.ToString();
+        var selectedIdx = families.FindIndex(f => f.Fonts.Any(fid => fid.ToString() == currentName));
+        if (selectedIdx == -1)
+            selectedIdx = 0;
+
+        if (ImGui.Combo($"##font-family-{label}", ref selectedIdx, families.Select(f => f.EnglishName).ToArray(), families.Count))
+        {
+            var family = families[selectedIdx];
+            Mutable.GlobalFontV2 = new SingleFontSpec { FontId = family.Fonts[family.FindBestMatch(400, 100, 0)], SizePt = Mutable.FontSizeV2 };
+            Mutable.FontsEnabled = true;  // 选了自定义字体 → 消息改用自定义字体
+        }
+    }
+
+    private static readonly Lazy<List<IFontFamilyId>> _fontFamilies = new(() =>
+    {
+        var list = new List<IFontFamilyId> { DalamudDefaultFontAndFamilyId.Instance };
+        list.AddRange(IFontFamilyId.ListDalamudFonts());
+        list.AddRange(IFontFamilyId.ListGameFonts());
+        var systemFonts = IFontFamilyId.ListSystemFonts(true);
+        systemFonts.Sort((a, b) => string.Compare(a.EnglishName, b.EnglishName, StringComparison.CurrentCultureIgnoreCase));
+        list.AddRange(systemFonts);
+        return list;
+    });
 }

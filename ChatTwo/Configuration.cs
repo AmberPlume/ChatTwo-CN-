@@ -102,7 +102,8 @@ public class Configuration : IPluginConfiguration
     public int MaxLinesToRender = 10_000; // 1-10000
     public bool Use24HourClock;
 
-    public bool FontsEnabled = true;
+    // 自定义字体开关（内部标志，无 UI）：false=用 Axis 游戏字体（默认原生观感）；true=用 GlobalFontV2 选的字体
+    public bool FontsEnabled = false;
 
     /// <summary>
     /// 输入框字体大小（pt）。输入框高度跟随此字体自适应（原生逻辑）。

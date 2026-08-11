@@ -132,7 +132,11 @@ public sealed class SettingsWindow : Window
         var fontSizeChanged = Math.Abs(Mutable.FontSizeV2 - Plugin.Config.FontSizeV2) > 0.001
                           || Math.Abs(Mutable.InputFontSize - Plugin.Config.InputFontSize) > 0.001
                           || Math.Abs(Mutable.SettingsFontSize - Plugin.Config.SettingsFontSize) > 0.001
-                          || Math.Abs(Mutable.InputAreaScale - Plugin.Config.InputAreaScale) > 0.001;
+                          || Math.Abs(Mutable.InputAreaScale - Plugin.Config.InputAreaScale) > 0.001
+                          // 自定义字体：字体族变化也要重建（字号统一由 FontSizeV2 控制，不比较 SizePt）
+                          || Mutable.GlobalFontV2.FontId.EnglishName != Plugin.Config.GlobalFontV2.FontId.EnglishName
+                          || Mutable.JapaneseFontV2.FontId.EnglishName != Plugin.Config.JapaneseFontV2.FontId.EnglishName
+                          || Mutable.FontsEnabled != Plugin.Config.FontsEnabled;
 
         Plugin.Config.UpdateFrom(Mutable, true);
 

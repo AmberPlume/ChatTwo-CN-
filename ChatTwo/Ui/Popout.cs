@@ -101,8 +101,8 @@ public class Popout : Window, IChatWindow
 
     public override void Draw()
     {
-        // 弹出的聊天窗口内容用 Axis 游戏字体（与主窗口一致）
-        using var mainFont = Plugin.FontManager.Axis.Push();
+        // 弹出的聊天窗口内容与主窗口一致：默认 Axis，选了自定义字体后改 RegularFont
+        using var mainFont = (Plugin.Config.FontsEnabled ? Plugin.FontManager.RegularFont : Plugin.FontManager.Axis).Push();
         using var id = ImRaii.PushId($"popout-{Tab.Identifier}");
 
         LastWindowSize = ImGui.GetWindowSize();

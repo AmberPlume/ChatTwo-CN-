@@ -86,8 +86,6 @@ public sealed class ContextMenuHandler : IDisposable
         if (!IsChatTwoTriggered)
             return;
 
-        Plugin.Log.Information($"[ContextMenuHandler] OnMenuOpened fired: TargetType={CurrentTargetType}, ItemId={CurrentItemId}, AddonName={args.AddonName}");
-
         try
         {
             // 用 PayloadHandler 设置的标志位决定菜单类型，不依赖游戏状态
