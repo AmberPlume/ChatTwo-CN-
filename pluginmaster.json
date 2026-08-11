@@ -4,7 +4,7 @@
     "Name": "Chat 2 (CN)",
     "Punchline": "对原版 Chat 2 进行了一些改动",
     "Description": "基于 ChatTwo 进行了一定程度的修改，对原生消息栏进行了拙劣的模仿。中文化界面、原生右键菜单复刻、输入框与字体行为调整。\n\n已知问题：右键菜单无可用项目时，占位的\"没有可以选择的指令\"文本无法移除（原生 ChatLog 被隐藏，无法调用其菜单清除逻辑）。",
-    "InternalName": "ChatTwo",
+    "InternalName": "ChatTwoCN",
     "AssemblyVersion": "1.40.6.1",
     "TestingAssemblyVersion": "1.40.6.1",
     "DalamudApiLevel": 15,
