@@ -131,7 +131,8 @@ public sealed class SettingsWindow : Window
         var languageChanged = Mutable.LanguageOverride != Plugin.Config.LanguageOverride;
         var fontSizeChanged = Math.Abs(Mutable.FontSizeV2 - Plugin.Config.FontSizeV2) > 0.001
                           || Math.Abs(Mutable.InputFontSize - Plugin.Config.InputFontSize) > 0.001
-                          || Math.Abs(Mutable.SettingsFontSize - Plugin.Config.SettingsFontSize) > 0.001;
+                          || Math.Abs(Mutable.SettingsFontSize - Plugin.Config.SettingsFontSize) > 0.001
+                          || Math.Abs(Mutable.InputAreaScale - Plugin.Config.InputAreaScale) > 0.001;
 
         Plugin.Config.UpdateFrom(Mutable, true);
 

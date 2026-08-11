@@ -577,6 +577,8 @@ public partial class ChatLog : Window, IChatWindow
 
         if (bottomTabs)
         {
+            // 输入区缩放通过字体重建实现（FontManager 字号 × InputAreaScale），
+            // 这里无需 SetWindowFontScale —— drawList 渲染的文字（tab 文字）随字体 atlas 自动缩放
             DrawChannelInputRow();
             // 输入行下移后，把 tab 拉回原位，保持贴窗口底部不被切
             var tabCursor = ImGui.GetCursorPos();
@@ -1181,7 +1183,7 @@ public partial class ChatLog : Window, IChatWindow
             // 会覆盖下面的 DrawMessageLog，导致消息文字被 12pt 字体渲染
             // （实测 msgFontSize=24px=12pt×4/3×1.5，改主字体消息完全不变）
             using var tabFont = Plugin.FontManager.TabFont.Push();
-            tabBarHeight = (ImGui.GetTextLineHeight() + style.FramePadding.Y * 2 * 0.3f) * 0.75f;
+            tabBarHeight = (ImGui.GetTextLineHeight() + style.FramePadding.Y * 2) * 0.9f;
         }
         var separatorHeight = 1f + style.ItemSpacing.Y * 0.3f;
         var extraBottomPadding = tabBarHeight + separatorHeight;
@@ -1207,7 +1209,7 @@ public partial class ChatLog : Window, IChatWindow
         var style = ImGui.GetStyle();
         // 底部标签页文字用固定大小字体（TabFont，12pt），压缩短边高度
         using var tabFont = Plugin.FontManager.TabFont.Push();
-        var tabHeight = (ImGui.GetTextLineHeight() + style.FramePadding.Y * 2 * 0.3f) * 0.75f;
+        var tabHeight = (ImGui.GetTextLineHeight() + style.FramePadding.Y * 2) * 0.9f;
         var drawList = ImGui.GetWindowDrawList();
         var dividerColor = ImGui.GetColorU32(new Vector4(0.25f, 0.25f, 0.25f, 0.55f));
         var barBgColor = ImGui.GetColorU32(new Vector4(0.12f, 0.12f, 0.12f, 0.5f));
@@ -1218,7 +1220,7 @@ public partial class ChatLog : Window, IChatWindow
         var barWidth = ImGui.GetContentRegionAvail().X;
         drawList.AddRectFilled(barStart, new Vector2(barStart.X + barWidth, barStart.Y + tabHeight), barBgColor);
 
-        var unreadGreen = new Vector4(0.29f, 0.88f, 0.54f, 1.0f);
+        var unreadGreen = UnreadGreen();
 
         var transparent = new Vector4(0, 0, 0, 0);
         using var btnBg = ImRaii.PushColor(ImGuiCol.Button, transparent);
@@ -1293,27 +1295,13 @@ public partial class ChatLog : Window, IChatWindow
             }
         }
 
-        // 末尾"+"：按钮框尺寸与 tab 同高（框不动），框内的 + 图标手动绘制
-        // 并微调（用户实测：图标左移 2px、上移 1px 后视觉居中）
+        // 末尾"+"：用 IconButton（无边框图标按钮，与输入框右侧齿轮/新人频道一致），
+        // 字号 FontAwesomeSmall（随输入区缩放字体重建）
         ImGui.SameLine(0, 0);
-        if (ImGui.Button("##new-tab-bottom", new Vector2(tabHeight, tabHeight)))
+        if (ImGuiUtil.IconButton(FontAwesomeIcon.Plus, "new-tab-bottom", font: Plugin.FontManager.FontAwesomeSmall))
         {
             NewTabName = string.Empty;
             ImGui.OpenPopup("chat2-new-tab-name");
-        }
-
-        var newTabBtnMin = ImGui.GetItemRectMin();
-        var newTabBtnMax = ImGui.GetItemRectMax();
-        using (Plugin.FontManager.FontAwesomeSmall.Push())
-        {
-            var newTabIconFont = ImGui.GetFont();
-            var newTabIconSize = ImGui.CalcTextSize(FontAwesomeIcon.Plus.ToIconString());
-            var newTabIconPos = new Vector2(
-                newTabBtnMin.X + (newTabBtnMax.X - newTabBtnMin.X - newTabIconSize.X) / 2f + 4f,
-                newTabBtnMin.Y + (newTabBtnMax.Y - newTabBtnMin.Y - newTabIconSize.Y) / 2f + 4f);
-            // ⚠️ AddText 必须显式传当前字体（FontAwesomeSmall），否则用窗口开始时的字体
-            ImGui.GetWindowDrawList().AddText(newTabIconFont, newTabIconFont.FontSize, newTabIconPos,
-                ImGui.GetColorU32(ImGuiCol.Text), FontAwesomeIcon.Plus.ToIconString());
         }
 
         using (var namePopup = ImRaii.Popup("chat2-new-tab-name"))
@@ -1356,10 +1344,10 @@ public partial class ChatLog : Window, IChatWindow
         var style = ImGui.GetStyle();
         // 顶部标签页文字用固定大小字体（TabFont，12pt），压缩短边高度
         using var tabFont = Plugin.FontManager.TabFont.Push();
-        var tabHeight = (ImGui.GetTextLineHeight() + style.FramePadding.Y * 2 * 0.3f) * 0.75f;
+        var tabHeight = (ImGui.GetTextLineHeight() + style.FramePadding.Y * 2) * 0.9f;
         var drawList = ImGui.GetWindowDrawList();
 
-        var unreadGreen = new Vector4(0.29f, 0.88f, 0.54f, 1.0f);
+        var unreadGreen = UnreadGreen();
         var dividerColor = ImGui.GetColorU32(new Vector4(0.25f, 0.25f, 0.25f, 0.55f));
         var barBgColor = ImGui.GetColorU32(new Vector4(0.12f, 0.12f, 0.12f, 0.5f));
         var activeColor = ImGui.GetColorU32(new Vector4(0.28f, 0.28f, 0.28f, 0.6f));
@@ -1495,7 +1483,7 @@ public partial class ChatLog : Window, IChatWindow
             if (child)
             {
                 var previousTab = Plugin.CurrentTab;
-                var unreadGreen = new Vector4(0.29f, 0.88f, 0.54f, 1.0f);
+                var unreadGreen = UnreadGreen();
                     for (var tabI = 0; tabI < Plugin.Config.Tabs.Count; tabI++)
                     {
                         var tab = Plugin.Config.Tabs[tabI];
@@ -1531,6 +1519,18 @@ public partial class ChatLog : Window, IChatWindow
             DrawMessageLog(Plugin.Config.Tabs[currentTab], InputHandler.PayloadHandler, childHeight, hasTabSwitched);
 
         Plugin.WantedTab = null;
+    }
+
+    /// <summary>
+    /// 未读标签页文字颜色：荧光绿 + 缓慢呼吸灯闪烁（亮度 0.5~1.0，周期约 1.3 秒）。
+    /// 用户要求"荧光绿 + 呼吸灯"。
+    /// </summary>
+    private static Vector4 UnreadGreen()
+    {
+        // Environment.TickCount ms；2π / (TickCount 速率) ≈ 每 1.57s 一个周期 → 缓慢呼吸
+        var pulse = 0.5f + 0.5f * MathF.Sin(Environment.TickCount * 0.004f);
+        // 荧光绿 #39FF14，亮度随 pulse 呼吸
+        return new Vector4(0.224f * pulse, 1.0f * pulse, 0.078f * pulse, 1.0f);
     }
 
     private void DrawTabContextMenu(Tab tab, int i)

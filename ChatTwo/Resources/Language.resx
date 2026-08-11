@@ -224,7 +224,7 @@
         <value>Import all from game</value>
     </data>
     <data name="Options_Tabs_Tab">
-        <value>Tabs</value>
+        <value>Tabs (Settings)</value>
     </data>
     <data name="Options_Tabs_Add">
         <value>Add</value>
@@ -1574,4 +1574,10 @@ Your old database can still be recovered, please contact the plugin author for h
     <data name="Options_DatabaseGatherCraftMessages_Description" xml:space="preserve">
         <value>If gathering and crafting messages are saved to the database, the size of the database will grow much faster, and there will be a noticeable freeze when saving settings. It is recommended to leave this disabled.</value>
     </data>
-</root>
+    <data name="Options_InputAreaScale_Name">
+        <value>Input area scale</value>
+    </data>
+    <data name="Options_InputAreaScale_Description">
+        <value>Scale of the input box, side icons, tab text and trailing + button (50% - 200%).</value>
+    </data>
+</root>    

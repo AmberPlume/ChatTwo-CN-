@@ -115,6 +115,12 @@ public class Configuration : IPluginConfiguration
     public float SettingsFontSize = 14f;
     public ExtraGlyphRanges ExtraGlyphRanges = 0;
     public float FontSizeV2 = 14f;
+
+    /// <summary>
+    /// 输入区缩放（1.0 = 100%）。影响输入框、输入框左右图标、tab 文字、tab 末尾 + 按钮的视觉大小。
+    /// 与主聊天字体（FontSizeV2）独立。
+    /// </summary>
+    public float InputAreaScale = 1.0f;
     public float SymbolsFontSizeV2 = 12.75f;
     public SingleFontSpec GlobalFontV2 = new()
     {
@@ -200,6 +206,7 @@ public class Configuration : IPluginConfiguration
         ItalicEnabled = other.ItalicEnabled;
         ExtraGlyphRanges = other.ExtraGlyphRanges;
         FontSizeV2 = other.FontSizeV2;
+        InputAreaScale = other.InputAreaScale;
         GlobalFontV2 = other.GlobalFontV2;
         JapaneseFontV2 = other.JapaneseFontV2;
         ItalicFontV2 = other.ItalicFontV2;

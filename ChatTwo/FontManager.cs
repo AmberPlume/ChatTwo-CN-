@@ -129,6 +129,9 @@ public class FontManager
         var mainFontId = new DalamudAssetFontAndFamilyId(DalamudAsset.NotoSansCjkRegular);
         var jpFontId = new DalamudAssetFontAndFamilyId(DalamudAsset.NotoSansCjkMedium);
         var baseSizePt = Plugin.Config.FontSizeV2;
+        // 输入区缩放（用户要求与卫月全局字体比例同逻辑：重建字体时字号乘比例，
+        // 这样 drawList 手动渲染的文字（tab 文字）也自然缩放）
+        var inputScale = Plugin.Config.InputAreaScale;
 
         Axis = Plugin.Interface.UiBuilder.FontAtlas.NewGameFontHandle(new GameFontStyle(GameFontFamily.Axis, SizeInPx(baseSizePt)));
         AxisItalic = Plugin.Interface.UiBuilder.FontAtlas.NewGameFontHandle(new GameFontStyle(GameFontFamily.Axis, SizeInPx(baseSizePt))
@@ -146,7 +149,7 @@ public class FontManager
         // 输入区图标字体：固定 12px（气泡/齿轮/隐藏/新人按钮同尺寸，不随主字体设置变化）
         FontAwesomeSmall = Plugin.Interface.UiBuilder.FontAtlas.NewDelegateFontHandle(e =>
         {
-            e.OnPreBuild(tk => tk.AddFontAwesomeIconFont(new SafeFontConfig { SizePx = 12f }));
+            e.OnPreBuild(tk => tk.AddFontAwesomeIconFont(new SafeFontConfig { SizePx = 12f * inputScale }));
             e.OnPostBuild(tk => tk.FitRatio(tk.Font));
         });
 
@@ -172,7 +175,7 @@ public class FontManager
         ItalicFont = null;
 
         // 小号字体：固定 12pt（输入框频道名等 UI 元素，不随主字体设置变化）
-        const float smallFontSizePt = 12f;
+        var smallFontSizePt = 12f * inputScale;
         SmallFont = Plugin.Interface.UiBuilder.FontAtlas.NewDelegateFontHandle(
             e => e.OnPreBuild(
                 tk =>
@@ -195,10 +198,10 @@ public class FontManager
             e => e.OnPreBuild(
                 tk =>
                 {
-                    var config = new SafeFontConfig {SizePt = Plugin.Config.InputFontSize, GlyphRanges = Ranges};
+                    var config = new SafeFontConfig {SizePt = Plugin.Config.InputFontSize * inputScale, GlyphRanges = Ranges};
                     config.MergeFont = mainFontId.AddToBuildToolkit(tk, config);
 
-                    config.SizePt = Plugin.Config.InputFontSize;
+                    config.SizePt = Plugin.Config.InputFontSize * inputScale;
                     config.GlyphRanges = JpRange;
                     jpFontId.AddToBuildToolkit(tk, config);
 
@@ -227,7 +230,7 @@ public class FontManager
             ));
 
         // 标签页字体：固定 12pt（不随"字体大小"变化）
-        const float tabFontSizePt = 12f;
+        var tabFontSizePt = 12f * inputScale;
         TabFont = Plugin.Interface.UiBuilder.FontAtlas.NewDelegateFontHandle(
             e => e.OnPreBuild(
                 tk =>

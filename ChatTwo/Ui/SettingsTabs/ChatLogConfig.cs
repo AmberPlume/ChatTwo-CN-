@@ -35,6 +35,10 @@ public sealed class ChatLogConfig : ISettingsTab
                 ImGui.Spacing();
             }
 
+            // 输入区缩放：影响输入框、左右图标、tab 文字、末尾 + 按钮
+            ImGuiUtil.DragFloatVertical(Language.Options_InputAreaScale_Name, Language.Options_InputAreaScale_Description, ref Mutable.InputAreaScale, 0.05f, 0.5f, 2.0f, $"{Mutable.InputAreaScale * 100f:N0}%%", ImGuiSliderFlags.AlwaysClamp);
+            ImGui.Spacing();
+
             ImGuiUtil.DragFloatVertical(Language.Options_WindowOpacity_Name, ref Mutable.WindowAlpha, .25f, 0f, 100f, $"{Mutable.WindowAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
 

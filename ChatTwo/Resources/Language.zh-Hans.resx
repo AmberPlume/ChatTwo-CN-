@@ -225,7 +225,7 @@
   </data>
 
   <data name="Options_Tabs_Tab">
-    <value>标签页</value>
+    <value>消息设置</value>
   </data>
   <data name="Options_Tabs_Add">
     <value>添加</value>
@@ -1564,4 +1564,10 @@
   <data name="Options_Tab_SetTarget" xml:space="preserve">
         <value>Set to target</value>
     </data>
-</root>
+  <data name="Options_InputAreaScale_Name">
+    <value>输入区缩放</value>
+  </data>
+  <data name="Options_InputAreaScale_Description">
+    <value>调整输入框、左右图标、tab 文字和末尾 + 按钮的大小（50% - 200%）。</value>
+  </data>
+</root>  

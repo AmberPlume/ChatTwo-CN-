@@ -3578,7 +3578,25 @@ namespace ChatTwo.Resources {
                 return ResourceManager.GetString("Options_InputFontSize_Name", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Looks up a localized string similar to 输入区缩放.
+        /// </summary>
+        internal static string Options_InputAreaScale_Name {
+            get {
+                return ResourceManager.GetString("Options_InputAreaScale_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 调整输入框、左右图标、tab 文字和末尾 + 按钮的大小（50% - 200%）.
+        /// </summary>
+        internal static string Options_InputAreaScale_Description {
+            get {
+                return ResourceManager.GetString("Options_InputAreaScale_Description", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to Size of the text in the chat input box. The input box height follows this size..
         /// </summary>
