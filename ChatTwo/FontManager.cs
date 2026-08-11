@@ -110,6 +110,8 @@ public class FontManager
         }
 
         var ranges = new List<nint> { (nint)ImGui.GetIO().Fonts.GetGlyphRangesDefault() };
+        // 完整 CJK 基本区（SimplifiedCommon 缺"频"等常用字会豆腐；Full 绝不缺字）
+        ranges.Add((nint)ImGui.GetIO().Fonts.GetGlyphRangesChineseFull());
         foreach (var extraRange in Enum.GetValues<ExtraGlyphRanges>())
             if (Plugin.Config.ExtraGlyphRanges.HasFlag(extraRange))
                 ranges.Add(extraRange.Range());

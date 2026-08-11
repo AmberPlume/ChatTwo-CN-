@@ -273,8 +273,9 @@ public class MessageStore : IDisposable
 
                 UPDATE messages SET
                                     ChatType = Code & 0x7f,
-                                    SourceKind = trunc(log2(1 << ((Code >> 11) & 0xF))),
-                                    TargetKind = trunc(log2(1 << ((Code >> 7) & 0xF)))
+                                    -- log2(1 << n) == n，直接用移位值（避免依赖 SQLite 数学函数扩展）
+                                    SourceKind = (Code >> 11) & 0xF,
+                                    TargetKind = (Code >> 7) & 0xF
                 WHERE true;
 
                 DROP INDEX idx_messages_channel;

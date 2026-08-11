@@ -122,6 +122,8 @@ public class Configuration : IPluginConfiguration
     /// 与主聊天字体（FontSizeV2）独立。
     /// </summary>
     public float InputAreaScale = 1.0f;
+    // 是否已从原版 ChatTwo 迁移过配置（迁移按钮防重复用）
+    public bool MigratedFromChatTwo;
     public float SymbolsFontSizeV2 = 12.75f;
     public SingleFontSpec GlobalFontV2 = new()
     {
@@ -208,6 +210,7 @@ public class Configuration : IPluginConfiguration
         ExtraGlyphRanges = other.ExtraGlyphRanges;
         FontSizeV2 = other.FontSizeV2;
         InputAreaScale = other.InputAreaScale;
+        MigratedFromChatTwo = other.MigratedFromChatTwo;
         GlobalFontV2 = other.GlobalFontV2;
         JapaneseFontV2 = other.JapaneseFontV2;
         ItalicFontV2 = other.ItalicFontV2;
