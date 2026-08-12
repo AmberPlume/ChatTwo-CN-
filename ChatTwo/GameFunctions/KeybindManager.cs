@@ -372,11 +372,6 @@ public unsafe class KeybindManager : IDisposable {
         return KeyPressed(source, key) && modifierPressed;
     }
 
-    private static bool ConfigKeybindPressed(KeyboardSource source, ConfigKeyBind? bind, ModifierFlag? modifierState = null, bool modifiersOnly = false)
-    {
-        return bind != null && ComboPressed(source, bind.Key, bind.Modifier, modifierState: modifierState, modifiersOnly: modifiersOnly);
-    }
-
     private void HandleKeybinds(IFramework _ ) => HandleKeybinds(KeyboardSource.Game);
 
     public void HandleKeybinds(KeyboardSource source, bool ignoreChatOpen = false, bool modifiersOnly = false)
@@ -420,21 +415,6 @@ public unsafe class KeybindManager : IDisposable {
                 ImGui.SetClipboardText(selText);
                 return;
             }
-        }
-
-        // Test for custom keybinds for changing chat tabs before checking
-        // vanilla keybinds.
-        if (ConfigKeybindPressed(source, Plugin.Config.ChatTabForward))
-        {
-            Plugin.KeyState[Plugin.Config.ChatTabForward!.Key] = false;
-            Plugin.ChatLog.ChangeTabDelta(1);
-            return;
-        }
-        if (ConfigKeybindPressed(source, Plugin.Config.ChatTabBackward))
-        {
-            Plugin.KeyState[Plugin.Config.ChatTabBackward!.Key] = false;
-            Plugin.ChatLog.ChangeTabDelta(-1);
-            return;
         }
 
         // Only process the active combo with the most modifiers.

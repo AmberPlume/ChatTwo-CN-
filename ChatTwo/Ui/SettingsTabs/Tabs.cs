@@ -204,11 +204,9 @@ public sealed class Tabs : ISettingsTab
             if (tab.PopOut)
             {
                 using var _ = ImRaii.PushIndent(10.0f);
-                ImGui.Checkbox(Language.Options_Tabs_SupportInput, ref tab.SupportsInput);
+                // 显示输入区域设置已删除：游戏原生弹出的消息窗口不能输入，PopOut 固定无输入区
 
-                ImGui.Checkbox(Language.Options_Tabs_IndependentOpacity, ref tab.IndependentOpacity);
-                if (tab.IndependentOpacity)
-                    ImGuiUtil.DragFloatVertical(Language.Options_Tabs_Opacity, ref tab.Opacity, 0.25f, 0f, 100f, $"{tab.Opacity:N2}%%", ImGuiSliderFlags.AlwaysClamp);
+                // 独立透明度已移除：PopOut 统一跟随主窗口四项透明度设置
 
                 ImGui.Checkbox(Language.Options_Tabs_IndependentHide, ref tab.IndependentHide);
                 if (tab.IndependentHide)
@@ -228,9 +226,6 @@ public sealed class Tabs : ISettingsTab
 
                     // "在战斗中隐藏"已删除：保持关闭（用户要求）
                 }
-
-                ImGuiUtil.OptionCheckbox(ref tab.CanMove, Language.Popout_CanMove_Name);
-                ImGui.Spacing();
 
                 ImGuiUtil.OptionCheckbox(ref tab.CanResize, Language.Popout_CanResize_Name);
                 ImGui.Spacing();

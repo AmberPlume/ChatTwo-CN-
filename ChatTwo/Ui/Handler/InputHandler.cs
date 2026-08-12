@@ -95,13 +95,11 @@ public class InputHandler
 
             var chatCopy = ChatInput;
 
-            // 输入框背景透明度跟随窗口设置（与窗口 BgAlpha 同源）：
-            // 主窗口用 WindowAlpha，弹出窗可独立透明度；停靠时不透明（窗口背景也不透明）
+            // 输入框背景透明度独立（InputAlpha，四透明度之一）；主窗口与 PopOut 统一跟随；
+            // 停靠时不透明（窗口背景也不透明）
             var inputBgAlpha = ImGui.IsWindowDocked()
                 ? 100f
-                : MainWindow is Popout && activeTab.IndependentOpacity
-                    ? activeTab.Opacity
-                    : Plugin.Config.WindowAlpha;
+                : Plugin.Config.InputAlpha;
             var bgAlphaF = inputBgAlpha / 100f;
             using (ImRaii.PushColor(ImGuiCol.FrameBg, ImGui.GetColorU32(ImGuiCol.FrameBg, bgAlphaF), bgAlphaF < 1f))
             using (ImRaii.PushColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, bgAlphaF), bgAlphaF < 1f))
@@ -122,8 +120,8 @@ public class InputHandler
             var inputActive = ImGui.IsItemActive();
             InputFocused = isChatEnabled && inputActive;
 
-            // 仿原生着色：输入框轮廓——外圈 1px 黑线（与背景交融）+ 内圈 1px 灰白线（可见边界），四角磨圆
-            if (Plugin.Config.NativeBackground)
+            // 输入框轮廓描边（用户要求默认界面也描边，不再限于仿原生）：外圈 1px 黑线
+            //（与背景交融）+ 内圈 1px 灰白线（可见边界），四角磨圆
             {
                 var rMin = ImGui.GetItemRectMin();
                 var rMax = ImGui.GetItemRectMax();

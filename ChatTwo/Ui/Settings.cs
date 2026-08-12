@@ -38,7 +38,7 @@ public sealed class SettingsWindow : Window
             new ChatColours(Plugin, Mutable),
             new Tabs(Plugin, Mutable),
             new Database(Plugin, Mutable),
-            // 偏好页已删除：语言/命令帮助方向/热键模式选项已移除（热键固定严格模式）
+            // 偏好页已删除：语言/命令帮助方向/热键模式选项已移除（频道切换策略固定"灵活"，见 Plugin.cs）
             // 字体页已合并到显示页
         ];
 
@@ -55,6 +55,22 @@ public sealed class SettingsWindow : Window
     {
         Plugin.Interface.UiBuilder.OpenConfigUi -= Toggle;
         Plugin.Commands.Register("/chat2").Execute -= Command;
+    }
+
+    /// <summary>
+    /// 窗口操作（弹出/收回 tab）与设置窗口 Mutable 副本同步：
+    /// 否则设置打开期间收回 tab，保存设置会把 PopOut 写回 true（tab 又弹出）。
+    /// </summary>
+    public void SyncTabPopOut(Guid tabIdentifier, bool popOut)
+    {
+        foreach (var tab in Mutable.Tabs)
+        {
+            if (tab.Identifier == tabIdentifier)
+            {
+                tab.PopOut = popOut;
+                break;
+            }
+        }
     }
 
     private void Command(string command, string args)

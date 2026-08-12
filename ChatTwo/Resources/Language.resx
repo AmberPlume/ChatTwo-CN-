@@ -1557,7 +1557,7 @@ Your old database can still be recovered, please contact the plugin author for h
         <value>Loading logs ...</value>
     </data>
     <data name="Options_Tabs_SupportInput" xml:space="preserve">
-        <value>Show Input Area</value>
+        <value>显示输入区域</value>
     </data>
     <data name="Options_Tabs_TellTabChannelSelection" xml:space="preserve">
         <value>Channel selection is disabled for tell tabs.</value>
