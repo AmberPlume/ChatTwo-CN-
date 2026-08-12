@@ -374,11 +374,13 @@ public partial class ChatLog : Window, IChatWindow
 
         // Hit-test using LastWindowPos/Size (set from inside Begin/End in a
         // previous frame — the only reliable coords we have before Begin runs).
+        // 偏移量必须与 DrawTopRightResizeHandle 的绘制位置一致（默认 3px / 仿原生 8px）
         var st = ImGui.GetStyle();
         const float hSize = 16f;
+        var handleInset = Plugin.Config.NativeBackground ? 8f : 3f;
         var handleMin = new Vector2(
-            LastWindowPos.X + LastWindowSize.X - hSize - st.WindowPadding.X,
-            LastWindowPos.Y + st.WindowPadding.Y);
+            LastWindowPos.X + LastWindowSize.X - hSize - st.WindowPadding.X - handleInset,
+            LastWindowPos.Y + st.WindowPadding.Y + handleInset);
         var handleMax = handleMin + new Vector2(hSize, hSize);
         var mp = ImGui.GetIO().MousePos;
         MouseOverResizeHandle = mp.X >= handleMin.X && mp.X <= handleMax.X
@@ -519,10 +521,13 @@ public partial class ChatLog : Window, IChatWindow
         var style = ImGui.GetStyle();
         const float hSize = 16f;
 
-        // 缩放手柄位置：略向消息框内部偏移（避免贴窗口角落边界、和消息框边界重合）
+        // 缩放手柄位置：默认界面贴窗口背景右上角内侧 3px（恰到好处）；
+        // 仿原生时窗口透明、消息区背景只有 4px 圆角，手柄需再内缩（8px > 圆角），
+        // 让斜线整体落在消息区背景内，避免悬在透明区/圆角弧线上（用户实测偏离）
+        var handleInset = Plugin.Config.NativeBackground ? 8f : 3f;
         var localPos = new Vector2(
-            windowSize.X - hSize - style.WindowPadding.X - 3f,
-            style.WindowPadding.Y + 3f);
+            windowSize.X - hSize - style.WindowPadding.X - handleInset,
+            style.WindowPadding.Y + handleInset);
 
         var mousePos = ImGui.GetIO().MousePos;
         var handleRectMin = windowPos + localPos;
@@ -944,6 +949,14 @@ public partial class ChatLog : Window, IChatWindow
     private bool _userScrolled; // 本帧用户是否滚轮滚动（禁止自动贴底用）
     private bool _wasHidden;
 
+    // 消息区背景色：RGB 取当前 style 的 WindowBg（与默认界面窗口背景同源，保持
+    // 相同透明度下观感一致；用户导入的自定义样式也自动跟随），alpha 跟随窗口透明度设置
+    private Vector4 MessageLogBgColor()
+    {
+        var winBg = ImGui.GetStyle().Colors[(int)ImGuiCol.WindowBg];
+        return new Vector4(winBg.X, winBg.Y, winBg.Z, Plugin.Config.WindowAlpha / 100f);
+    }
+
     public void DrawMessageLog(Tab tab, PayloadHandler handler, float childHeight, bool switchedTab)
     {
         // 字体 atlas 异步构建（插件加载后首个 Draw 帧可能尚未就绪）：主字体未就绪时
@@ -953,8 +966,9 @@ public partial class ChatLog : Window, IChatWindow
         if (!mainFontHandle.Available && mainFontHandle.LoadException == null)
             return;
 
-        // 仿原生着色：窗口透明后消息区单独补回背景（黑色跟随窗口透明度设置）
-        using var msgBg = ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0f, 0f, 0f, Plugin.Config.WindowAlpha / 100f), Plugin.Config.NativeBackground);
+        // 仿原生着色：消息区背景颜色取 WindowBg 的 RGB（与默认界面窗口背景一致，
+        // 纯黑 (0,0,0) 在相同 alpha 下会明显更深——用户实测），alpha 跟随窗口透明度设置
+        using var msgBg = ImRaii.PushColor(ImGuiCol.ChildBg, MessageLogBgColor(), Plugin.Config.NativeBackground);
         // 消息框圆角（放消息的区域，不是输入框）
         using var msgRound = ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 4f);
 
@@ -1320,8 +1334,6 @@ public partial class ChatLog : Window, IChatWindow
         var extraBottomPadding = tabBarHeight;
         var childHeight = GetRemainingHeightForMessageLog(extraBottomPadding);
 
-        // 仿原生着色：窗口透明后消息区单独补回背景（黑色跟随窗口透明度设置）
-        using var msgBg = ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0f, 0f, 0f, Plugin.Config.WindowAlpha / 100f), Plugin.Config.NativeBackground);
         // 消息框圆角（放消息的区域，不是输入框）
         using var msgRound = ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 4f);
 
@@ -1335,6 +1347,18 @@ public partial class ChatLog : Window, IChatWindow
         using var child = ImRaii.Child("##chat2-bottom-log", new Vector2(-1, childHeight), false, ImGuiWindowFlags.NoScrollWithMouse);
         if (!child.Success)
             return;
+
+        // 仿原生着色：窗口透明后消息区背景在此显式绘制（不走 ImGui child 背景）——
+        // 1) 颜色取 WindowBg 的 RGB + WindowAlpha（与默认界面窗口背景一致，纯黑会更深）；
+        // 2) ImGui child 背景的 ChildRounding 圆角会被内层 child（##chat2-messages，
+        //    8px padding 内）的矩形背景覆盖而不可见，显式 drawList 圆角矩形兜底
+        if (Plugin.Config.NativeBackground)
+        {
+            var dl = ImGui.GetWindowDrawList();
+            var cMin = ImGui.GetWindowPos();
+            var cMax = cMin + ImGui.GetWindowSize();
+            dl.AddRectFilled(cMin, cMax, ImGui.GetColorU32(MessageLogBgColor()), 4f);
+        }
 
         HandleWheelScrollLineByLine();
 
