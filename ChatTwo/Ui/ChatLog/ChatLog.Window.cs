@@ -253,15 +253,19 @@ public partial class ChatLog : Window, IChatWindow
 
     public float GetRemainingHeightForMessageLog(float extraBottomPadding = 0f)
     {
-        // 输入行高度基于"输入字体"计算（不随主字体变）：
-        // ⚠️ 之前用 ImGui.CalcTextSize("A").Y（当前字体=主字体），主字体 12→16 时消息区变矮、
-        //    输入行+tab 整体上移，tab 离窗口底边变远（用户实测）
-        // 输入字体变化时输入行高度随之变化 → 消息区反向调整 → 输入框向上/向下延伸、底边固定
-        float inputAreaHeight;
+        // 输入区实际高度 = 频道名行（SmallFont，随输入区缩放）+ 输入框行（InputFont，不随缩放）：
+        // 之前用 InputFont 的 FontSize×2 估算——100% 时高估（消息区多压→底部空白）、
+        // 200% 时低估（频道名行×2 但估算没跟上→tab 被底部截断）
+        float inputAreaHeight = 0f;
+        using (Plugin.FontManager.SmallFont.Push())
+            inputAreaHeight += ImGui.GetTextLineHeight();   // 频道名行
         using (Plugin.FontManager.InputFont.Push())
-            inputAreaHeight = ImGui.CalcTextSize("A").Y * 2;
-        var height = ImGui.GetContentRegionAvail().Y - inputAreaHeight - ImGui.GetStyle().ItemSpacing.Y - ImGui.GetStyle().FramePadding.Y * 2 - extraBottomPadding;
+            inputAreaHeight += ImGui.GetFontSize();         // 输入框行（padding Y=0 → 高=FontSize）
 
+        // 频道名行与输入行 ItemSpacing=0；tab 在输入行底部上移 2px（DrawChatLog 里
+        // SetCursorPosY(tabCursor.Y-2)）→ 消息区多占 2px（用户实测：+10 会让滚动区留白变大，
+        // 消息文本离输入框更远——方向相反，保持 +2f）
+        var height = ImGui.GetContentRegionAvail().Y - inputAreaHeight + 2f - extraBottomPadding;
         return height;
     }
 
@@ -280,6 +284,11 @@ public partial class ChatLog : Window, IChatWindow
 
     private void TabSwitched(Tab newTab, Tab previousTab)
     {
+        // 跨 tab 未读同步：新 tab 显示的消息 = 已读。其他 tab 有"同实例且尚未 Seen"的消息
+        // （即到达时该 tab 计过未读的）→ 同步减计数。场景：用户在 C 时 A/B 都收到同频道
+        // 消息都闪，切到 A 看后 B 的未读也一并清除
+        SyncSeenAcrossTabs(newTab);
+
         // Use the fixed channel if set by the user, or set it to the current tabs channel if this tab wasn't accessed before
         if (newTab.Channel is not null)
             newTab.CurrentChannel.Channel = newTab.Channel.Value;
@@ -295,6 +304,34 @@ public partial class ChatLog : Window, IChatWindow
         InputHandler.ActivatePos = InputHandler.InputFocused ? Encoding.UTF8.GetByteCount(InputHandler.ChatInput) : -1;
         SuppressNextActivate = !InputHandler.InputFocused;
         Plugin.Functions.Chat.SetChannelWithExtraChat(newTab.CurrentChannel.Channel);
+    }
+
+    // 切换 tab 时同步未读：新 tab 的可见消息 → 其他 tab 同实例的未读一并清除。
+    // 只处理 message.Seen=false 的（到达时被计数过的）；Seen=true 的本来就没计数，不减
+    private void SyncSeenAcrossTabs(Tab activeTab)
+    {
+        List<Message> msgs;
+        using (var locked = activeTab.Messages.GetReadOnly(3))
+            msgs = locked.ToList();
+        if (msgs.Count == 0)
+            return;
+
+        foreach (var message in msgs)
+        {
+            if (message.Seen)
+                continue;
+            foreach (var tab in Plugin.Config.Tabs)
+            {
+                if (tab == activeTab || tab.Unread <= 0)
+                    continue;
+                using var locked = tab.Messages.GetReadOnly(3);
+                if (locked.Contains(message))
+                    tab.Unread--;
+            }
+        }
+
+        foreach (var message in msgs)
+            message.Seen = true;
     }
 
     public void BeginFrame()
@@ -837,11 +874,29 @@ public partial class ChatLog : Window, IChatWindow
         CurrentHideState = HideState.User;
     }
 
+    private long _lastTopDiag;
+
     public void DrawMessageLog(Tab tab, PayloadHandler handler, float childHeight, bool switchedTab)
     {
+        // 字体 atlas 异步构建（插件加载后首个 Draw 帧可能尚未就绪）：主字体未就绪时
+        // IFontHandle.Push() 是 no-op，消息会用默认字体渲染并写入错误的高度缓存
+        // （message.Height），导致之后布局错乱/首行截断。等字体就绪再渲染。
+        var mainFontHandle = Plugin.Config.FontsEnabled ? Plugin.FontManager.RegularFont : Plugin.FontManager.Axis;
+        if (!mainFontHandle.Available && mainFontHandle.LoadException == null)
+            return;
+
         using var child = ImRaii.Child("##chat2-messages", new Vector2(-1, childHeight), false, ImGuiWindowFlags.NoScrollbar);
         if (!child.Success)
             return;
+
+        // 顶部截断诊断（暂注释，观察用）：打印消息区位置/滚动数据
+        // if (Environment.TickCount64 - _lastTopDiag > 3000)
+        // {
+        //     _lastTopDiag = Environment.TickCount64;
+        //     var winPos = ImGui.GetWindowPos();
+        //     var winSize = ImGui.GetWindowSize();
+        //     Plugin.Log.Info($"[ChatTop] childPos={winPos} childSize={winSize} scrollY={ImGui.GetScrollY():F1} maxY={ImGui.GetScrollMaxY():F1} cursorY={ImGui.GetCursorPosY():F1}");
+        // }
 
         Selection.Chunks.Clear(); // rebuild every frame (scroll changes positions)
         ImGuiUtil.CurrentSelection = Selection;
@@ -1184,10 +1239,10 @@ public partial class ChatLog : Window, IChatWindow
             using var tabFont = Plugin.FontManager.TabFont.Push();
             tabBarHeight = (ImGui.GetTextLineHeight() + style.FramePadding.Y * 2) * 0.9f;
         }
-        var separatorHeight = 1f + style.ItemSpacing.Y * 0.3f;
-        var extraBottomPadding = tabBarHeight + separatorHeight;
-        // 输入框在自动下移基础上再下移 6px（用户要求）：消息区增高 6px 即可
-        var childHeight = GetRemainingHeightForMessageLog(extraBottomPadding) + 5f;
+        // separatorHeight（1+ItemSpacing*0.3）是历史"分隔线余量"——实际 DrawBottomTabBar 不画 separator
+        // （tab 上移 2px 重叠已经是 separator），曾让 childHeight 偏大约 2px → 底部空白
+        var extraBottomPadding = tabBarHeight;
+        var childHeight = GetRemainingHeightForMessageLog(extraBottomPadding);
 
         using var child = ImRaii.Child("##chat2-bottom-log", new Vector2(-1, childHeight), false, ImGuiWindowFlags.NoScrollbar);
         if (!child.Success)
@@ -1286,9 +1341,11 @@ public partial class ChatLog : Window, IChatWindow
             {
                 anyClicked = true;
                 var previousTab = Plugin.CurrentTab;
+                // ⚠️ hasTabSwitched 必须在本行前算：LastTab 已被赋值为 tabI 后再判断
+                // `LastTab != tabI` 恒为 false → TabSwitched 永不执行 → 跨 tab 未读同步失效
+                var hasTabSwitched = Plugin.WantedTab == tabI || Plugin.LastTab != tabI;
                 Plugin.LastTab = tabI;
                 tab.Unread = 0;
-                var hasTabSwitched = Plugin.WantedTab == tabI || Plugin.LastTab != tabI;
                 if (hasTabSwitched)
                     TabSwitched(tab, previousTab);
             }
