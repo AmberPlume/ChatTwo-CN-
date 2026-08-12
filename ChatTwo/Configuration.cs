@@ -14,25 +14,6 @@ using Lumina.Text.ReadOnly;
 namespace ChatTwo;
 
 [Serializable]
-public class ConfigKeyBind
-{
-    public ModifierFlag Modifier;
-    public VirtualKey Key;
-
-    public override string ToString()
-    {
-        var modString = "";
-        if (Modifier.HasFlag(ModifierFlag.Ctrl))
-            modString += Language.Keybind_Modifier_Ctrl + " + ";
-        if (Modifier.HasFlag(ModifierFlag.Shift))
-            modString += Language.Keybind_Modifier_Shift + " + ";
-        if (Modifier.HasFlag(ModifierFlag.Alt))
-            modString += Language.Keybind_Modifier_Alt + " + ";
-        return modString+Key.GetFancyName();
-    }
-}
-
-[Serializable]
 public enum MigrationStatus
 {
     NotStarted,
@@ -74,9 +55,8 @@ public class Configuration : IPluginConfiguration
     public TabPosition TabPosition = TabPosition.Bottom;
     public bool PrintChangelog = true;
     public CommandHelpSide CommandHelpSide = CommandHelpSide.None;
-    public KeybindMode KeybindMode = KeybindMode.Strict;
+    public KeybindMode KeybindMode = KeybindMode.Flexible;
     public LanguageOverride LanguageOverride = LanguageOverride.None;
-    public bool CanMove = true;
     public bool CanResize = true;
     public bool ShowTitleBar;
     public bool ShowPopOutTitleBar; // 用户要求：关闭（不再显示在设置中）
@@ -143,8 +123,12 @@ public class Configuration : IPluginConfiguration
         SizePt = 12.75f,
     };
 
-    public float TooltipOffset;
     public float WindowAlpha = 100f;
+    // 四透明度分离（v1.40.9+）：WindowAlpha=消息区透明度；新增背景/标签页/输入框透明度。
+    // 哨兵 -1：首次加载时复制 WindowAlpha（旧配置无缝迁移，见 EnsureAlphaMigration）
+    public float BackgroundAlpha = -1f;
+    public float TabAlpha = -1f;
+    public float InputAlpha = -1f;
     // 仿原生界面背景：只有消息区/输入框/标签页有背景，窗口其余区域完全透明
     public bool NativeBackground;
     public Dictionary<ChatType, uint> ChatColours = new();
@@ -153,8 +137,6 @@ public class Configuration : IPluginConfiguration
     public bool OverrideStyle;
     public string? ChosenStyle;
 
-    public ConfigKeyBind? ChatTabForward;
-    public ConfigKeyBind? ChatTabBackward;
 
     // Migration safety
     public MigrationStatus MigrationStatus = MigrationStatus.NotStarted;
@@ -188,7 +170,6 @@ public class Configuration : IPluginConfiguration
         CommandHelpSide = other.CommandHelpSide;
         KeybindMode = other.KeybindMode;
         LanguageOverride = other.LanguageOverride;
-        CanMove = other.CanMove;
         CanResize = other.CanResize;
         ShowTitleBar = other.ShowTitleBar;
         ShowPopOutTitleBar = other.ShowPopOutTitleBar;
@@ -217,16 +198,27 @@ public class Configuration : IPluginConfiguration
         JapaneseFontV2 = other.JapaneseFontV2;
         ItalicFontV2 = other.ItalicFontV2;
         SymbolsFontSizeV2 = other.SymbolsFontSizeV2;
-        TooltipOffset = other.TooltipOffset;
         WindowAlpha = other.WindowAlpha;
+        BackgroundAlpha = other.BackgroundAlpha;
+        TabAlpha = other.TabAlpha;
+        InputAlpha = other.InputAlpha;
         NativeBackground = other.NativeBackground;
         ChatColours = other.ChatColours.ToDictionary(entry => entry.Key, entry => entry.Value);
         Tabs = other.Tabs.Select(t => t.Clone()).ToList();
         OverrideStyle = other.OverrideStyle;
         ChosenStyle = other.ChosenStyle;
-        ChatTabForward = other.ChatTabForward;
-        ChatTabBackward = other.ChatTabBackward;
         MigrationStatus = other.MigrationStatus;
+    }
+
+    /// <summary>
+    /// 四透明度迁移：旧配置没有 BackgroundAlpha/TabAlpha/InputAlpha（哨兵 -1），
+    /// 首次调用时复制 WindowAlpha（消息区透明度），保持既有视觉不变。
+    /// </summary>
+    public void EnsureAlphaMigration()
+    {
+        if (BackgroundAlpha < 0f) BackgroundAlpha = WindowAlpha;
+        if (TabAlpha < 0f) TabAlpha = WindowAlpha;
+        if (InputAlpha < 0f) InputAlpha = WindowAlpha;
     }
 }
 
@@ -279,7 +271,6 @@ public class Tab
     public bool InputDisabled;
     public bool SupportsInput;
 
-    public bool CanMove = true;
     public bool CanResize = true;
 
     public bool IndependentHide;
@@ -373,7 +364,6 @@ public class Tab
             InputDisabled = InputDisabled,
             SupportsInput = SupportsInput,
             CurrentChannel = CurrentChannel.Clone(),
-            CanMove = CanMove,
             CanResize = CanResize,
             IndependentHide = IndependentHide,
             HideDuringCutscenes = HideDuringCutscenes,

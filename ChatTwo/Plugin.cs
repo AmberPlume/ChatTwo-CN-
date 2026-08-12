@@ -97,6 +97,8 @@ public sealed class Plugin : IDalamudPlugin
             GameStarted = Process.GetCurrentProcess().StartTime.ToUniversalTime();
 
             Config = Interface.GetPluginConfig() as Configuration ?? new Configuration();
+            // 四透明度迁移：新字段（背景/标签页/输入框透明度）首次复制消息区透明度
+            Config.EnsureAlphaMigration();
 
             // 以下选项已锁定，不再显示在设置界面中（用户要求）：
             // 强制开启：播放音效 / 显示新人频道加入按钮 / 显示隐藏按钮 / 显示原始道具帮助
@@ -107,6 +109,8 @@ public sealed class Plugin : IDalamudPlugin
             // 强制关闭：显示聊天窗口标题栏 / 显示弹出标签页标题栏
             Config.ShowTitleBar = false;
             Config.ShowPopOutTitleBar = false;
+            // 频道切换策略：改回"灵活"（此前用户要求固定严格，现恢复）
+            Config.KeybindMode = KeybindMode.Flexible;
             // 中文适配：界面语言固定简体中文。
             // ⚠️ 不能设为 None：None 会跟随 Interface.UiLanguage（国服卫月返回 "en"），界面会变英文
             Config.LanguageOverride = LanguageOverride.ChineseSimplified;

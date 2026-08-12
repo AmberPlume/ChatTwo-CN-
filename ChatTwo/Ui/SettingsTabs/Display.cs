@@ -59,10 +59,9 @@ public sealed class Display : ISettingsTab
         ImGuiUtil.HelpText(Language.Options_TabPosition_Description);
         ImGui.Spacing();
 
-        ImGuiUtil.OptionCheckbox(ref Mutable.CanMove, Language.Options_CanMove_Name);
-        ImGui.Spacing();
-
-        ImGuiUtil.OptionCheckbox(ref Mutable.CanResize, Language.Options_CanResize_Name);
+        // 允许调整聊天窗口大小：设置项已移除，保持开启（大小由仿原生缩放手柄控制）
+        // 仿原生界面背景：移到基础设置此处（原允许调整聊天窗口大小位置）
+        ImGuiUtil.OptionCheckbox(ref Mutable.NativeBackground, "仿原生界面背景", "只给消息区、输入框、标签页保留背景，窗口其余区域完全透明（显示游戏画面）。");
         ImGui.Spacing();
 
         ImGui.Separator();

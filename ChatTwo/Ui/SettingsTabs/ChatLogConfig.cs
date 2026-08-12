@@ -28,19 +28,21 @@ public sealed class ChatLogConfig : ISettingsTab
 
             // 播放音效 / 显示新人频道加入按钮 / 显示隐藏按钮 / 显示原始道具帮助：
             // 用户要求锁定开启且不再显示在设置中（默认值已在 Configuration 中固定）
-
-            if (Mutable.NativeItemTooltips)
-            {
-                ImGuiUtil.DragFloatVertical(Language.Options_TooltipOffset_Name, Language.Options_TooltipOffset_Desc, ref Mutable.TooltipOffset, 1, 0f, 400f, $"{Mutable.TooltipOffset:N0}px", ImGuiSliderFlags.AlwaysClamp);
-                ImGui.Spacing();
-            }
+            // 提示窗口偏移设置项已删除（TooltipOffset 对当前实现无效）
 
             // 输入区缩放：影响输入框、左右图标、tab 文字、末尾 + 按钮
             ImGuiUtil.DragFloatVertical(Language.Options_InputAreaScale_Name, Language.Options_InputAreaScale_Description, ref Mutable.InputAreaScale, 0.05f, 0.5f, 2.0f, $"{Mutable.InputAreaScale * 100f:N0}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
 
-            ImGuiUtil.DragFloatVertical(Language.Options_WindowOpacity_Name, ref Mutable.WindowAlpha, .25f, 0f, 100f, $"{Mutable.WindowAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
-            ImGuiUtil.OptionCheckbox(ref Mutable.NativeBackground, "仿原生界面背景", "只给消息区、输入框、标签页保留背景，窗口其余区域完全透明（显示游戏画面）。");
+            // 四透明度分离：消息区（原窗口透明度，字段名 WindowAlpha 保留）/
+            // 背景 / 标签页 / 输入框。PopOut 统一跟随四项（独立透明度已移除）
+            ImGuiUtil.DragFloatVertical("消息区透明度", "消息区背景（聊天内容区域）的透明度。", ref Mutable.WindowAlpha, .25f, 0f, 100f, $"{Mutable.WindowAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
+            ImGui.Spacing();
+            ImGuiUtil.DragFloatVertical("背景透明度", "窗口整体背景的透明度（仿原生界面下窗口透明，此项无效）。", ref Mutable.BackgroundAlpha, .25f, 0f, 100f, $"{Mutable.BackgroundAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
+            ImGui.Spacing();
+            ImGuiUtil.DragFloatVertical("标签页透明度", "底部标签页栏背景的透明度。", ref Mutable.TabAlpha, .25f, 0f, 100f, $"{Mutable.TabAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
+            ImGui.Spacing();
+            ImGuiUtil.DragFloatVertical("输入框透明度", "输入框背景的透明度。", ref Mutable.InputAlpha, .25f, 0f, 100f, $"{Mutable.InputAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
 
             if (ImGuiUtil.InputIntVertical(Language.Options_MaxLinesToShow_Name, Language.Options_MaxLinesToShow_Description, ref Mutable.MaxLinesToRender))
@@ -52,17 +54,28 @@ public sealed class ChatLogConfig : ISettingsTab
             ImGuiUtil.OptionCheckbox(ref Mutable.OverrideStyle, Language.Options_OverrideStyle_Name, Language.Options_OverrideStyle_Name_Desc);
             ImGui.Spacing();
 
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-
-            ImGui.TextUnformatted(Language.Options_ChatTabForwardKeybind_Name);
-            ImGui.SetNextItemWidth(-1);
-            ImGuiUtil.KeybindInput("ChatTabForwardKeybind", ref Mutable.ChatTabForward);
-
-            ImGui.TextUnformatted(Language.Options_ChatTabBackwardKeybind_Name);
-            ImGui.SetNextItemWidth(-1);
-            ImGuiUtil.KeybindInput("ChatTabBackwardKeybind", ref Mutable.ChatTabBackward);
+            // 覆盖样式下拉紧跟复选框（此前在方法末尾隔着快捷键区，展开位置不对）
+            if (Mutable.OverrideStyle)
+            {
+                var styles = StyleModel.GetConfiguredStyles();
+                if (styles == null)
+                {
+                    ImGui.TextUnformatted(Language.Options_OverrideStyle_NotAvailable);
+                    ImGui.Spacing();
+                }
+                else
+                {
+                    var currentStyle = Mutable.ChosenStyle ?? Language.Options_OverrideStyle_NotSelected;
+                    using var combo = ImRaii.Combo(Language.Options_OverrideStyleDropdown_Name, currentStyle);
+                    if (combo)
+                    {
+                        foreach (var style in styles)
+                            if (ImGui.Selectable(style.Name, Mutable.ChosenStyle == style.Name))
+                                Mutable.ChosenStyle = style.Name;
+                    }
+                }
+                ImGui.Spacing();
+            }
 
             ImGui.Spacing();
             ImGui.Separator();
@@ -76,27 +89,5 @@ public sealed class ChatLogConfig : ISettingsTab
             ImGuiUtil.WarningText(Language.Options_AdjustPosition_Warning);
             ImGui.Spacing();
         }
-
-        if (!Mutable.OverrideStyle)
-            return;
-
-        var styles = StyleModel.GetConfiguredStyles();
-        if (styles == null)
-        {
-            ImGui.TextUnformatted(Language.Options_OverrideStyle_NotAvailable);
-            ImGui.Spacing();
-            return;
-        }
-
-        var currentStyle = Mutable.ChosenStyle ?? Language.Options_OverrideStyle_NotSelected;
-        using var combo = ImRaii.Combo(Language.Options_OverrideStyleDropdown_Name, currentStyle);
-        if (combo)
-        {
-            foreach (var style in styles)
-                if (ImGui.Selectable(style.Name, Mutable.ChosenStyle == style.Name))
-                    Mutable.ChosenStyle = style.Name;
-        }
-
-        ImGui.Spacing();
     }
 }

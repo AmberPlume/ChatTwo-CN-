@@ -407,12 +407,12 @@ public sealed class PayloadHandler
             case UriPayload uri:
                 WrapperUtil.TryOpenUri(uri.Uri);
                 break;
-            // TEMPORARILY DISABLED: Left-click on plain text was opening the
-        // context menu (screenshot mode, hide chat, copy, copy content),
-        // which interferes with text selection. Commented out for testing.
-        // default:
-        //     RightClickPayload(chunk, payload);
-        //     break;
+            // 左键点击有 payload 的内容（玩家/道具等）→ 与右键一致弹菜单（模拟原生聊天框：
+            // 原生左键点玩家名同样弹菜单）。原版为迁就文本选择 TEMPORARILY DISABLED 了 default，
+            // 现按需求恢复；文本选择保留给"点击空白处"（见 DrawMessageLog 点击处理）。
+            default:
+                RightClickPayload(chunk, payload);
+                break;
         }
     }
 
