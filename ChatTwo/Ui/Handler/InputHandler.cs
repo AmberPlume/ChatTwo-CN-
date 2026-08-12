@@ -122,6 +122,22 @@ public class InputHandler
             var inputActive = ImGui.IsItemActive();
             InputFocused = isChatEnabled && inputActive;
 
+            // 仿原生着色：输入框轮廓——外圈 1px 黑线（与背景交融）+ 内圈 1px 灰白线（可见边界），四角磨圆
+            if (Plugin.Config.NativeBackground)
+            {
+                var rMin = ImGui.GetItemRectMin();
+                var rMax = ImGui.GetItemRectMax();
+                var dl = ImGui.GetWindowDrawList();
+                var grayCol = inputActive
+                    ? ImGui.GetColorU32(new Vector4(0.85f, 0.85f, 0.85f, 0.6f))
+                    : ImGui.GetColorU32(new Vector4(0.80f, 0.80f, 0.80f, 0.35f));
+                var blackCol = ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 0.45f));
+                dl.AddRect(rMin - new Vector2(1f, 1f), rMax + new Vector2(1f, 1f), blackCol, 4f, ImDrawFlags.None, 1f);
+                dl.AddRect(rMin, rMax, grayCol, 4f, ImDrawFlags.None, 1f);
+            }
+
+
+
             if (ImGui.IsItemDeactivated())
             {
                 if (ImGui.IsKeyDown(ImGuiKey.Escape))

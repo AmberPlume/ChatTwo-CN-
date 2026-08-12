@@ -40,6 +40,7 @@ public sealed class ChatLogConfig : ISettingsTab
             ImGui.Spacing();
 
             ImGuiUtil.DragFloatVertical(Language.Options_WindowOpacity_Name, ref Mutable.WindowAlpha, .25f, 0f, 100f, $"{Mutable.WindowAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
+            ImGuiUtil.OptionCheckbox(ref Mutable.NativeBackground, "仿原生界面背景", "只给消息区、输入框、标签页保留背景，窗口其余区域完全透明（显示游戏画面）。");
             ImGui.Spacing();
 
             if (ImGuiUtil.InputIntVertical(Language.Options_MaxLinesToShow_Name, Language.Options_MaxLinesToShow_Description, ref Mutable.MaxLinesToRender))
