@@ -266,6 +266,12 @@ public partial class ChatLog : Window, IChatWindow
         // SetCursorPosY(tabCursor.Y-2)）→ 消息区多占 2px（用户实测：+10 会让滚动区留白变大，
         // 消息文本离输入框更远——方向相反，保持 +2f）
         var height = ImGui.GetContentRegionAvail().Y - inputAreaHeight + 2f - extraBottomPadding;
+        // ⚠️ title bar 空间补偿：隐藏聊天框→重新显示后 ImGui 恢复 title bar 空间
+        // （cminY 从 8 变负，实测 -31）→ 内容区上移 → 窗口底部露出 WindowBg 空白。
+        // 把该空间加回消息区高度（加在光标位置会被 avail 变小抵消，之前实测无效）
+        var contentMinY = ImGui.GetWindowContentRegionMin().Y;
+        if (contentMinY < 0f)
+            height -= contentMinY;
         return height;
     }
 
@@ -347,6 +353,18 @@ public partial class ChatLog : Window, IChatWindow
 
     public override unsafe void PreOpenCheck()
     {
+        // ⚠️ 隐藏聊天框→重新显示时，ImGui 窗口数据处于 inactive 状态会被重建，
+        // 导致 content region 损坏（cminY 从 8 变负、cmax 逐次上移、底部露空白）。
+        // 转换帧强制 SetNextWindowSize/Pos 让 ImGui 用隐藏前的位置大小重建布局。
+        if (_wasHidden)
+        {
+            _wasHidden = false;
+            if (LastWindowSize != Vector2.Zero)
+                ImGui.SetNextWindowSize(LastWindowSize, ImGuiCond.Always);
+            if (LastWindowPos != Vector2.Zero)
+                ImGui.SetNextWindowPos(LastWindowPos, ImGuiCond.Always);
+        }
+
         Flags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoFocusOnAppearing;
 
         Flags |= ImGuiWindowFlags.NoResize;
@@ -372,7 +390,8 @@ public partial class ChatLog : Window, IChatWindow
             Flags |= ImGuiWindowFlags.NoMove;
 
         if (LastViewport == ImGuiHelpers.MainViewport.Handle && !WasDocked)
-            BgAlpha = Plugin.Config.WindowAlpha / 100f;
+            // 仿原生着色：窗口整体透明，背景只保留在消息区/输入框/标签页
+            BgAlpha = Plugin.Config.NativeBackground ? 0f : Plugin.Config.WindowAlpha / 100f;
 
         LastViewport = ImGui.GetWindowViewport().Handle;
         WasDocked = ImGui.IsWindowDocked();
@@ -382,7 +401,11 @@ public partial class ChatLog : Window, IChatWindow
     {
         InputHandler.FrameTime = Environment.TickCount64;
         if (IsHidden)
+        {
+            // 记录隐藏状态，供恢复显示时重置 ImGui 窗口数据（见 PreOpenCheck）
+            _wasHidden = true;
             return false;
+        }
 
         if (!Plugin.Config.HideWhenInactive || (!Plugin.Config.InactivityHideActiveDuringBattle && Plugin.InBattle) ||  InputHandler.Activate)
         {
@@ -496,9 +519,10 @@ public partial class ChatLog : Window, IChatWindow
         var style = ImGui.GetStyle();
         const float hSize = 16f;
 
+        // 缩放手柄位置：略向消息框内部偏移（避免贴窗口角落边界、和消息框边界重合）
         var localPos = new Vector2(
-            windowSize.X - hSize - style.WindowPadding.X,
-            style.WindowPadding.Y);
+            windowSize.X - hSize - style.WindowPadding.X - 3f,
+            style.WindowPadding.Y + 3f);
 
         var mousePos = ImGui.GetIO().MousePos;
         var handleRectMin = windowPos + localPos;
@@ -510,15 +534,37 @@ public partial class ChatLog : Window, IChatWindow
             ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
 
         var drawList = ImGui.GetWindowDrawList();
-        var color = hovered || IsResizingTopRight
+        // 仿原生 FFXIV 缩放手柄：金字塔形——三条平行的 NW-SE 斜线，长度递增
+        // （最上面短、中间稍长、底部最长），短线一端对准右上角，淡白色
+        var lineColor = hovered || IsResizingTopRight
             ? ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.8f))
             : ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.4f));
 
-        // Draw NW-SE corner triangle (screen-space coords for DrawList)
-        var apex = windowPos + new Vector2(localPos.X + hSize, localPos.Y);
-        var baseA = windowPos + new Vector2(localPos.X + 2f, localPos.Y + 2f);
-        var baseB = windowPos + new Vector2(localPos.X + hSize - 2f, localPos.Y + hSize - 2f);
-        drawList.AddTriangleFilled(apex, baseA, baseB, color);
+        const float thickness = 2f;
+        // 金字塔形缩放手柄：三条平行斜线，方向"从左上到右下"（反斜杠 \，斜率 +1），长度递增，
+        // 短线右端贴右上角 apex，中/长线沿 (1,-1) 方向向左下排列
+        var p = windowPos + localPos; // handle 左上角（屏幕坐标）
+        // 几何约束：左端 A/B/C 的 Y 相同（y=2）、右端 1/2/3 的 X 相同（x=15），
+        // 三线斜率恒为 1（45°，y右 = 2 + 15 - x左），间距 6，长度递增 7.1 → 15.6 → 24
+        drawList.AddLine(p + new Vector2(10f, 2f), p + new Vector2(15f, 7f), lineColor, thickness);   // 短 A→1
+        drawList.AddLine(p + new Vector2(4f, 2f), p + new Vector2(15f, 13f), lineColor, thickness);   // 中 B→2
+        drawList.AddLine(p + new Vector2(-2f, 2f), p + new Vector2(15f, 19f), lineColor, thickness);  // 长 C→3
+    }
+
+    // 滚轮一次只滚动一行（原版行为）。_pendingWheel 由 DrawChatLog 开头记录（已清零 IO，
+    // ImGui 不自动滚），这里手动滚 1 行；边界由 ImGui clamp 自然处理
+    private void HandleWheelScrollLineByLine()
+    {
+        // 不检查 IsWindowHovered：鼠标在滚动条/输入区上（child 外）也要能滚消息区；
+        // DrawChatLog 开头已确认鼠标在本窗口内（RootAndChildWindows）才记录 _pendingWheel
+        if (Math.Abs(_pendingWheel) < 0.001f) return;
+        // ⚠️ 外层容器 child（##chat2-bottom-log）刚 Begin 时内容未画、maxY=0——此时消费
+        // SetScrollY 无效且会吞掉滚动，导致内层真实滚动区（##chat2-messages）拿不到。
+        // maxY<=0 时不消费，留给内层。
+        if (ImGui.GetScrollMaxY() <= 0f)
+            return;
+        ImGui.SetScrollY(ImGui.GetScrollY() - _pendingWheel * ImGui.GetTextLineHeight());
+        _pendingWheel = 0f;
     }
 
     private void DrawCustomLeftScrollbar()
@@ -550,12 +596,14 @@ public partial class ChatLog : Window, IChatWindow
                       && mousePos.Y >= barMin.Y && mousePos.Y <= barMax.Y;
 
         var drawList = ImGui.GetWindowDrawList();
-        var bgColor = ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.08f));
+        // 仿原生 FFXIV 滚动条：轨道是一条很细的淡线 + thumb 荧光白稍带黄
+        var trackX = barMin.X + scrollBarWidth / 2f;
+        drawList.AddLine(new Vector2(trackX, barMin.Y), new Vector2(trackX, barMax.Y),
+            ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.22f)), 1f);
         var thumbColor = (thumbHovered || ImGui.IsMouseDragging(ImGuiMouseButton.Left))
-            ? ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.55f))
-            : ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.35f));
+            ? ImGui.GetColorU32(new Vector4(1.00f, 1.00f, 0.96f, 1.00f))
+            : ImGui.GetColorU32(new Vector4(1.00f, 0.99f, 0.90f, 0.85f));
 
-        drawList.AddRectFilled(barMin, barMax, bgColor, scrollBarWidth / 2f);
         drawList.AddRectFilled(thumbMin, thumbMax, thumbColor, scrollBarWidth / 2f);
 
         var clicked = ImGui.IsMouseClicked(ImGuiMouseButton.Left);
@@ -581,6 +629,22 @@ public partial class ChatLog : Window, IChatWindow
 
     private unsafe void DrawChatLog()
     {
+        // 滚动条颜色由 DrawCustomLeftScrollbar 自定义绘制（不走 ImGui 滚动条颜色）
+
+        // 滚轮接管：鼠标在本窗口区域时，记录滚轮值并清零 IO——ImGui 不会自动滚 3 行，
+        // 由消息区 child 手动按 1 行滚（边界由 ImGui clamp 自然处理，不会"弹回"）
+        _userScrolled = false; // 每帧重置；用户滚轮滚动时置 true → 本帧禁止自动贴底
+        if (ImGui.IsWindowHovered(ImGuiHoveredFlags.RootAndChildWindows))
+        {
+            var wheel = ImGui.GetIO().MouseWheel;
+            if (Math.Abs(wheel) > 0.001f)
+            {
+                ImGui.GetIO().MouseWheel = 0f;
+                _pendingWheel = wheel;
+                _userScrolled = true;
+            }
+        }
+
         // Position change has applied, so we set it to null again
         Position = null;
 
@@ -655,7 +719,9 @@ public partial class ChatLog : Window, IChatWindow
             iconButtonHeight = ImGui.GetFrameHeight();
         var iconTop = rowTop + inputBoxHeight - iconButtonHeight;
 
-        // 频道切换"气泡"按钮：底部对齐输入框底边
+        // 频道切换"气泡"按钮：底部对齐输入框底边。⚠️ 必须先回到行首 X——
+        // 否则会沿用频道名行末的 X，气泡和输入框都被频道名宽度挤到右边
+        ImGui.SetCursorPosX(0f);
         using (Plugin.FontManager.FontAwesomeSmall.Push())
         {
             ImGui.SetCursorPosY(iconTop);
@@ -874,7 +940,9 @@ public partial class ChatLog : Window, IChatWindow
         CurrentHideState = HideState.User;
     }
 
-    private long _lastTopDiag;
+    private float _pendingWheel;
+    private bool _userScrolled; // 本帧用户是否滚轮滚动（禁止自动贴底用）
+    private bool _wasHidden;
 
     public void DrawMessageLog(Tab tab, PayloadHandler handler, float childHeight, bool switchedTab)
     {
@@ -885,18 +953,23 @@ public partial class ChatLog : Window, IChatWindow
         if (!mainFontHandle.Available && mainFontHandle.LoadException == null)
             return;
 
-        using var child = ImRaii.Child("##chat2-messages", new Vector2(-1, childHeight), false, ImGuiWindowFlags.NoScrollbar);
+        // 仿原生着色：窗口透明后消息区单独补回背景（黑色跟随窗口透明度设置）
+        using var msgBg = ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0f, 0f, 0f, Plugin.Config.WindowAlpha / 100f), Plugin.Config.NativeBackground);
+        // 消息框圆角（放消息的区域，不是输入框）
+        using var msgRound = ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 4f);
+
+        // ⚠️ 不用 NoScrollbar：ImGui 对 NoScrollbar 窗口的 SetScrollY 是 no-op（手动滚动失效）。
+        // 改用 NoScrollWithMouse（阻止自动滚）+ 隐藏 ImGui 滚动条（透明）——滚动完全由我们控制
+        using var sbGrab = ImRaii.PushColor(ImGuiCol.ScrollbarGrab, 0u);
+        using var sbGrabHovered = ImRaii.PushColor(ImGuiCol.ScrollbarGrabHovered, 0u);
+        using var sbGrabActive = ImRaii.PushColor(ImGuiCol.ScrollbarGrabActive, 0u);
+        using var sbBg = ImRaii.PushColor(ImGuiCol.ScrollbarBg, 0u);
+        using var sbSize = ImRaii.PushStyle(ImGuiStyleVar.ScrollbarSize, 0f);
+        using var child = ImRaii.Child("##chat2-messages", new Vector2(-1, childHeight), false, ImGuiWindowFlags.NoScrollWithMouse);
         if (!child.Success)
             return;
 
-        // 顶部截断诊断（暂注释，观察用）：打印消息区位置/滚动数据
-        // if (Environment.TickCount64 - _lastTopDiag > 3000)
-        // {
-        //     _lastTopDiag = Environment.TickCount64;
-        //     var winPos = ImGui.GetWindowPos();
-        //     var winSize = ImGui.GetWindowSize();
-        //     Plugin.Log.Info($"[ChatTop] childPos={winPos} childSize={winSize} scrollY={ImGui.GetScrollY():F1} maxY={ImGui.GetScrollMaxY():F1} cursorY={ImGui.GetCursorPosY():F1}");
-        // }
+        HandleWheelScrollLineByLine();
 
         Selection.Chunks.Clear(); // rebuild every frame (scroll changes positions)
         ImGuiUtil.CurrentSelection = Selection;
@@ -988,7 +1061,9 @@ public partial class ChatLog : Window, IChatWindow
         using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
             DrawMessages(tab, handler, false);
 
-        if (switchedTab || ImGui.GetScrollY() >= ImGui.GetScrollMaxY())
+        // ⚠️ 用户手动滚轮时禁止自动贴底：SetScrollY 设的是 ScrollTarget，当帧 GetScrollY()
+        // 还是旧值（底部）→ 贴底判断仍成立 → SetScrollHereY(1f) 把滚动拉回底部 → 向上滚失效
+        if (switchedTab || (!_userScrolled && ImGui.GetScrollY() >= ImGui.GetScrollMaxY()))
             ImGui.SetScrollHereY(1f);
 
         handler.Draw();
@@ -1017,7 +1092,8 @@ public partial class ChatLog : Window, IChatWindow
             {
                 // Custom styles can have cellPadding that go above 4, which GetScrollY isn't respecting
                 var cellPaddingOffset = !compact && oldCellPadding.Y > 4f ? oldCellPadding.Y - 4f : 0f;
-                if (switchedTab || ImGui.GetScrollY() + cellPaddingOffset >= ImGui.GetScrollMaxY())
+                // ⚠️ 用户手动滚轮时禁止自动贴底（同上，否则向上滚动被拉回底部）
+                if (switchedTab || (!_userScrolled && ImGui.GetScrollY() + cellPaddingOffset >= ImGui.GetScrollMaxY()))
                     ImGui.SetScrollHereY(1f);
 
                 handler.Draw();
@@ -1244,9 +1320,23 @@ public partial class ChatLog : Window, IChatWindow
         var extraBottomPadding = tabBarHeight;
         var childHeight = GetRemainingHeightForMessageLog(extraBottomPadding);
 
-        using var child = ImRaii.Child("##chat2-bottom-log", new Vector2(-1, childHeight), false, ImGuiWindowFlags.NoScrollbar);
+        // 仿原生着色：窗口透明后消息区单独补回背景（黑色跟随窗口透明度设置）
+        using var msgBg = ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0f, 0f, 0f, Plugin.Config.WindowAlpha / 100f), Plugin.Config.NativeBackground);
+        // 消息框圆角（放消息的区域，不是输入框）
+        using var msgRound = ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 4f);
+
+        // ⚠️ 不用 NoScrollbar：ImGui 对 NoScrollbar 窗口的 SetScrollY 是 no-op（手动滚动失效）。
+        // 改用 NoScrollWithMouse（阻止自动滚）+ 隐藏 ImGui 滚动条（透明）——滚动完全由我们控制
+        using var sbGrab = ImRaii.PushColor(ImGuiCol.ScrollbarGrab, 0u);
+        using var sbGrabHovered = ImRaii.PushColor(ImGuiCol.ScrollbarGrabHovered, 0u);
+        using var sbGrabActive = ImRaii.PushColor(ImGuiCol.ScrollbarGrabActive, 0u);
+        using var sbBg = ImRaii.PushColor(ImGuiCol.ScrollbarBg, 0u);
+        using var sbSize = ImRaii.PushStyle(ImGuiStyleVar.ScrollbarSize, 0f);
+        using var child = ImRaii.Child("##chat2-bottom-log", new Vector2(-1, childHeight), false, ImGuiWindowFlags.NoScrollWithMouse);
         if (!child.Success)
             return;
+
+        HandleWheelScrollLineByLine();
 
         if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
             InputHandler.LastActivityTime = InputHandler.FrameTime;
@@ -1269,10 +1359,13 @@ public partial class ChatLog : Window, IChatWindow
         var barBgColor = ImGui.GetColorU32(new Vector4(0.12f, 0.12f, 0.12f, 0.5f));
         var activeColor = ImGui.GetColorU32(new Vector4(0.28f, 0.28f, 0.28f, 0.6f));
 
-        // Draw continuous background bar
+        // 仿原生着色时只给 tab 本身颜色（不画整条背景）；普通模式保持整条背景条
         var barStart = ImGui.GetCursorScreenPos();
-        var barWidth = ImGui.GetContentRegionAvail().X;
-        drawList.AddRectFilled(barStart, new Vector2(barStart.X + barWidth, barStart.Y + tabHeight), barBgColor);
+        if (!Plugin.Config.NativeBackground)
+        {
+            var barWidth = ImGui.GetContentRegionAvail().X;
+            drawList.AddRectFilled(barStart, new Vector2(barStart.X + barWidth, barStart.Y + tabHeight), barBgColor);
+        }
 
         var unreadGreen = UnreadGreen();
 
@@ -1309,18 +1402,17 @@ public partial class ChatLog : Window, IChatWindow
             var size = new Vector2(textWidth + style.FramePadding.X * 2 + 20f, tabHeight);
             using var unreadCol = ImRaii.PushColor(ImGuiCol.Text, unreadGreen, hasUnread);
 
-            // Highlight active tab
-            if (active)
-            {
-                var activePos = ImGui.GetCursorScreenPos();
-                drawList.AddRectFilled(activePos, new Vector2(activePos.X + size.X, activePos.Y + tabHeight), activeColor);
-            }
-
             // 按钮只负责命中检测（隐藏文字），文字手动绘制并垂直居中（同顶部标签页）
             var clicked = ImGui.Button($"##bottom-tab-{tabI}", size);
 
             var btnMin = ImGui.GetItemRectMin();
             var btnMax = ImGui.GetItemRectMax();
+            // 仿原生着色：每个 tab 独立背景块（active 高亮 / 非 active 深色）
+            // 普通模式：整条背景条已提供底色，只需 active 高亮
+            if (active)
+                drawList.AddRectFilled(btnMin, btnMax, activeColor);
+            else if (Plugin.Config.NativeBackground)
+                drawList.AddRectFilled(btnMin, btnMax, barBgColor);
             var activeFont = ImGui.GetFont();
             var tabTextSize = ImGui.CalcTextSize(tab.Name);
             // 垂直居中：CJK 字形视觉中心 ≈ baseline − FontSize × 0.38，再上提 5px（用户实测校准）

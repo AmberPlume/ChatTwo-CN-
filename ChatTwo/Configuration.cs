@@ -145,6 +145,8 @@ public class Configuration : IPluginConfiguration
 
     public float TooltipOffset;
     public float WindowAlpha = 100f;
+    // 仿原生界面背景：只有消息区/输入框/标签页有背景，窗口其余区域完全透明
+    public bool NativeBackground;
     public Dictionary<ChatType, uint> ChatColours = new();
     public List<Tab> Tabs = [];
 
@@ -217,6 +219,7 @@ public class Configuration : IPluginConfiguration
         SymbolsFontSizeV2 = other.SymbolsFontSizeV2;
         TooltipOffset = other.TooltipOffset;
         WindowAlpha = other.WindowAlpha;
+        NativeBackground = other.NativeBackground;
         ChatColours = other.ChatColours.ToDictionary(entry => entry.Key, entry => entry.Value);
         Tabs = other.Tabs.Select(t => t.Clone()).ToList();
         OverrideStyle = other.OverrideStyle;
