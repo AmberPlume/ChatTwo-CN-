@@ -25,6 +25,24 @@ namespace ChatTwo.Ui.ChatLog;
 
 public partial class ChatLog : Window, IChatWindow
 {
+    // cimgui 的 igSetNextWindowScroll（Begin 前锁定滚动位置，唤出帧当帧即生效）。
+    // 防御式加载：导出不存在时返回 null，降级用 Begin 后的 SetScrollY(0)（下帧生效）。
+    private static readonly unsafe delegate* unmanaged<Vector2, void> ResetScrollFn = LoadResetScrollFn();
+
+    private static unsafe delegate* unmanaged<Vector2, void> LoadResetScrollFn()
+    {
+        try
+        {
+            var handle = NativeLibrary.Load("cimgui");
+            var ptr = NativeLibrary.GetExport(handle, "igSetNextWindowScroll");
+            return (delegate* unmanaged<Vector2, void>)ptr;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private const string ChatChannelPicker = "chat-channel-picker";
 
     private readonly Plugin Plugin;
@@ -266,12 +284,10 @@ public partial class ChatLog : Window, IChatWindow
         // SetCursorPosY(tabCursor.Y-2)）→ 消息区多占 2px（用户实测：+10 会让滚动区留白变大，
         // 消息文本离输入框更远——方向相反，保持 +2f）
         var height = ImGui.GetContentRegionAvail().Y - inputAreaHeight + 2f - extraBottomPadding;
-        // ⚠️ title bar 空间补偿：隐藏聊天框→重新显示后 ImGui 恢复 title bar 空间
-        // （cminY 从 8 变负，实测 -31）→ 内容区上移 → 窗口底部露出 WindowBg 空白。
-        // 把该空间加回消息区高度（加在光标位置会被 avail 变小抵消，之前实测无效）
-        var contentMinY = ImGui.GetWindowContentRegionMin().Y;
-        if (contentMinY < 0f)
-            height -= contentMinY;
+        // ⚠️ 已移除 title bar 空间补偿（cminY<0 时 height -= contentMinY）：
+        // 它随 cminY 负值每帧放大消息区（+31px/次）→ ContentSize 涨 → ScrollMax 涨，
+        // 与唤出帧滚动恢复叠加形成逐次累积（实验 2：scrollMaxY 39→70→101→132）。
+        // 滚动恢复已由 PreOpenCheck 的 SetNextWindowScroll(0) 根治，此补偿不再需要。
         return height;
     }
 
@@ -353,17 +369,20 @@ public partial class ChatLog : Window, IChatWindow
 
     public override unsafe void PreOpenCheck()
     {
-        // ⚠️ 隐藏聊天框→重新显示时，ImGui 窗口数据处于 inactive 状态会被重建，
-        // 导致 content region 损坏（cminY 从 8 变负、cmax 逐次上移、底部露空白）。
-        // 转换帧强制 SetNextWindowSize/Pos 让 ImGui 用隐藏前的位置大小重建布局。
-        if (_wasHidden)
+        // ⚠️【根因修复】主窗口从不需要滚动（布局自适应填满，滚动全在消息区 child 内）：
+        // 隐藏聊天框→重新显示时 ImGui 会恢复窗口滚动位置（隐藏前 scroll 被推至 ScrollMax=39，
+        // 内容区整体上移 → 仿原生透明下露出"顶部空白"）。SetNextWindowScroll(0) 在 Begin 前
+        // 每帧锁定 scroll=0，唤出帧当帧即恢复正常（实验 2 日志证实 scrollY=39→70→101 逐次累积）。
+        unsafe
         {
-            _wasHidden = false;
-            if (LastWindowSize != Vector2.Zero)
-                ImGui.SetNextWindowSize(LastWindowSize, ImGuiCond.Always);
-            if (LastWindowPos != Vector2.Zero)
-                ImGui.SetNextWindowPos(LastWindowPos, ImGuiCond.Always);
+            if (ResetScrollFn != null)
+                ResetScrollFn(Vector2.Zero);
+            else
+                ImGui.SetScrollY(0f); // 降级：仅在下帧生效（唤出帧当帧可能闪一行）
         }
+
+        if (_wasHidden)
+            _wasHidden = false;
 
         Flags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoFocusOnAppearing;
 
@@ -378,7 +397,7 @@ public partial class ChatLog : Window, IChatWindow
         var st = ImGui.GetStyle();
         const float hSize = 16f;
         var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
-        var insetY = Plugin.Config.NativeBackground ? -2f : 3f;
+        var insetY = Plugin.Config.NativeBackground ? 4f : 3f;
         var handleMin = new Vector2(
             LastWindowPos.X + LastWindowSize.X - hSize - st.WindowPadding.X - insetX,
             LastWindowPos.Y + st.WindowPadding.Y + insetY);
@@ -526,7 +545,7 @@ public partial class ChatLog : Window, IChatWindow
         // 仿原生：X 内缩 8px 落在消息区背景内；Y 用户实测"再往上 2px 就对了"
         // （Y inset=-2 → 手柄顶 = WindowPadding.Y - 2）
         var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
-        var insetY = Plugin.Config.NativeBackground ? -2f : 3f;
+        var insetY = Plugin.Config.NativeBackground ? 4f : 3f;
         var localPos = new Vector2(
             windowSize.X - hSize - style.WindowPadding.X - insetX,
             style.WindowPadding.Y + insetY);
@@ -651,6 +670,11 @@ public partial class ChatLog : Window, IChatWindow
                 _userScrolled = true;
             }
         }
+
+        // 滚动恢复诊断（v1.40.9 已撤）：
+        // cminY/cmaxY 是 Scroll 的投影，必须配合 GetScrollY/GetScrollMaxY 一起看；
+        // 隐藏唤出后 scrollY = 唤出前 scrollMaxY（ImGui 固有恢复行为，issue #5993）。
+        // 根因修复见 PreOpenCheck 的 SetNextWindowScroll(0)。
 
         // Position change has applied, so we set it to null again
         Position = null;
