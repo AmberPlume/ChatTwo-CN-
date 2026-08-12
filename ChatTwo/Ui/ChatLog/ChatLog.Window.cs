@@ -374,13 +374,14 @@ public partial class ChatLog : Window, IChatWindow
 
         // Hit-test using LastWindowPos/Size (set from inside Begin/End in a
         // previous frame — the only reliable coords we have before Begin runs).
-        // 偏移量必须与 DrawTopRightResizeHandle 的绘制位置一致（默认 3px / 仿原生 8px）
+        // 偏移量必须与 DrawTopRightResizeHandle 的绘制位置一致（默认 3px / 仿原生 X8 Y-2）
         var st = ImGui.GetStyle();
         const float hSize = 16f;
-        var handleInset = Plugin.Config.NativeBackground ? 8f : 3f;
+        var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
+        var insetY = Plugin.Config.NativeBackground ? -2f : 3f;
         var handleMin = new Vector2(
-            LastWindowPos.X + LastWindowSize.X - hSize - st.WindowPadding.X - handleInset,
-            LastWindowPos.Y + st.WindowPadding.Y + handleInset);
+            LastWindowPos.X + LastWindowSize.X - hSize - st.WindowPadding.X - insetX,
+            LastWindowPos.Y + st.WindowPadding.Y + insetY);
         var handleMax = handleMin + new Vector2(hSize, hSize);
         var mp = ImGui.GetIO().MousePos;
         MouseOverResizeHandle = mp.X >= handleMin.X && mp.X <= handleMax.X
@@ -522,12 +523,13 @@ public partial class ChatLog : Window, IChatWindow
         const float hSize = 16f;
 
         // 缩放手柄位置：默认界面贴窗口背景右上角内侧 3px（恰到好处）；
-        // 仿原生时窗口透明、消息区背景只有 4px 圆角，手柄需再内缩（8px > 圆角），
-        // 让斜线整体落在消息区背景内，避免悬在透明区/圆角弧线上（用户实测偏离）
-        var handleInset = Plugin.Config.NativeBackground ? 8f : 3f;
+        // 仿原生：X 内缩 8px 落在消息区背景内；Y 用户实测"再往上 2px 就对了"
+        // （Y inset=-2 → 手柄顶 = WindowPadding.Y - 2）
+        var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
+        var insetY = Plugin.Config.NativeBackground ? -2f : 3f;
         var localPos = new Vector2(
-            windowSize.X - hSize - style.WindowPadding.X - handleInset,
-            style.WindowPadding.Y + handleInset);
+            windowSize.X - hSize - style.WindowPadding.X - insetX,
+            style.WindowPadding.Y + insetY);
 
         var mousePos = ImGui.GetIO().MousePos;
         var handleRectMin = windowPos + localPos;
@@ -950,11 +952,14 @@ public partial class ChatLog : Window, IChatWindow
     private bool _wasHidden;
 
     // 消息区背景色：RGB 取当前 style 的 WindowBg（与默认界面窗口背景同源，保持
-    // 相同透明度下观感一致；用户导入的自定义样式也自动跟随），alpha 跟随窗口透明度设置
+    // 相同透明度下观感一致；用户导入的自定义样式也自动跟随）。
+    // ⚠️ alpha 必须乘 WindowBg 的 alpha 分量：ImGui 渲染窗口背景时最终 alpha =
+    // BgAlpha × WindowBg.alpha（相乘）——只取 WindowAlpha/100 会丢掉样式 alpha，
+    // 在 WindowBg.alpha<1 时消息区比默认界面更不透明（更深），用户实测过
     private Vector4 MessageLogBgColor()
     {
         var winBg = ImGui.GetStyle().Colors[(int)ImGuiCol.WindowBg];
-        return new Vector4(winBg.X, winBg.Y, winBg.Z, Plugin.Config.WindowAlpha / 100f);
+        return new Vector4(winBg.X, winBg.Y, winBg.Z, winBg.W * (Plugin.Config.WindowAlpha / 100f));
     }
 
     public void DrawMessageLog(Tab tab, PayloadHandler handler, float childHeight, bool switchedTab)
@@ -967,10 +972,12 @@ public partial class ChatLog : Window, IChatWindow
             return;
 
         // 仿原生着色：消息区背景颜色取 WindowBg 的 RGB（与默认界面窗口背景一致，
-        // 纯黑 (0,0,0) 在相同 alpha 下会明显更深——用户实测），alpha 跟随窗口透明度设置
-        using var msgBg = ImRaii.PushColor(ImGuiCol.ChildBg, MessageLogBgColor(), Plugin.Config.NativeBackground);
-        // 消息框圆角（放消息的区域，不是输入框）
-        using var msgRound = ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 4f);
+        // 纯黑 (0,0,0) 在相同 alpha 下会明显更深——用户实测），alpha 跟随窗口透明度设置。
+        // ⚠️ 嵌套模式（childHeight<=0，bottom tab 布局外层已显式画圆角背景）不画内层背景——
+        // 否则内层矩形背景会盖住外层圆角弧线（用户实测：只有底边两角圆、顶边两角直角）
+        using var msgBg = ImRaii.PushColor(ImGuiCol.ChildBg, MessageLogBgColor(), Plugin.Config.NativeBackground && childHeight > 0f);
+        // 消息框圆角（放消息的区域，不是输入框；4px 太小用户看不到，加大 8px）
+        using var msgRound = ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 8f);
 
         // ⚠️ 不用 NoScrollbar：ImGui 对 NoScrollbar 窗口的 SetScrollY 是 no-op（手动滚动失效）。
         // 改用 NoScrollWithMouse（阻止自动滚）+ 隐藏 ImGui 滚动条（透明）——滚动完全由我们控制
@@ -1334,8 +1341,8 @@ public partial class ChatLog : Window, IChatWindow
         var extraBottomPadding = tabBarHeight;
         var childHeight = GetRemainingHeightForMessageLog(extraBottomPadding);
 
-        // 消息框圆角（放消息的区域，不是输入框）
-        using var msgRound = ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 4f);
+        // 消息框圆角（放消息的区域，不是输入框；4px 太小用户看不到，加大 8px）
+        using var msgRound = ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 8f);
 
         // ⚠️ 不用 NoScrollbar：ImGui 对 NoScrollbar 窗口的 SetScrollY 是 no-op（手动滚动失效）。
         // 改用 NoScrollWithMouse（阻止自动滚）+ 隐藏 ImGui 滚动条（透明）——滚动完全由我们控制
@@ -1357,7 +1364,13 @@ public partial class ChatLog : Window, IChatWindow
             var dl = ImGui.GetWindowDrawList();
             var cMin = ImGui.GetWindowPos();
             var cMax = cMin + ImGui.GetWindowSize();
-            dl.AddRectFilled(cMin, cMax, ImGui.GetColorU32(MessageLogBgColor()), 4f);
+
+            // ⚠️ child 默认 clip 会把顶部圆角弧线裁掉（用户实测：顶部直角、底部圆角）——
+            // PushClipRect 完全替换 clip（第三个参数必须 false！true=取交集，等于没扩）到
+            // 整个 child 矩形，四角圆角完整渲染（rounding 8 合适，20 过头）
+            dl.PushClipRect(cMin, cMax, false);
+            dl.AddRectFilled(cMin, cMax, ImGui.GetColorU32(MessageLogBgColor()), 8f);
+            dl.PopClipRect();
         }
 
         HandleWheelScrollLineByLine();
