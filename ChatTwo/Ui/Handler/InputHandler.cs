@@ -94,6 +94,18 @@ public class InputHandler
                 ImGui.SetKeyboardFocusHere();
 
             var chatCopy = ChatInput;
+
+            // 输入框背景透明度跟随窗口设置（与窗口 BgAlpha 同源）：
+            // 主窗口用 WindowAlpha，弹出窗可独立透明度；停靠时不透明（窗口背景也不透明）
+            var inputBgAlpha = ImGui.IsWindowDocked()
+                ? 100f
+                : MainWindow is Popout && activeTab.IndependentOpacity
+                    ? activeTab.Opacity
+                    : Plugin.Config.WindowAlpha;
+            var bgAlphaF = inputBgAlpha / 100f;
+            using (ImRaii.PushColor(ImGuiCol.FrameBg, ImGui.GetColorU32(ImGuiCol.FrameBg, bgAlphaF), bgAlphaF < 1f))
+            using (ImRaii.PushColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, bgAlphaF), bgAlphaF < 1f))
+            using (ImRaii.PushColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, bgAlphaF), bgAlphaF < 1f))
             using (ImRaii.Disabled(!isChatEnabled))
             {
                 var flags = InputFlags | (!isChatEnabled ? ImGuiInputTextFlags.ReadOnly : ImGuiInputTextFlags.None);

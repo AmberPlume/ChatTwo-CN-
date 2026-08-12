@@ -291,16 +291,19 @@ public class MessageManager : IAsyncDisposable
         if ((!isBattle && !isCraftOrGather) || (isBattle && Plugin.Config.DatabaseBattleMessages) || (isCraftOrGather && Plugin.Config.DatabaseGatherCraftMessages))
             Store.UpsertMessage(message);
 
-        var currentTabId = Plugin.CurrentTab.Identifier;
         var currentMatches = Plugin.CurrentTab.Matches(message);
+        // 消息属于"当前正在看的 tab" → 立即标记 Seen（必须在遍历前！否则 tab 列表前面的
+        // 匹配 tab 会先计数——用户实测"位于 B 时 A 闪烁"就是 A 排在前面先计数了）
+        if (currentMatches && Plugin.CurrentTab.UnreadMode == UnreadMode.Unseen)
+            message.Seen = true;
+
         foreach (var tab in Plugin.Config.Tabs)
         {
-            var unread = !(tab.UnreadMode == UnreadMode.Unseen && Plugin.CurrentTab != tab && currentMatches);
+            // Unseen 模式：消息属于当前正在看的 tab → 不算未读；其他 tab 收到匹配消息 → 算未读
+            var unread = !(tab.UnreadMode == UnreadMode.Unseen && Plugin.CurrentTab == tab && currentMatches);
 
             if (tab.Matches(message))
-            {
                 tab.AddMessage(message, unread);
-            }
         }
     }
 

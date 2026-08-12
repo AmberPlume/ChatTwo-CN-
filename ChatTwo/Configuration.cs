@@ -335,6 +335,9 @@ public class Tab
     public void AddMessage(Message message, bool unread = true)
     {
         Messages.AddPrune(message, MessageManager.MessageDisplayLimit);
+        // 同一消息已在其他 tab 显示过 → 不计未读（跨 tab 未读共享）
+        if (message.Seen)
+            return;
         if (!unread)
             return;
 
