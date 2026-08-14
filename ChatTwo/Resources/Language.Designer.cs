@@ -1203,6 +1203,24 @@ namespace ChatTwo.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Remove from Novice Network.
+        /// </summary>
+        internal static string Context_LeaveNoviceNetwork {
+            get {
+                return ResourceManager.GetString("Context_LeaveNoviceNetwork", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Back.
+        /// </summary>
+        internal static string Context_Back {
+            get {
+                return ResourceManager.GetString("Context_Back", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Player Search.
         /// </summary>
         internal static string Context_PlayerSearch {
@@ -1298,6 +1316,15 @@ namespace ChatTwo.Resources {
         internal static string Context_CopyItemName {
             get {
                 return ResourceManager.GetString("Context_CopyItemName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to View item set.
+        /// </summary>
+        internal static string Context_ViewItemSet {
+            get {
+                return ResourceManager.GetString("Context_ViewItemSet", resourceCulture);
             }
         }
         
@@ -2633,6 +2660,15 @@ namespace ChatTwo.Resources {
                 return ResourceManager.GetString("Options_Display_Tab", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Font Settings.
+        /// </summary>
+        internal static string Options_Font_Tab {
+            get {
+                return ResourceManager.GetString("Options_Font_Tab", resourceCulture);
+            }
+        }
         
         /// <summary>
         ///   Looks up a localized string similar to Blocked emotes.
@@ -3598,6 +3634,96 @@ namespace ChatTwo.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to Message area opacity.
+        /// </summary>
+        internal static string Options_MessageAlpha_Name {
+            get {
+                return ResourceManager.GetString("Options_MessageAlpha_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Opacity of the message area background (chat content area)..
+        /// </summary>
+        internal static string Options_MessageAlpha_Description {
+            get {
+                return ResourceManager.GetString("Options_MessageAlpha_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Background opacity.
+        /// </summary>
+        internal static string Options_BackgroundAlpha_Name {
+            get {
+                return ResourceManager.GetString("Options_BackgroundAlpha_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Opacity of the overall window background (irrelevant in native-style mode where the window is transparent)..
+        /// </summary>
+        internal static string Options_BackgroundAlpha_Description {
+            get {
+                return ResourceManager.GetString("Options_BackgroundAlpha_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Tab bar opacity.
+        /// </summary>
+        internal static string Options_TabAlpha_Name {
+            get {
+                return ResourceManager.GetString("Options_TabAlpha_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Opacity of the bottom tab bar background..
+        /// </summary>
+        internal static string Options_TabAlpha_Description {
+            get {
+                return ResourceManager.GetString("Options_TabAlpha_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Input box opacity.
+        /// </summary>
+        internal static string Options_InputAlpha_Name {
+            get {
+                return ResourceManager.GetString("Options_InputAlpha_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Opacity of the input box background..
+        /// </summary>
+        internal static string Options_InputAlpha_Description {
+            get {
+                return ResourceManager.GetString("Options_InputAlpha_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Native-style interface.
+        /// </summary>
+        internal static string Options_NativeBackground_Name {
+            get {
+                return ResourceManager.GetString("Options_NativeBackground_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Keep backgrounds only for the message area, input box and tab bar; the rest of the window is fully transparent (showing the game behind it)..
+        /// </summary>
+        internal static string Options_NativeBackground_Description {
+            get {
+                return ResourceManager.GetString("Options_NativeBackground_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Size of the text in the chat input box. The input box height follows this size..
         /// </summary>
         internal static string Options_InputFontSize_Description {
@@ -3976,6 +4102,24 @@ namespace ChatTwo.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Show timestamps.
+        /// </summary>
+        internal static string Options_ShowTimestamp_Name {
+            get {
+                return ResourceManager.GetString("Options_ShowTimestamp_Name", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Show a timestamp before each message. Each tab has its own timestamp toggle; both must be enabled to display..
+        /// </summary>
+        internal static string Options_ShowTimestamp_Description {
+            get {
+                return ResourceManager.GetString("Options_ShowTimestamp_Description", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to This feature isn&apos;t implemented yet.
         /// </summary>
         internal static string Options_Warning_NotImplemented {
@@ -4305,6 +4449,42 @@ namespace ChatTwo.Resources {
         internal static string UnreadMode_Unseen_Tooltip {
             get {
                 return ResourceManager.GetString("UnreadMode_Unseen_Tooltip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Breathing.
+        /// </summary>
+        internal static string UnreadNotifyMode_Breath {
+            get {
+                return ResourceManager.GetString("UnreadNotifyMode_Breath", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Highlight.
+        /// </summary>
+        internal static string UnreadNotifyMode_Highlight {
+            get {
+                return ResourceManager.GetString("UnreadNotifyMode_Highlight", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to None.
+        /// </summary>
+        internal static string UnreadNotifyMode_None {
+            get {
+                return ResourceManager.GetString("UnreadNotifyMode_None", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Unread notification style.
+        /// </summary>
+        internal static string Options_UnreadNotifyMode_Name {
+            get {
+                return ResourceManager.GetString("Options_UnreadNotifyMode_Name", resourceCulture);
             }
         }
         

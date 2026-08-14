@@ -72,13 +72,62 @@ public static class ImGuiUtil
         }
     }
 
+    /// <summary>
+    /// 聊天正文描边（仿游戏原生 Axis 字体的细黑描边）。8 方向 1px 黑色偏移副本先入
+    /// drawlist → 正文 TextUnformatted 覆盖其上。布局/换行语义完全不变。
+    /// </summary>
+    private static bool TextOutlineEnabled => true;
+
+    /// <summary>byte* 版本（WrapText 用）：画描边 + 正文 + 布局推进。</summary>
+    public static unsafe void TextUnformattedOutline(byte* text, byte* textEnd)
+    {
+        var oldPos = ImGui.GetCursorScreenPos();
+        var len = (int)(textEnd - text);
+        if (len > 0 && TextOutlineEnabled)
+        {
+            var s = Encoding.UTF8.GetString(text, len);
+            DrawOutline(oldPos, s);
+        }
+
+        ImGuiNative.TextUnformatted(text, textEnd);
+    }
+
+    /// <summary>string 版本（ChunkHandler 非 wrap 路径用）：画描边 + 正文 + 布局推进。</summary>
+    public static void TextUnformattedOutline(string text)
+    {
+        var oldPos = ImGui.GetCursorScreenPos();
+        if (text.Length > 0 && TextOutlineEnabled)
+            DrawOutline(oldPos, text);
+
+        ImGui.TextUnformatted(text);
+    }
+
+    /// <summary>在指定位置画 8 方向 0.5px 半透明黑色文字（描边底层）。0.5px 为实用下限，再小会模糊。
+    /// 半透明灰（0x80000000）更接近 FFXIV Axis 原生观感（猜测：游戏描边是柔和灰而非纯黑）。</summary>
+    private static void DrawOutline(Vector2 pos, string text)
+    {
+        var font = ImGui.GetFont();
+        var fontSize = ImGui.GetFontSize();
+        var dl = ImGui.GetWindowDrawList();
+        const float o = 0.5f;
+        for (var dx = -o; dx <= o; dx += o)
+        {
+            for (var dy = -o; dy <= o; dy += o)
+            {
+                if (dx == 0 && dy == 0)
+                    continue;
+                dl.AddText(font, fontSize, pos + new Vector2(dx, dy), 0x80000000u, text);
+            }
+        }
+    }
+
     public static unsafe void WrapText(string csText, Chunk chunk, PayloadHandler? handler, Vector4 defaultText, float lineWidth)
     {
         void Text(byte* text, byte* textEnd)
         {
             var oldPos = ImGui.GetCursorScreenPos();
 
-            ImGuiNative.TextUnformatted(text, textEnd);
+            TextUnformattedOutline(text, textEnd);
             PostPayload(chunk, handler);
 
             if (CurrentSelection != null)

@@ -129,16 +129,38 @@ public partial class ChatLog : Window, IChatWindow
 
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, "ItemDetail", MoveTooltip);
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, "ActionDetail", MoveTooltip);
+        // PostShow：addon 显示完成的当帧立即 SetPosition，消除"首帧在原生位置、下一帧才移动"的闪烁
+        // （与菜单打开后立即 SetPosition 同思路；提示框由游戏触发打开，用 PostShow 捕获时机）
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostShow, "ItemDetail", MoveTooltip);
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostShow, "ActionDetail", MoveTooltip);
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, "ContextMenu", MoveContextMenu);
+        // 二级菜单是独立的 AddonContextSub addon（2026-08-14 确认，非 ContextMenu 子节点）。
+        // PreDraw 持续跟随聊天框移动；PostShow 在显示完成当帧 SetPosition 防"闪一下消失"
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, "AddonContextSub", MoveContextSubMenu);
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostShow, "AddonContextSub", MoveContextSubMenu);
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreFinalize, "ContextMenu", OnContextMenuClosed);
+
+        // 提示框零闪帧：hook ItemDetail/ActionDetail 的 SetPosition，detour 替换坐标（正式功能）
+        InitSetPosHook();
+        // OpenSubMenu 展开后清零 OwnerAddon（等效 bindToOwner=false，二级菜单不被隐藏的 ChatLog 关掉）
+        InitOpenSubMenuHook();
     }
 
     public void Dispose()
     {
         Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PreDraw, "ItemDetail", MoveTooltip);
         Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PreDraw, "ActionDetail", MoveTooltip);
+        Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostShow, "ItemDetail", MoveTooltip);
+        Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostShow, "ActionDetail", MoveTooltip);
         Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PreDraw, "ContextMenu", MoveContextMenu);
+        Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PreDraw, "AddonContextSub", MoveContextSubMenu);
+        Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostShow, "AddonContextSub", MoveContextSubMenu);
         Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PreFinalize, "ContextMenu", OnContextMenuClosed);
+
+        _setPosHook?.Dispose();
+        _setPosHook = null;
+        _openSubMenuHook?.Dispose();
+        _openSubMenuHook = null;
 
         Plugin.ClientState.Logout -= Logout;
         Plugin.ClientState.Login -= Login;
@@ -1299,7 +1321,7 @@ public partial class ChatLog : Window, IChatWindow
                     message.IsVisible[tab.Identifier] = nowVisible;
                 }
 
-                if (tab.DisplayTimestamp)
+                if (tab.DisplayTimestamp && Plugin.Config.ShowTimestamp)
                 {
                     var localTime = message.Date.ToLocalTime();
                     // 24 小时制去掉小时前导零（原生样式 [2:30] 而非 [02:30]）
@@ -1473,7 +1495,7 @@ public partial class ChatLog : Window, IChatWindow
             drawList.AddRectFilled(barStart, new Vector2(barStart.X + barWidth, barStart.Y + tabHeight), barBgColor);
         }
 
-        var unreadGreen = UnreadGreen();
+        var unreadGreen = UnreadColor();
 
         var transparent = new Vector4(0, 0, 0, 0);
         using var btnBg = ImRaii.PushColor(ImGuiCol.Button, transparent);
@@ -1489,7 +1511,8 @@ public partial class ChatLog : Window, IChatWindow
                 continue;
 
             var active = Plugin.LastTab == tabI;
-            var hasUnread = !active && tab.UnreadMode != UnreadMode.None && tab.Unread > 0;
+            var hasUnread = !active && tab.UnreadMode != UnreadMode.None && tab.Unread > 0
+                && Plugin.Config.UnreadNotifyMode != UnreadNotifyMode.None;
 
             if (!first)
             {
@@ -1601,7 +1624,7 @@ public partial class ChatLog : Window, IChatWindow
         var tabHeight = (ImGui.GetTextLineHeight() + style.FramePadding.Y * 2) * 0.9f;
         var drawList = ImGui.GetWindowDrawList();
 
-        var unreadGreen = UnreadGreen();
+        var unreadGreen = UnreadColor();
         var dividerColor = ImGui.GetColorU32(new Vector4(0.25f, 0.25f, 0.25f, 0.55f));
         var barBgColor = ImGui.GetColorU32(new Vector4(0.12f, 0.12f, 0.12f, 0.5f));
         var activeColor = ImGui.GetColorU32(new Vector4(0.28f, 0.28f, 0.28f, 0.6f));
@@ -1637,7 +1660,8 @@ public partial class ChatLog : Window, IChatWindow
             if (tab.PopOut)
                 continue;
 
-            var hasUnread = tabI != Plugin.LastTab && tab.UnreadMode != UnreadMode.None && tab.Unread > 0;
+            var hasUnread = tabI != Plugin.LastTab && tab.UnreadMode != UnreadMode.None && tab.Unread > 0
+                && Plugin.Config.UnreadNotifyMode != UnreadNotifyMode.None;
             var isActive = Plugin.LastTab == tabI;
 
             if (!first)
@@ -1737,14 +1761,15 @@ public partial class ChatLog : Window, IChatWindow
             if (child)
             {
                 var previousTab = Plugin.CurrentTab;
-                var unreadGreen = UnreadGreen();
+                var unreadGreen = UnreadColor();
                     for (var tabI = 0; tabI < Plugin.Config.Tabs.Count; tabI++)
                     {
                         var tab = Plugin.Config.Tabs[tabI];
                         if (tab.PopOut)
                             continue;
 
-                        var hasUnread = tabI != Plugin.LastTab && tab.UnreadMode != UnreadMode.None && tab.Unread > 0;
+                        var hasUnread = tabI != Plugin.LastTab && tab.UnreadMode != UnreadMode.None && tab.Unread > 0
+                && Plugin.Config.UnreadNotifyMode != UnreadNotifyMode.None;
                         using var unreadCol = ImRaii.PushColor(ImGuiCol.Text, unreadGreen, hasUnread);
                         var clicked = ImGui.Selectable($"{tab.Name}###log-tab-{tabI}", Plugin.LastTab == tabI || Plugin.WantedTab == tabI);
                     DrawTabContextMenu(tab, tabI);
@@ -1773,6 +1798,23 @@ public partial class ChatLog : Window, IChatWindow
             DrawMessageLog(Plugin.Config.Tabs[currentTab], InputHandler.PayloadHandler, childHeight, hasTabSwitched, MsgState);
 
         Plugin.WantedTab = null;
+    }
+
+    /// <summary>
+    /// 未读标签页文字颜色：按全局"未读消息提示方式"返回颜色。
+    /// Breath=荧光绿呼吸灯；Highlight=荧光绿常亮；None=普通文字色（配合 hasUnread 条件不 push）。
+    /// </summary>
+    private static Vector4 UnreadColor()
+    {
+        switch (Plugin.Config.UnreadNotifyMode)
+        {
+            case UnreadNotifyMode.Highlight:
+                return new Vector4(0.224f, 1f, 0.078f, 1f);
+            case UnreadNotifyMode.None:
+                return new Vector4(1f, 1f, 1f, 1f);
+            default:
+                return UnreadGreen();
+        }
     }
 
     /// <summary>

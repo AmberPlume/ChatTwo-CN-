@@ -163,6 +163,12 @@
     <data name="Options_Use24HourClock_Description">
         <value>Display timestamps as their 24-hour clock version.</value>
     </data>
+    <data name="Options_ShowTimestamp_Name">
+        <value>Show timestamps</value>
+    </data>
+    <data name="Options_ShowTimestamp_Description">
+        <value>Show a timestamp before each message. Each tab has its own timestamp toggle; both must be enabled to display.</value>
+    </data>
     <data name="Options_MoreCompactPretty_Name">
         <value>More compact modern layout</value>
     </data>
@@ -204,6 +210,9 @@
     </data>
     <data name="Options_Display_Tab">
         <value>Basic Settings</value>
+    </data>
+    <data name="Options_Font_Tab">
+        <value>Font Settings</value>
     </data>
     <data name="Options_ChatColours_Tab">
         <value>Channel Colours</value>
@@ -330,6 +339,18 @@
     </data>
     <data name="UnreadMode_None">
         <value>None</value>
+    </data>
+    <data name="UnreadNotifyMode_Breath">
+        <value>Breathing</value>
+    </data>
+    <data name="UnreadNotifyMode_Highlight">
+        <value>Highlight</value>
+    </data>
+    <data name="UnreadNotifyMode_None">
+        <value>None</value>
+    </data>
+    <data name="Options_UnreadNotifyMode_Name">
+        <value>Unread notification style</value>
     </data>
     <data name="ChatSource_Self">
         <value>Self</value>
@@ -596,7 +617,7 @@
         <value>Search Auto Translate...</value>
     </data>
     <data name="Options_SortAutoTranslate_Name">
-        <value>Sort the Auto Translate list</value>
+        <value>Auto Translate sort adjustment</value>
     </data>
     <data name="Options_SortAutoTranslate_Description">
         <value>If this is enabled, the Auto Translate list will be sorted alphabetically.</value>
@@ -715,6 +736,9 @@
     <data name="Context_CopyItemName">
         <value>Copy Item Name</value>
     </data>
+    <data name="Context_ViewItemSet">
+        <value>View Item Set</value>
+    </data>
     <data name="Context_SendTell">
         <value>Send Tell</value>
     </data>
@@ -743,7 +767,7 @@
         <value>Add to Blacklist</value>
     </data>
     <data name="Context_AddToMuteList">
-        <value>Register to Mute List</value>
+        <value>Add to Mute List</value>
     </data>
     <data name="Context_AddToTermsFilter">
         <value>Add to Term Filters</value>
@@ -1025,7 +1049,13 @@
         <value>Unable to open adventurer plate at this moment</value>
     </data>
     <data name="Context_ViewRecruitment">
-        <value>View Recruitment</value>
+        <value>Recruit Members</value>
+    </data>
+    <data name="Context_LeaveNoviceNetwork">
+        <value>Remove from Novice Network</value>
+    </data>
+    <data name="Context_Back">
+        <value>Back</value>
     </data>
     <data name="Context_PlayerSearch">
         <value>Player Search</value>
@@ -1579,5 +1609,35 @@ Your old database can still be recovered, please contact the plugin author for h
     </data>
     <data name="Options_InputAreaScale_Description">
         <value>Scale of the input box, side icons, tab text and trailing + button (50% - 200%).</value>
+    </data>
+    <data name="Options_MessageAlpha_Name">
+        <value>Message area opacity</value>
+    </data>
+    <data name="Options_MessageAlpha_Description">
+        <value>Opacity of the message area background (chat content area).</value>
+    </data>
+    <data name="Options_BackgroundAlpha_Name">
+        <value>Background opacity</value>
+    </data>
+    <data name="Options_BackgroundAlpha_Description">
+        <value>Opacity of the overall window background (irrelevant in native-style mode where the window is transparent).</value>
+    </data>
+    <data name="Options_TabAlpha_Name">
+        <value>Tab bar opacity</value>
+    </data>
+    <data name="Options_TabAlpha_Description">
+        <value>Opacity of the bottom tab bar background.</value>
+    </data>
+    <data name="Options_InputAlpha_Name">
+        <value>Input box opacity</value>
+    </data>
+    <data name="Options_InputAlpha_Description">
+        <value>Opacity of the input box background.</value>
+    </data>
+    <data name="Options_NativeBackground_Name">
+        <value>Native-style interface</value>
+    </data>
+    <data name="Options_NativeBackground_Description">
+        <value>Keep backgrounds only for the message area, input box and tab bar; the rest of the window is fully transparent (showing the game behind it).</value>
     </data>
 </root>    

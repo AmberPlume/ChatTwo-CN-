@@ -36,14 +36,16 @@ public sealed class ChatLogConfig : ISettingsTab
 
             // 四透明度分离：消息区（原窗口透明度，字段名 WindowAlpha 保留）/
             // 背景 / 标签页 / 输入框。PopOut 统一跟随四项（独立透明度已移除）
-            ImGuiUtil.DragFloatVertical("消息区透明度", "消息区背景（聊天内容区域）的透明度。", ref Mutable.WindowAlpha, .25f, 0f, 100f, $"{Mutable.WindowAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
+            ImGuiUtil.DragFloatVertical(Language.Options_MessageAlpha_Name, Language.Options_MessageAlpha_Description, ref Mutable.WindowAlpha, .25f, 0f, 100f, $"{Mutable.WindowAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
-            ImGuiUtil.DragFloatVertical("背景透明度", "窗口整体背景的透明度（仿原生界面下窗口透明，此项无效）。", ref Mutable.BackgroundAlpha, .25f, 0f, 100f, $"{Mutable.BackgroundAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
+            ImGuiUtil.DragFloatVertical(Language.Options_BackgroundAlpha_Name, Language.Options_BackgroundAlpha_Description, ref Mutable.BackgroundAlpha, .25f, 0f, 100f, $"{Mutable.BackgroundAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
-            ImGuiUtil.DragFloatVertical("标签页透明度", "底部标签页栏背景的透明度。", ref Mutable.TabAlpha, .25f, 0f, 100f, $"{Mutable.TabAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
+            ImGuiUtil.DragFloatVertical(Language.Options_TabAlpha_Name, Language.Options_TabAlpha_Description, ref Mutable.TabAlpha, .25f, 0f, 100f, $"{Mutable.TabAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
-            ImGuiUtil.DragFloatVertical("输入框透明度", "输入框背景的透明度。", ref Mutable.InputAlpha, .25f, 0f, 100f, $"{Mutable.InputAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
+            ImGuiUtil.DragFloatVertical(Language.Options_InputAlpha_Name, Language.Options_InputAlpha_Description, ref Mutable.InputAlpha, .25f, 0f, 100f, $"{Mutable.InputAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
+
+            // 未读消息提示方式已搬至"基础设置"页（v1.40.11+）
 
             if (ImGuiUtil.InputIntVertical(Language.Options_MaxLinesToShow_Name, Language.Options_MaxLinesToShow_Description, ref Mutable.MaxLinesToRender))
                 Mutable.MaxLinesToRender = Math.Clamp(Mutable.MaxLinesToRender, 1, 10_000);

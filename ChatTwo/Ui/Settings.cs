@@ -34,6 +34,7 @@ public sealed class SettingsWindow : Window
         Tabs =
         [
             new Display(Mutable),
+            new Font(Mutable),
             new ChatLogConfig(Plugin, Mutable),
             new ChatColours(Plugin, Mutable),
             new Tabs(Plugin, Mutable),

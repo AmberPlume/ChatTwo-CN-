@@ -163,6 +163,12 @@
   <data name="Options_Use24HourClock_Description">
     <value>以 24 小时制显示时间戳。</value>
   </data>
+  <data name="Options_ShowTimestamp_Name">
+    <value>显示时间戳</value>
+  </data>
+  <data name="Options_ShowTimestamp_Description">
+    <value>在每条消息前显示时间戳。各标签页另有独立的时间戳开关，需两者都开启才显示。</value>
+  </data>
   <data name="Options_MoreCompactPretty_Name">
     <value>更紧凑的现代布局</value>
   </data>
@@ -204,6 +210,9 @@
   </data>
   <data name="Options_Display_Tab">
     <value>基础设置</value>
+  </data>
+  <data name="Options_Font_Tab">
+    <value>字体设置</value>
   </data>
   <data name="Options_ChatColours_Tab">
     <value>频道颜色</value>
@@ -332,6 +341,18 @@
   </data>
   <data name="UnreadMode_None">
     <value>无</value>
+  </data>
+  <data name="UnreadNotifyMode_Breath">
+    <value>呼吸</value>
+  </data>
+  <data name="UnreadNotifyMode_Highlight">
+    <value>高亮</value>
+  </data>
+  <data name="UnreadNotifyMode_None">
+    <value>无</value>
+  </data>
+  <data name="Options_UnreadNotifyMode_Name">
+    <value>未读消息提示方式</value>
   </data>
   <data name="ChatSource_Self">
     <value>自己</value>
@@ -598,7 +619,7 @@
     <value>定型文搜索...</value>
   </data>
   <data name="Options_SortAutoTranslate_Name">
-    <value>定型文列表排序</value>
+    <value>定型文排序调整</value>
   </data>
   <data name="Options_SortAutoTranslate_Description">
     <value>如果启用此选项，定型文列表将按字母顺序排序。</value>
@@ -717,6 +738,9 @@
   <data name="Context_CopyItemName">
     <value>复制道具名</value>
   </data>
+  <data name="Context_ViewItemSet">
+    <value>查看套装幻影化所需的装备组合</value>
+  </data>
   <data name="Context_CopyName">
     <value>复制名称</value>
   </data>
@@ -745,10 +769,10 @@
     <value>发送好友申请</value>
   </data>
   <data name="Context_AddToBlacklist">
-    <value>加入到屏蔽名单</value>
+    <value>加入黑名单</value>
   </data>
   <data name="Context_AddToMuteList">
-    <value>注册到静音列表</value>
+    <value>加入屏蔽名单</value>
   </data>
   <data name="Context_AddToTermsFilter">
     <value>记录屏蔽词</value>
@@ -1030,7 +1054,13 @@
     <value>当前无法查看冒险者铭牌</value>
   </data>
   <data name="Context_ViewRecruitment">
-    <value>查看招募</value>
+    <value>队员招募</value>
+  </data>
+  <data name="Context_LeaveNoviceNetwork">
+    <value>从新人频道中移除</value>
+  </data>
+  <data name="Context_Back">
+    <value>返回</value>
   </data>
   <data name="Context_PlayerSearch">
     <value>玩家搜索</value>
@@ -1569,5 +1599,35 @@
   </data>
   <data name="Options_InputAreaScale_Description">
     <value>调整输入框、左右图标、tab 文字和末尾 + 按钮的大小（50% - 200%）。</value>
+  </data>
+  <data name="Options_MessageAlpha_Name">
+    <value>消息区透明度</value>
+  </data>
+  <data name="Options_MessageAlpha_Description">
+    <value>消息区背景（聊天内容区域）的透明度。</value>
+  </data>
+  <data name="Options_BackgroundAlpha_Name">
+    <value>背景透明度</value>
+  </data>
+  <data name="Options_BackgroundAlpha_Description">
+    <value>窗口整体背景的透明度（仿原生界面下窗口透明，此项无效）。</value>
+  </data>
+  <data name="Options_TabAlpha_Name">
+    <value>标签页透明度</value>
+  </data>
+  <data name="Options_TabAlpha_Description">
+    <value>底部标签页栏背景的透明度。</value>
+  </data>
+  <data name="Options_InputAlpha_Name">
+    <value>输入框透明度</value>
+  </data>
+  <data name="Options_InputAlpha_Description">
+    <value>输入框背景的透明度。</value>
+  </data>
+  <data name="Options_NativeBackground_Name">
+    <value>仿原生界面</value>
+  </data>
+  <data name="Options_NativeBackground_Description">
+    <value>只给消息区、输入框、标签页保留背景，窗口其余区域完全透明（显示游戏画面）。</value>
   </data>
 </root>  
