@@ -59,6 +59,13 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>原生右键菜单是否激活（非null表示激活），由 PayloadHandler 设置，ChatLog.PreDraw 使用</summary>
     public static bool ContextMenuActive;
 
+    /// <summary>ChatTwo 触发的菜单会话是否进行中（2026-08-14 23:25 新增）。
+    /// 区分"ChatTwo 触发的菜单"与"游戏原生/背包等触发的菜单"：
+    /// OwnerAddon 恒 0 后两者无法区分（背包二级菜单的 OwnerAddon 也是 0），
+    /// 而二级菜单（AddonContextSub）应只对 ChatTwo 会话移动位置。
+    /// PayloadHandler 触发时置 true；一级菜单关闭且无二级菜单显示时置 false。</summary>
+    public static bool ChatTwoMenuSession;
+
     public readonly WindowSystem WindowSystem = new(PluginName);
     public SettingsWindow SettingsWindow { get; }
     public ChatLog ChatLog { get; }

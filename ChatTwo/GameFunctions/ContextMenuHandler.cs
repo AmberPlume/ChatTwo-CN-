@@ -340,7 +340,12 @@ public sealed partial class ContextMenuHandler : IDisposable
                             sub->Hide(true, false, 0);
                         var agent = AgentContext.Instance();
                         if (agent != null)
+                        {
+                            // 重开一级菜单前恢复 OwnerAddon=ChatLog（时分复用：触发时设 ChatLog 供
+                            // OnMenuOpened 注入，MoveContextMenu 渲染时清零防二级绑定）。
+                            agent->OwnerAddon = ChatTwo.GameFunctions.GameFunctions.GetChatLogAddonId();
                             agent->OpenContextMenu(false, false);
+                        }
                     }
                 },
             });
