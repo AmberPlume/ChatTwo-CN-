@@ -107,7 +107,7 @@ public class ChunkHandler
         }
         else
         {
-            ImGui.TextUnformatted(content);
+            ImGuiUtil.TextUnformattedOutline(content);
             ImGuiUtil.PostPayload(chunk, handler);
         }
 

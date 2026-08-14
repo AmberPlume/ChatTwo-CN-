@@ -5,7 +5,7 @@
     "Punchline": "对原版 Chat 2 进行了一些改动",
     "Description": "基于 ChatTwo 进行了一定程度的修改，对原生消息栏进行了拙劣的模仿。中文化界面、原生右键菜单复刻、输入框与字体行为调整。\n\n已知问题：右键菜单无可用项目时，占位的\"没有可以选择的指令\"文本无法移除（原生 ChatLog 被隐藏，无法调用其菜单清除逻辑）。",
     "InternalName": "ChatTwoCN",
-    "AssemblyVersion": "1.40.10.0",
+    "AssemblyVersion": "1.40.11.0",
     "TestingAssemblyVersion": "1.40.10.0",
     "DalamudApiLevel": 15,
     "TestingDalamudApiLevel": 15,
@@ -14,7 +14,7 @@
     "DownloadLinkTesting": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.40.10/ChatTwo-CN-v1.40.10.zip",
     "DownloadLinkUpdate": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.40.10/ChatTwo-CN-v1.40.10.zip",
     "IconUrl": "",
-    "Changelog": "对此前未修改的内容进行了补充完善",
+    "Changelog": "v1.40.11\n【新增】\n- 屏蔽机能子菜单重做：展开正常显示\"加入黑名单/加入屏蔽名单/记录屏蔽词\"+返回，点击直接生效（不再只显示\"返回\"）\n- 聊天文字描边：贴近游戏原生字体观感\n- 未读消息提示方式：新增\"高亮 / 呼吸 / 无\"三种模式（默认高亮），可在基础设置中切换\n【修复】\n- 修复：原生聊天框隐藏时，二级菜单（含其他插件如 Daily Routines 的子菜单）闪一下即消失的问题\n- 修复：装备右键菜单\"查看套装幻影化\"只在可套装化的时装装备上显示（战斗装备不再误显示）\n- 修复：复制道具名功能\n- 修复：返回上一级菜单时一级菜单消失的问题\n【调整】\n- 设置拆分：新增独立\"字体设置\"页；\"24 小时制\"改为\"显示时间戳\"开关；未读消息提示方式移至基础设置；\"仿原生界面\"改名\n- 菜单文本与游戏原生对齐（加入黑名单 / 加入屏蔽名单 / 队员招募等）\n【内部】\n- 清理遗留调试代码与死代码",
     "Tags": [
       "Social",
       "UI",

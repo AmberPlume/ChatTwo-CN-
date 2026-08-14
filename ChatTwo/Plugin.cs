@@ -13,6 +13,8 @@ using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
+using Dalamud.Hooking;
+using Dalamud.Utility.Signatures;
 using Dalamud.Plugin.Services;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Gui.ContextMenu;
@@ -254,6 +256,7 @@ public sealed class Plugin : IDalamudPlugin
         FileDialogManager.Draw();
     }
 
+
     public void SaveConfig()
     {
         Interface.SavePluginConfig(Config);
@@ -281,6 +284,14 @@ public sealed class Plugin : IDalamudPlugin
     {
         if (DeferredSaveFrames >= 0 && DeferredSaveFrames-- == 0)
             SaveConfig();
+
+        // ⚠️ 2026-08-14 07:57 实验：注释"屏幕外可见"hack，干净验证 OwnerAddon=0（bindToOwner=false 等效）是否单独有效。
+        // if (GameFunctions.GameFunctions.IsNativeSubContextMenuVisible())
+        // {
+        //     GameFunctions.GameFunctions.KeepChatVisibleOffscreen();
+        //     return;
+        // }
+        GameFunctions.GameFunctions.RestoreChatPosition(); // 保留：恢复位置兜底（防 ChatLog 卡屏幕外）
 
         if (!Config.HideChat)
             return;

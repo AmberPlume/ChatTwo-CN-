@@ -81,6 +81,8 @@ public class Configuration : IPluginConfiguration
     public bool KeepInputFocus = true;
     public int MaxLinesToRender = 10_000; // 1-10000
     public bool Use24HourClock;
+    // 全局"显示时间戳"开关（v1.40.11+，与各 tab 的 DisplayTimestamp 叠加）
+    public bool ShowTimestamp = true;
 
     // 自定义字体开关（内部标志，无 UI）：false=用 Axis 游戏字体（默认原生观感）；true=用 GlobalFontV2 选的字体
     public bool FontsEnabled = false;
@@ -131,6 +133,8 @@ public class Configuration : IPluginConfiguration
     public float InputAlpha = -1f;
     // 仿原生界面背景：只有消息区/输入框/标签页有背景，窗口其余区域完全透明
     public bool NativeBackground;
+    // 未读消息提示方式（全局）：Highlight=高亮 / Breath=呼吸 / None=无（默认高亮）
+    public UnreadNotifyMode UnreadNotifyMode = UnreadNotifyMode.Highlight;
     public Dictionary<ChatType, uint> ChatColours = new();
     public List<Tab> Tabs = [];
 
@@ -186,6 +190,7 @@ public class Configuration : IPluginConfiguration
         KeepInputFocus = other.KeepInputFocus;
         MaxLinesToRender = other.MaxLinesToRender;
         Use24HourClock = other.Use24HourClock;
+        ShowTimestamp = other.ShowTimestamp;
         FontsEnabled = other.FontsEnabled;
         InputFontSize = other.InputFontSize;
         SettingsFontSize = other.SettingsFontSize;
@@ -203,6 +208,7 @@ public class Configuration : IPluginConfiguration
         TabAlpha = other.TabAlpha;
         InputAlpha = other.InputAlpha;
         NativeBackground = other.NativeBackground;
+        UnreadNotifyMode = other.UnreadNotifyMode;
         ChatColours = other.ChatColours.ToDictionary(entry => entry.Key, entry => entry.Value);
         Tabs = other.Tabs.Select(t => t.Clone()).ToList();
         OverrideStyle = other.OverrideStyle;
@@ -246,6 +252,29 @@ public static class UnreadModeExt
         UnreadMode.Unseen => Language.UnreadMode_Unseen_Tooltip,
         UnreadMode.None => Language.UnreadMode_None_Tooltip,
         _ => null,
+    };
+}
+
+/// <summary>未读消息的显示提示方式（全局设置）。默认高亮（用户在设置中要求）。</summary>
+[Serializable]
+public enum UnreadNotifyMode
+{
+    /// <summary>荧光绿常亮（默认）。</summary>
+    Highlight,
+    /// <summary>荧光绿 + 呼吸灯闪烁。</summary>
+    Breath,
+    /// <summary>不提示（与无未读时相同）。</summary>
+    None,
+}
+
+public static class UnreadNotifyModeExt
+{
+    public static string Name(this UnreadNotifyMode mode) => mode switch
+    {
+        UnreadNotifyMode.Breath => Language.UnreadNotifyMode_Breath,
+        UnreadNotifyMode.Highlight => Language.UnreadNotifyMode_Highlight,
+        UnreadNotifyMode.None => Language.UnreadNotifyMode_None,
+        _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
     };
 }
 

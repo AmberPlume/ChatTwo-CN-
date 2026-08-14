@@ -6,10 +6,13 @@ using ChatTwo.Util;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.Gui.ContextMenu;
+using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Hooking;
 using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Memory;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility;
+using Dalamud.Utility.Signatures;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
@@ -27,7 +30,7 @@ namespace ChatTwo.GameFunctions;
 /// 添加自定义菜单项（发送悄悄话、复制名字、组队邀请等）。
 /// 第三方插件（DailyRoutines、Allagan Tools）的菜单项也会在同一事件中添加。
 /// </summary>
-public sealed class ContextMenuHandler : IDisposable
+public sealed partial class ContextMenuHandler : IDisposable
 {
     private Plugin Plugin { get; }
 
@@ -65,23 +68,47 @@ public sealed class ContextMenuHandler : IDisposable
     public static uint CurrentItemId;
 
     /// <summary>
+    /// 当前右键消息的全文（SeString），供"记录屏蔽词"填入屏蔽词窗口。
+    /// </summary>
+    public static SeString? CurrentMessageContent;
+
+    /// <summary>
     /// 标记当前菜单由 ChatTwo 触发。防止向原生菜单注入 ChatTwo 菜单项。
     /// </summary>
     public static bool IsChatTwoTriggered;
+
+    /// <summary>
+    /// 标记当前道具菜单已由 PayloadHandler 加了原生项（装备/材料），
+    /// HandleItemMenu 据此跳过 C 前缀自定义项，避免重复。
+    /// </summary>
+    public static bool NativeItemMenuAdded;
 
     public ContextMenuHandler(Plugin plugin)
     {
         Plugin = plugin;
         Plugin.ContextMenu.OnMenuOpened += OnMenuOpened;
+
+        // ===== [ENABLE_CTX_DIAG] 逆向诊断 hook（独立文件，编译开关控制，平时不启用）=====
+#if ENABLE_CTX_DIAG
+        InitDiagnostics();
+#endif
     }
 
     public void Dispose()
     {
         Plugin.ContextMenu.OnMenuOpened -= OnMenuOpened;
+#if ENABLE_CTX_DIAG
+        DisposeDiagnostics();
+#endif
     }
 
     private void OnMenuOpened(IMenuOpenedArgs args)
     {
+        // ===== [ENABLE_CTX_DIAG] 逆向诊断（独立文件，编译开关控制）=====
+#if ENABLE_CTX_DIAG
+        DumpOnMenuOpened(args);
+#endif
+
         // 只处理 ChatTwo 触发的菜单，防止污染原生菜单（小队列表、好友列表等）
         if (!IsChatTwoTriggered)
             return;
@@ -123,6 +150,8 @@ public sealed class ContextMenuHandler : IDisposable
             CurrentChatType = null;
             CurrentContentId = 0;
             CurrentItemId = 0;
+            CurrentMessageContent = null;
+            NativeItemMenuAdded = false;
         }
     }
 
@@ -132,6 +161,12 @@ public sealed class ContextMenuHandler : IDisposable
 
     private void HandleItemMenu(IMenuOpenedArgs args, uint rawItemId)
     {
+        // 已由 PayloadHandler 加原生项（含复制名）→ 跳过 C 前缀项，避免重复。
+        // 复制名走原生动作（0x10005）：PayloadHandler 已把道具上下文 [self+0x9c0] 写为当前道具 ID，
+        // 动作可正常读（2026-08-14 根因修复）。
+        if (NativeItemMenuAdded)
+            return;
+
         // 从 rawItemId 判断道具类型和实际 ID
         var kind = rawItemId switch
         {
@@ -239,298 +274,101 @@ public sealed class ContextMenuHandler : IDisposable
 
     private void HandlePlayerMenu(IMenuOpenedArgs args, MenuTargetDefault target)
     {
-        var playerName = target.TargetName ?? string.Empty;
-        var worldId = (ushort)(target.TargetHomeWorld.IsValid ? target.TargetHomeWorld.RowId : 0);
-        var contentId = target.TargetContentId != 0 ? target.TargetContentId : CurrentContentId;
-
-        // 兜底：从静态字段获取 ContentId
-        if (contentId == 0)
-            contentId = CurrentContentId;
-
-        // 判断是否自己
-        var isSelf = contentId != 0 && contentId == Plugin.PlayerState.ContentId;
-        if (!isSelf && playerName == Plugin.PlayerState.CharacterName)
-            isSelf = true;
-
-        // 获取世界信息（worldName 用于跨服 tell 的 @世界名 后缀）
-        // ⚠️ 不要用 WorldRow.IsPublic 判断跨服！CN 世界行 IsPublic=false。
-        // 也不要仅用"家服 != 本地家服"判断——跨区旅行者（家服不同但当前在你世界）
-        // 会被误判为跨服；反过来自己跨区后邀请留在家服的玩家会被误判为同服。
-        // 正确做法：目标在 ObjectTable（在场）→ 同世界处理；
-        // 不在场时对比"目标家服 vs 本地当前世界"决定同服/跨服邀请。
-        var worldName = string.Empty;
-        if (worldId != 0 && Sheets.WorldSheet.TryGetRow(worldId, out var worldRow))
-            worldName = worldRow.Name.ToString();
-        var localCurrentWorldId = (ushort)(Plugin.ObjectTable.LocalPlayer?.CurrentWorld.RowId ?? 0);
-
-        // 查找玩家对象（用于选中、组队等）：优先家服精确匹配，回退仅名字匹配
-        var foundChar = FindCharacter(playerName, worldId);
-
-        // 队伍状态
-        var party = Plugin.PartyList;
-        var leader = party.Length > 0 ? party[(int)party.PartyLeaderIndex]?.ContentId ?? 0 : 0;
-        var isLeader = party.Length == 0 || Plugin.PlayerState.ContentId == leader;
-        var isInParty = false;
-        foreach (var member in party)
+        // ===== 屏蔽机能子菜单（Dalamud OpenSubmenu → RaptureAtkModule::OpenAddon 通道，
+        // 直接打开 AddonContextSub，绕开右键事件流 —— 此前三条路失败皆因绑定右键链）。
+        // 子项点击走插件 handler（AddToBlacklist/AddToMuteList/AddToTermsList），不依赖游戏动作上下文。=====
         {
-            if (member.Name.TextValue == playerName && member.World.RowId == worldId)
-            {
-                isInParty = true;
-                break;
-            }
-        }
+            var pName = target.TargetName ?? string.Empty;
+            var wId = (ushort)(target.TargetHomeWorld.IsValid ? target.TargetHomeWorld.RowId : 0);
+            var cId = target.TargetContentId != 0 ? target.TargetContentId : CurrentContentId;
+            if (cId == 0)
+                cId = CurrentContentId;
 
-        var inInstance = GameFunctions.IsInInstance();
-        var inPartyInstance = false;
-        if (Sheets.TerritorySheet.TryGetRow(Plugin.ClientState.TerritoryType, out var territory))
-            inPartyInstance = territory.TerritoryIntendedUse.RowId is 41 or 47 or 48 or 52 or 53 or 61;
+            // 好友：屏蔽机能只有"记录屏蔽词"；陌生人：完整三项（黑名单/屏蔽名单/屏蔽词）。
+            // 复用 GetFriends 按 ContentId 匹配（用户实测确认：好友仅记录屏蔽词）。
+            var isFriend = cId != 0
+                && GameFunctions.GetFriends().Any(f => f.ContentId == cId);
 
-        // 1. 发送悄悄话（非自己）
-        if (!isSelf)
-        {
-            args.AddMenuItem(new MenuItem
-            {
-                PrefixChar = 'C',
-                Name = Language.Context_SendTell,
-                Priority = 500,
-                OnClicked = _ =>
-                {
-                    var input = $"/tell {playerName}";
-                    // FFXIV 的 /tell 名字 只匹配当前世界，同服玩家若当前不在你的世界也会失败。
-                    // 加 @家服名 按角色路由，对同服/跨服/跨区旅行者都有效（用户实测同服玩家也必须带 @）
-                    if (!string.IsNullOrEmpty(worldName))
-                        input += $"@{worldName}";
-                    input += " ";
-                    Plugin.ChatLog.InputHandler.ChatInput = input;
-                    Plugin.ChatLog.InputHandler.Activate = true;
-                },
-            });
-        }
-
-        // 2. 切换到相同频道回复
-        if (CurrentChatType != null)
-        {
-            var inputChannel = CurrentChatType.Value.ToInputChannel();
-            if (inputChannel != null)
-            {
-                args.AddMenuItem(new MenuItem
-                {
-                    PrefixChar = 'C',
-                Name = Language.Context_ReplyInSelectedChatMode,
-                    Priority = 490,
-                    OnClicked = _ =>
-                    {
-                        Plugin.Functions.Chat.SetChannelWithExtraChat(inputChannel.Value);
-                        Plugin.ChatLog.InputHandler.Activate = true;
-                    },
-                });
-            }
-        }
-
-        // 3. 发送组队邀请（非自己、非已组队、无队伍或自己是队长）
-        var canSendInvite = !isSelf && !isInParty && (party.Length == 0 || isLeader);
-        if (canSendInvite)
-        {
-            if (inInstance && inPartyInstance)
-            {
-                // 副本内：直接邀请
-                if (contentId != 0)
-                {
-                    args.AddMenuItem(new MenuItem
-                    {
-                        PrefixChar = 'C',
-                Name = Language.Context_InviteToParty,
-                        Priority = 480,
-                        OnClicked = _ => Party.InviteInInstance(contentId),
-                    });
-                }
-            }
-            else
-            {
-                // 非副本：单个"发送组队邀请"，点击时按目标状态自动选择邀请方式
-                // （与原生菜单一致：游戏根据目标当前位置决定普通小队/跨服小队）
-                args.AddMenuItem(new MenuItem
-                {
-                    PrefixChar = 'C',
-                    Name = Language.Context_InviteToParty,
-                    Priority = 480,
-                    OnClicked = _ =>
-                    {
-                        if (contentId == 0)
-                            return;
-
-                        if (foundChar != null)
-                        {
-                            // 目标在场（当前世界=本地，含跨区旅行者）：普通小队邀请
-                            Party.InviteSameWorld(playerName, (ushort)foundChar.CurrentWorld.RowId, contentId);
-                        }
-                        else if (worldId != 0 && worldId == localCurrentWorldId)
-                        {
-                            // 目标家服 == 本地当前世界（自己跨区时也适用）：普通邀请
-                            Party.InviteSameWorld(playerName, worldId, contentId);
-                        }
-                        else
-                        {
-                            // 跨服（目标家服 != 本地当前世界）：跨服邀请（世界传 0 由游戏解析）
-                            Party.InviteOtherWorld(contentId, 0);
-                        }
-                    },
-                });
-            }
-        }
-
-        // 4. 提拔/踢出（队长且目标在队伍中）
-        if (isLeader && isInParty && (!inInstance || inPartyInstance))
-        {
-            // 需要找到 member 的 ContentId
-            ulong memberContentId = 0;
-            foreach (var member in party)
-            {
-                if (member.Name.TextValue == playerName && member.World.RowId == worldId)
-                {
-                    memberContentId = member.ContentId;
-                    break;
-                }
-            }
-
-            if (memberContentId != 0)
-            {
-                args.AddMenuItem(new MenuItem
-                {
-                    PrefixChar = 'C',
-                Name = Language.Context_Promote,
-                    Priority = 470,
-                    OnClicked = _ => Party.Promote(playerName, memberContentId),
-                });
-
-                args.AddMenuItem(new MenuItem
-                {
-                    PrefixChar = 'C',
-                Name = Language.Context_KickFromParty,
-                    Priority = 460,
-                    OnClicked = _ => Party.Kick(playerName, memberContentId),
-                });
-            }
-        }
-
-        // 5. 发送好友申请（非自己、非好友）
-        if (!isSelf && !IsFriend(playerName, worldId))
-        {
-            args.AddMenuItem(new MenuItem
-            {
-                PrefixChar = 'C',
-                Name = Language.Context_SendFriendRequest,
-                Priority = 450,
-                OnClicked = _ => Plugin.Functions.SendFriendRequest(playerName, worldId),
-            });
-        }
-
-        // 6. 邀请到新人频道（导师）
-        if (!isSelf && GameFunctions.IsMentor())
-        {
-            args.AddMenuItem(new MenuItem
-            {
-                PrefixChar = 'C',
-                Name = Language.Context_InviteToNoviceNetwork,
-                Priority = 440,
-                OnClicked = _ => Context.InviteToNoviceNetwork(playerName, worldId),
-            });
-        }
-
-        // 7. 屏蔽机能（非自己）— 展开为子菜单
-        if (!isSelf)
-        {
             var blockItems = new List<MenuItem>();
 
+            if (!isFriend)
+            {
+                blockItems.Add(new MenuItem
+                {
+                    Name = Language.Context_AddToBlacklist,
+                    Priority = 100,
+                    OnClicked = _ => Plugin.Functions.AddToBlacklist(pName, wId),
+                });
+
+                blockItems.Add(new MenuItem
+                {
+                    Name = Language.Context_AddToMuteList,
+                    Priority = 90,
+                    OnClicked = _ => Plugin.Functions.AddToMuteList(0, cId, pName, (short)wId),
+                });
+            }
+
+            // 记录屏蔽词：把当前右键消息全文填入屏蔽词窗口（AgentTermFilter.OpenNewFilterWindow）
+            if (CurrentMessageContent != null)
+            {
+                blockItems.Add(new MenuItem
+                {
+                    Name = Language.Context_AddToTermsFilter,
+                    Priority = 80,
+                    OnClicked = _ => Plugin.Functions.AddToTermsList(CurrentMessageContent),
+                });
+            }
+
+            // 返回：关闭二级菜单并重新打开一级菜单（原生返回=回到一级菜单）。
+            // ⚠️ 经验：① IsSubmenu=true 会生成"右指"箭头（▶，子菜单指示），原生返回是"左指" →
+            //   不用 IsSubmenu，Name 直接带左箭头 "←"（U+2190，CJK 字体必有字形；◁ U+25C1 无字形）；
+            // ② 展开二级时游戏会关闭一级菜单（ContextMenu addon），Show() 不生效（内容/状态已被清）→
+            //   用 AgentContext.OpenContextMenu 重新打开（右键时写入的目标字段/菜单结构仍在，未清）；
+            // ③ OpenSubmenu 生成的子菜单不带自动返回（ReturnArrowMask 依赖原生右键标志 _gap_0x6BC，
+            //   插件场景为 0）。Priority=MaxValue 保证升序排列中位于最底部。
             blockItems.Add(new MenuItem
             {
-                PrefixChar = 'C',
-                Name = Language.Context_AddToBlacklist,
-                Priority = 100,
-                OnClicked = _ => Plugin.Functions.AddToBlacklist(playerName, worldId),
-            });
-
-            blockItems.Add(new MenuItem
-            {
-                PrefixChar = 'C',
-                Name = Language.Context_AddToMuteList,
-                Priority = 90,
+                Name = "← " + Language.Context_Back,
+                Priority = int.MaxValue,
                 OnClicked = _ =>
                 {
-                    // AddToMuteList 需要 accountId 和 contentId，使用 contentId 兜底
-                    Plugin.Functions.AddToMuteList(0, contentId, playerName, (short)worldId);
-                },
-            });
-
-            args.AddMenuItem(new MenuItem
-            {
-                PrefixChar = 'C',
-                Name = Language.Context_BlockFunctions,
-                Priority = 430,
-                IsSubmenu = true,
-                OnClicked = clickArgs =>
-                {
-                    try
+                    unsafe
                     {
-                        clickArgs.OpenSubmenu(Language.Context_BlockFunctions, blockItems);
-                    }
-                    catch (Exception ex)
-                    {
-                        Plugin.Log.Warning(ex, "[ContextMenuHandler] OpenSubmenu failed, adding flat items");
-                        // 降级：直接添加为扁平菜单项（此时菜单已打开，无法再添加，仅记录日志）
+                        var mgr = RaptureAtkModule.Instance()->RaptureAtkUnitManager;
+                        var sub = mgr.GetAddonByName("AddonContextSub");
+                        if (sub != null)
+                            sub->Hide(true, false, 0);
+                        var agent = AgentContext.Instance();
+                        if (agent != null)
+                            agent->OpenContextMenu(false, false);
                     }
                 },
             });
-        }
 
-        // 8. 队员招募（非自己）
-        if (!isSelf)
-        {
-            args.AddMenuItem(new MenuItem
+            if (blockItems.Count > 0)
             {
-                PrefixChar = 'C',
-                Name = Language.Context_ViewRecruitment,
-                Priority = 420,
-                OnClicked = _ => OpenPartyFinderSearchByCreator(playerName, contentId),
-            });
-        }
-
-        // 9. 选中（非自己、玩家在场）
-        if (!isSelf && foundChar != null)
-        {
-            args.AddMenuItem(new MenuItem
-            {
-                PrefixChar = 'C',
-                Name = Language.Context_Target,
-                Priority = 410,
-                OnClicked = _ => Plugin.TargetManager.Target = foundChar,
-            });
-        }
-
-        // 10. 查看冒险者铭牌（非自己、有 ContentId）
-        if (!isSelf && contentId != 0)
-        {
-            args.AddMenuItem(new MenuItem
-            {
-                PrefixChar = 'C',
-                Name = Language.Context_AdventurerPlate,
-                Priority = 400,
-                OnClicked = _ =>
+                args.AddMenuItem(new MenuItem
                 {
-                    if (!GameFunctions.TryOpenAdventurerPlate(contentId))
-                        WrapperUtil.AddNotification(Language.Context_AdventurerPlateError, NotificationType.Warning);
-                },
-            });
-        }
+                    PrefixChar = 'C',
+                    Name = Language.Context_BlockFunctions,
+                    Priority = 430,
+                    IsSubmenu = true,
+                    OnClicked = clickArgs =>
+                    {
+                        try
+                        {
+                            clickArgs.OpenSubmenu(Language.Context_BlockFunctions, blockItems);
+                        }
+                        catch (Exception ex)
+                        {
+                            Plugin.Log.Warning(ex, "[ContextMenuHandler] OpenSubmenu failed");
+                        }
+                    },
+                });
+            }
 
-        // 11. 复制名字
-        args.AddMenuItem(new MenuItem
-        {
-            PrefixChar = 'C',
-            Name = Language.Context_CopyName,
-            Priority = 10,
-            OnClicked = _ => ImGui.SetClipboardText(playerName),
-        });
+            return;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════

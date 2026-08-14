@@ -107,6 +107,58 @@ public unsafe class GameFunctions : IDisposable
         return addon != null && addon->IsVisible;
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // 二级菜单"闪一下消失"根治（2026-08-14）
+    // ═══════════════════════════════════════════════════════════════
+    // 根因：游戏展开二级菜单（AddonContextSub）后检查 OwnerAddon（ChatLog）的 IsVisible，
+    //       ChatTwo 的 FrameworkUpdate 每帧隐藏 ChatLog（SetAddonInteractable(name,false)），
+    //       二级菜单展开时主菜单自动关闭 → ContextMenuActive=false → 下帧 ChatLog 被隐藏
+    //       → 游戏检测 OwnerAddon 不可见 → 立即 Hide AddonContextSub（[HideDiag] 实测：
+    //       Hide(AddonContextSub) menuIndex=1 owner=81，OSM 后 5ms 内被调）。
+    // 修复：二级菜单展开期间，ChatLog 保持 IsVisible=true 但移到屏幕外（游戏看到"可见"
+    //       通过检查，用户看不到任何闪现）；二级菜单关闭后恢复原位并交还正常隐藏逻辑。
+    private static bool _chatOffscreen;
+    private static short _chatSavedX;
+    private static short _chatSavedY;
+
+    public static bool IsNativeSubContextMenuVisible()
+    {
+        var addon = GetAddon<AtkUnitBase>("AddonContextSub");
+        return addon != null && addon->IsVisible;
+    }
+
+    public static void KeepChatVisibleOffscreen()
+    {
+        var addon = GetAddon<AtkUnitBase>("ChatLog");
+        if (addon == null)
+            return;
+        if (!_chatOffscreen)
+        {
+            _chatSavedX = addon->X;
+            _chatSavedY = addon->Y;
+            _chatOffscreen = true;
+        }
+        // 游戏要求 OwnerAddon（ChatLog）可见才保持二级菜单 → IsVisible=true
+        if (!addon->IsVisible)
+            addon->IsVisible = true;
+        // 移到屏幕外（short 范围），避免原版聊天框闪现
+        if (addon->X != 9999 || addon->Y != 9999)
+            addon->SetPosition(9999, 9999);
+    }
+
+    public static void RestoreChatPosition()
+    {
+        if (!_chatOffscreen)
+            return;
+        _chatOffscreen = false;
+        var addon = GetAddon<AtkUnitBase>("ChatLog");
+        if (addon != null)
+        {
+            addon->SetPosition(_chatSavedX, _chatSavedY);
+            // IsVisible 交还 FrameworkUpdate 的正常隐藏逻辑（HideChat=true 时下帧会隐藏）
+        }
+    }
+
     public static uint GetChatLogAddonId()
     {
         // 优先返回 "ChatLog" 而不是 "ChatLogPanel_0"：

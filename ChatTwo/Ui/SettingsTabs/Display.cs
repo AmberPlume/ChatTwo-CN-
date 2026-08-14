@@ -1,7 +1,5 @@
 using ChatTwo.Resources;
 using ChatTwo.Util;
-using Dalamud;
-using Dalamud.Interface.FontIdentifier;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Bindings.ImGui;
 
@@ -44,7 +42,13 @@ public sealed class Display : ISettingsTab
 
         // ═══════════════ 窗口 ═══════════════
         // 以下项从"窗口调整"页挪入（用户要求：基础设置统一管窗口行为）
-        ImGuiUtil.OptionCheckbox(ref Mutable.KeepInputFocus, Language.Options_KeepInputFocus_Name, Language.Options_KeepInputFocus_Description);
+        // 显示时间戳：全局开关（各 tab 另有独立时间戳开关，两者叠加）
+        ImGuiUtil.OptionCheckbox(ref Mutable.ShowTimestamp, Language.Options_ShowTimestamp_Name, Language.Options_ShowTimestamp_Description);
+        ImGui.Spacing();
+
+        // 仿原生界面背景（用户要求：放在标签页位置上面）
+        // 仿原生界面（用户要求：去掉"背景"两字，观感更简洁）
+        ImGuiUtil.OptionCheckbox(ref Mutable.NativeBackground, Language.Options_NativeBackground_Name, Language.Options_NativeBackground_Description);
         ImGui.Spacing();
 
         using (var tabCombo = ImGuiUtil.BeginComboVertical(Language.Options_TabPosition_Name, Mutable.TabPosition.Name()))
@@ -59,18 +63,27 @@ public sealed class Display : ISettingsTab
         ImGuiUtil.HelpText(Language.Options_TabPosition_Description);
         ImGui.Spacing();
 
-        // 允许调整聊天窗口大小：设置项已移除，保持开启（大小由仿原生缩放手柄控制）
-        // 仿原生界面背景：移到基础设置此处（原允许调整聊天窗口大小位置）
-        ImGuiUtil.OptionCheckbox(ref Mutable.NativeBackground, "仿原生界面背景", "只给消息区、输入框、标签页保留背景，窗口其余区域完全透明（显示游戏画面）。");
+        // 未读消息提示方式（用户要求放在基础设置）：高亮/呼吸/无
+        var currentUnread = Mutable.UnreadNotifyMode;
+        using (var combo = ImRaii.Combo(Language.Options_UnreadNotifyMode_Name, currentUnread.Name()))
+        {
+            if (combo)
+            {
+                foreach (UnreadNotifyMode mode in Enum.GetValues<UnreadNotifyMode>())
+                    if (ImGui.Selectable(mode.Name(), currentUnread == mode))
+                        Mutable.UnreadNotifyMode = mode;
+            }
+        }
         ImGui.Spacing();
 
         ImGui.Separator();
         ImGui.Spacing();
 
-        ImGuiUtil.OptionCheckbox(ref Mutable.Use24HourClock, Language.Options_Use24HourClock_Name, Language.Options_Use24HourClock_Description);
+        // 保持输入焦点（与显示时间戳互换位置，用户要求）
+        ImGuiUtil.OptionCheckbox(ref Mutable.KeepInputFocus, Language.Options_KeepInputFocus_Name, Language.Options_KeepInputFocus_Description);
         ImGui.Spacing();
 
-        // 定型文列表排序（原在"偏好"页，偏好页已删除，移至此处）
+        // 定型文排序调整（原"定型文列表排序"，改名）
         ImGuiUtil.OptionCheckbox(ref Mutable.SortAutoTranslate, Language.Options_SortAutoTranslate_Name, Language.Options_SortAutoTranslate_Description);
         ImGui.Spacing();
 
@@ -81,32 +94,7 @@ public sealed class Display : ISettingsTab
         ImGui.Separator();
         ImGui.Spacing();
 
-        // ═══════════════ 字体 ═══════════════
-        // 自定义字体：字体族下拉（无字号/样式列——字号统一由下面的"字体大小"控制）
-        ImGui.TextUnformatted(Language.Options_Font_Name);
-        FontFamilyChooser(Language.Options_Font_Name, Mutable.GlobalFontV2);
-        ImGui.SameLine();
-        if (ImGui.Button("Reset##global-font"))
-        {
-            Mutable.GlobalFontV2 = new SingleFontSpec { FontId = new DalamudAssetFontAndFamilyId(DalamudAsset.NotoSansCjkRegular), SizePt = Mutable.FontSizeV2 };
-            Mutable.FontsEnabled = false;  // Reset → 回到 Axis 游戏字体
-        }
-        ImGuiUtil.HelpText(Language.Options_Font_Description);
-        ImGui.Spacing();
-
-        // 主字体大小
-        ImGuiUtil.FontSizeCombo(Language.Options_FontSize_Name, ref Mutable.FontSizeV2);
-        ImGuiUtil.HelpText(string.Format(Language.Options_Font_Description, Plugin.PluginName));
-        ImGui.Spacing();
-
-        // 输入框字体大小（输入框高度随之自适应）
-        ImGuiUtil.FontSizeCombo(Language.Options_InputFontSize_Name, ref Mutable.InputFontSize);
-        ImGuiUtil.HelpText(Language.Options_InputFontSize_Description);
-        ImGui.Spacing();
-
-        // 设置界面字体大小（独立于聊天主字体）
-        ImGuiUtil.FontSizeCombo(Language.Options_SettingsFontSize_Name, ref Mutable.SettingsFontSize);
-        ImGuiUtil.HelpText(Language.Options_SettingsFontSize_Description);
+        // 字体相关设置已拆分到独立"字体设置"页（v1.40.11+，用户要求）
 
         ImGui.Spacing();
 
@@ -177,33 +165,4 @@ public sealed class Display : ISettingsTab
     }
 
     private bool _migrateAlsoDb = true;
-
-    // 字体族下拉（替代内置 SingleFontChooserDialog——它自带字号/样式列无法隐藏，字号由"字体大小"统一控制）
-    private void FontFamilyChooser(string label, SingleFontSpec current)
-    {
-        var families = _fontFamilies.Value;
-        // 当前字体可能带样式（如 Regular），匹配所属字体族（族下任一字体包含当前 FontId 即命中）
-        var currentName = current.FontId.ToString();
-        var selectedIdx = families.FindIndex(f => f.Fonts.Any(fid => fid.ToString() == currentName));
-        if (selectedIdx == -1)
-            selectedIdx = 0;
-
-        if (ImGui.Combo($"##font-family-{label}", ref selectedIdx, families.Select(f => f.EnglishName).ToArray(), families.Count))
-        {
-            var family = families[selectedIdx];
-            Mutable.GlobalFontV2 = new SingleFontSpec { FontId = family.Fonts[family.FindBestMatch(400, 100, 0)], SizePt = Mutable.FontSizeV2 };
-            Mutable.FontsEnabled = true;  // 选了自定义字体 → 消息改用自定义字体
-        }
-    }
-
-    private static readonly Lazy<List<IFontFamilyId>> _fontFamilies = new(() =>
-    {
-        var list = new List<IFontFamilyId> { DalamudDefaultFontAndFamilyId.Instance };
-        list.AddRange(IFontFamilyId.ListDalamudFonts());
-        list.AddRange(IFontFamilyId.ListGameFonts());
-        var systemFonts = IFontFamilyId.ListSystemFonts(true);
-        systemFonts.Sort((a, b) => string.Compare(a.EnglishName, b.EnglishName, StringComparison.CurrentCultureIgnoreCase));
-        list.AddRange(systemFonts);
-        return list;
-    });
 }
