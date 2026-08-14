@@ -110,6 +110,9 @@ public partial class ChatLog : Window, IChatWindow
     {
         Plugin = plugin;
 
+        // 锁定状态持久化：从配置恢复上次的锁定/解锁（2026-08-15 新增）
+        MoveLocked = Plugin.Config.MoveLocked;
+
         Size = new Vector2(500, 250);
         SizeCondition = ImGuiCond.FirstUseEver;
 
@@ -856,7 +859,12 @@ public partial class ChatLog : Window, IChatWindow
         ImGui.SameLine();
         ImGui.SetCursorPosY(iconTop);
         if (ImGuiUtil.IconButton(MoveLocked ? FontAwesomeIcon.Lock : FontAwesomeIcon.Unlock, font: Plugin.FontManager.FontAwesomeSmall))
+        {
             MoveLocked = !MoveLocked;
+            // 持久化锁定状态（记忆上次状态，重启不丢）
+            Plugin.Config.MoveLocked = MoveLocked;
+            Plugin.SaveConfig();
+        }
         if (ImGui.IsItemHovered())
             ImGuiUtil.Tooltip(MoveLocked ? "解锁窗口移动" : "锁定窗口移动");
     }

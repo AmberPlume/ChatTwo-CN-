@@ -135,6 +135,8 @@ public class Configuration : IPluginConfiguration
     public bool NativeBackground;
     // 未读消息提示方式（全局）：Highlight=高亮 / Breath=呼吸 / None=无（默认高亮）
     public UnreadNotifyMode UnreadNotifyMode = UnreadNotifyMode.Highlight;
+    // 快捷锁定：聊天框锁定按钮状态（记忆上次锁定/解锁，重启不丢）
+    public bool MoveLocked;
     public Dictionary<ChatType, uint> ChatColours = new();
     public List<Tab> Tabs = [];
 
@@ -209,6 +211,7 @@ public class Configuration : IPluginConfiguration
         InputAlpha = other.InputAlpha;
         NativeBackground = other.NativeBackground;
         UnreadNotifyMode = other.UnreadNotifyMode;
+        MoveLocked = other.MoveLocked;
         ChatColours = other.ChatColours.ToDictionary(entry => entry.Key, entry => entry.Value);
         Tabs = other.Tabs.Select(t => t.Clone()).ToList();
         OverrideStyle = other.OverrideStyle;

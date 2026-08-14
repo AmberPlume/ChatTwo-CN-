@@ -14,7 +14,7 @@
     "DownloadLinkTesting": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.40.12.0/ChatTwo-CN-v1.40.12.zip",
     "DownloadLinkUpdate": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.40.12.0/ChatTwo-CN-v1.40.12.zip",
     "IconUrl": "",
-    "Changelog": "v1.40.12\n【修复】\n- 修复：右键菜单中其他插件（如 Daily Routines）的\"物品搜索/市场搜索\"等道具菜单项不显示的问题\n- 修复：右键菜单打开瞬间闪没（原生聊天框隐藏时被阻塞）\n- 修复：背包等原生界面的二级菜单被错误移动到聊天框右侧\n- 修复：启动日志中的 Hook 签名验证错误",
+    "Changelog": "v1.40.12\n【新增】\n- 新增：聊天框锁定按钮状态记忆（重启后保持上次锁定状态）\n【修复】\n- 修复：右键菜单中其他插件（如 Daily Routines）的\"物品搜索/市场搜索\"等道具菜单项不显示的问题\n- 修复：右键菜单打开瞬间闪没（原生聊天框隐藏时被阻塞）\n- 修复：背包等原生界面的二级菜单被错误移动到聊天框右侧\n- 修复：启动日志中的 Hook 签名验证错误",
     "Tags": [
       "Social",
       "UI",
