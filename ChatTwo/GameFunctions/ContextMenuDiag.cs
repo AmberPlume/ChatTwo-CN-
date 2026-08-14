@@ -233,6 +233,24 @@ public sealed partial class ContextMenuHandler
             var owner = *(byte*)(b + 0x48e);
             var curTarget = *(nint*)(b + 0x120);
             Plugin.Log.Error($"[CtxDiag] addon={args.AddonName} ours={IsChatTwoTriggered} ContentId={cid} HomeWorld={hw} AccountId={aid} ObjId={oid} Sex={sex} MountSeats={mount} Owner={owner} CurTargetPtr=0x{curTarget:X}");
+
+            // [BP+ItemID] 2026-08-15 专项：AddonName 机制验证
+            //  Dalamud OnMenuOpened 的 AddonName = GetAddonById(ContextMenu->BlockedParentId)，
+            //  我们 OpenContextMenu 前设 BlockedParentId=ChatLog，实测它是否被游戏覆盖；
+            //  AgentChatLog.ContextItemId 是 DR HandleChatLog 的读取源，确认触发时是否有效。
+            unsafe
+            {
+                try
+                {
+                    var mgr = RaptureAtkModule.Instance()->RaptureAtkUnitManager;
+                    var ctxAddon = mgr.GetAddonByName("ContextMenu");
+                    var bp = ctxAddon != null ? ctxAddon->BlockedParentId : 0;
+                    var chatLog = FFXIVClientStructs.FFXIV.Client.UI.Agent.AgentChatLog.Instance();
+                    var itemId = chatLog != null ? chatLog->ContextItemId : 0u;
+                    Plugin.Log.Error($"[BPItem] addon={args.AddonName} ctxAddon=0x{(nint)ctxAddon:X} BlockedParentId=0x{bp:X} ChatLogAddonId=0x{ChatTwo.GameFunctions.GameFunctions.GetChatLogAddonId():X} ACL.ContextItemId=0x{itemId:X}");
+                }
+                catch (Exception ex) { Plugin.Log.Error($"[BPItem] error {ex.Message}"); }
+            }
         }
         catch (Exception ex)
         {

@@ -286,7 +286,28 @@ public sealed class PayloadHandler
             inside();
     }
 
+    /// <summary>
+    /// 打开一级菜单前调用：把 ContextMenu addon 的 BlockedParentId 设为 ChatLog。
+    /// Dalamud 的 OnMenuOpened 事件（hook AtkModuleVf22OpenAddonByAgent detour）里：
+    ///   AddonName = GetAddonById(GetAddonByName("ContextMenu")->BlockedParentId)
+    /// 原生右键 ChatLog 时该字段=ChatLog id（右键链设置）；ChatTwo 用 OpenContextMenu 模拟
+    /// 不经过右键链，需手动设，否则 AddonName≠"ChatLog" → DR/Allagan 的 switch 不识别 →
+    /// 道具/玩家菜单项不注入（用户实测 DR"物品搜索/市场搜索"缺失）。
+    /// </summary>
+    private static unsafe void SetContextMenuBlockedParentToChatLog()
+    {
+        try
+        {
+            var mgr = RaptureAtkModule.Instance()->RaptureAtkUnitManager;
+            var ctx = mgr.GetAddonByName("ContextMenu");
+            if (ctx != null)
+                ctx->BlockedParentId = (ushort)GameFunctions.GameFunctions.GetChatLogAddonId();
+        }
+        catch (Exception ex) { Plugin.Log.Debug($"[NativeCtxMenu] SetBlockedParent error {ex.Message}"); }
+    }
+
     private static void InlineIcon(IDalamudTextureWrap icon)
+
     {
         var cursor = ImGui.GetCursorPos();
         const int maxIconSize = 32;
@@ -542,6 +563,8 @@ public sealed class PayloadHandler
 
             // 标记菜单激活，ChatLog.MoveContextMenu 会在 PreDraw 中移动菜单
             Plugin.ContextMenuActive = true;
+            // ChatTwo 菜单会话开始（二级菜单 MoveContextSubMenu 用它区分聊天框/背包等来源）
+            Plugin.ChatTwoMenuSession = true;
 
             // 设置菜单位置提示
             agent->SetPosition(gameX, gameY);
@@ -599,12 +622,14 @@ public sealed class PayloadHandler
                     Buffer.MemoryCopy(ptr, (byte*)ctxTarget + 0x32, 32, Math.Min(nameBytes.Length, 32));
                 }
             }
-            // ⚠️ 不再设置 OwnerAddon=ChatLog（2026-08-14 15:17 根治方案）：
-            // 其他插件（DR 等）的 OpenSubmenu 会把 AgentContext->OwnerAddon 快照成 AddonContextSub 的
-            // owner → ChatLog 隐藏（ChatTwo 常态）即关闭二级菜单（Show 前清零无效，绑定在 OpenAddon 时确定）。
-            // 保持 OwnerAddon=0（等效 bindToOwner=false）→ 任何插件的二级菜单都不绑定 ChatLog → 正常显示。
-            // 一级菜单不受影响：OpenContextMenu(false,false) 本来就 bindToOwner=false，MoveContextMenu
-            // 也已改为不依赖 OwnerAddon（用 ContextMenuActive 判断）。
+            // ⚠️ OwnerAddon 时分复用（2026-08-14 23:49 修订，替代 15:17 的恒 0 方案）：
+            //   触发时设 ChatLog → OnMenuOpened 时 AddonName="ChatLog"（DR/Allagan 的 switch 靠它
+            //   识别聊天框菜单，缺失则"物品搜索/市场搜索"等道具项不注入——用户实测回归）。
+            //   但 owner=ChatLog 会让插件二级菜单在 OpenAddon 时绑定 ChatLog → 隐藏即关。
+            //   解法：MoveContextMenu（一级菜单 PreDraw）在注入完成后每帧清零 OwnerAddon →
+            //   用户点二级菜单时 owner 已是 0 → 不绑定 → 显示正常。
+            //   返回重开一级菜单时 ContextMenuHandler 会重新设回 ChatLog（保证重开也能注入）。
+            agent->OwnerAddon = GameFunctions.GameFunctions.GetChatLogAddonId();
 
             // ===== 完整复刻原生玩家菜单（正确 eventId，来自 CurrentContextMenu+0x448 反汇编确认）=====
             // 反汇编证实 AddContextMenuItem 完整签名：(eventId, text, disabled, submenu, copyText)。
@@ -636,6 +661,11 @@ public sealed class PayloadHandler
 
             // 打开菜单。之前用 OpenContextMenuForAddon 时事件端字段仍被清，
             // 改用 OpenContextMenu（游戏原生流程：设置字段 → 直接打开）。
+            // ⚠️ 打开前把 ContextMenu addon 的 BlockedParentId 设为 ChatLog：
+            // Dalamud 的 OnMenuOpened 里 AddonName = GetAddonById(ContextMenu->BlockedParentId)，
+            // 原生右键 ChatLog 时它=ChatLog；ChatTwo 模拟不经过右键链，需手动设，
+            // 否则 AddonName≠"ChatLog" → DR/Allagan 的 switch 不识别 → 菜单项不注入（实测）。
+            SetContextMenuBlockedParentToChatLog();
             // ⚠️ bindToOwner 必须为 false：原生聊天框全程隐藏（IsVisible=false），
             // 菜单绑定到 owner(ChatLog) 会在打开后立即被游戏关闭（用户实测"菜单闪一下就消失"）
             agent->OpenContextMenu(false, false);
@@ -703,8 +733,10 @@ public sealed class PayloadHandler
                 agent->TargetName.SetString(emptyPtr);
             }
 
-            // 设置 OwnerAddon 为聊天框
-            agent->OwnerAddon = GameFunctions.GameFunctions.GetChatLogAddonId();
+            // ⚠️ OwnerAddon 时分复用（同玩家菜单）：触发时设 ChatLog 供 OnMenuOpened 识别
+            //（DR/Allagan 道具项注入依赖 AddonName="ChatLog"），MoveContextMenu 每帧清零防二级菜单绑定。
+            // ⚠️ 必须在 ClearMenu 之后设置！ClearMenu 会清掉 AgentContext 目标字段区（含 OwnerAddon 0xDF0），
+            //   先设会被清成 0 → OnMenuOpened 时 AddonName 不是 ChatLog → DR 道具项不注入（用户实测回归）。
 
             // 计算菜单位置：放在聊天框右侧
             var chatPos = ImGui.GetWindowPos();
@@ -717,6 +749,8 @@ public sealed class PayloadHandler
 
             // 标记菜单激活，ChatLog.MoveContextMenu 会在 PreDraw 中移动菜单
             Plugin.ContextMenuActive = true;
+            // ChatTwo 菜单会话开始（二级菜单 MoveContextSubMenu 用它区分聊天框/背包等来源）
+            Plugin.ChatTwoMenuSession = true;
 
             // 设置菜单位置提示
             agent->SetPosition(gameX, gameY);
@@ -725,6 +759,9 @@ public sealed class PayloadHandler
 
             // 清除上次菜单的残留原生菜单项（同玩家菜单逻辑）
             agent->ClearMenu();
+
+            // ⚠️ OwnerAddon 必须在 ClearMenu 之后设置（ClearMenu 会清掉它，见上方注释）
+            agent->OwnerAddon = GameFunctions.GameFunctions.GetChatLogAddonId();
 
             // ===== [FullReplicate-Item v3+] 用 AddMenuItem + AgentChatLog 本体作 handler（2026-08-14 根除快照）=====
             // ⭐ handler 身份确认：[HandlerID] 实测 handler == AgentChatLog.Instance()（matchACL=True）！
@@ -792,6 +829,8 @@ public sealed class PayloadHandler
             // 会调 [vtable+0x28] 清空菜单 → 把我们手动加的项全清掉 → 占位符。
             // 改用 OpenContextMenu(false,false)（closeExisting=false 不清项），与玩家菜单一致。
             // OwnerAddon 已在上面设置（OpenContextMenuForAddon 本质也只是设置 OwnerAddon 后跳到这里）
+            // ⚠️ 打开前设 BlockedParentId=ChatLog（同玩家菜单，DR/Allagan 注入识别用）
+            SetContextMenuBlockedParentToChatLog();
             agent->OpenContextMenu(false, false);
 
             // 立即设置菜单位置，防止闪烁

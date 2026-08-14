@@ -142,8 +142,8 @@ public partial class ChatLog : Window, IChatWindow
 
         // 提示框零闪帧：hook ItemDetail/ActionDetail 的 SetPosition，detour 替换坐标（正式功能）
         InitSetPosHook();
-        // OpenSubMenu 展开后清零 OwnerAddon（等效 bindToOwner=false，二级菜单不被隐藏的 ChatLog 关掉）
-        InitOpenSubMenuHook();
+        // OpenAddonByAgent vtable 22 hook：OpenContextMenu 前设 BlockedParentId=ChatLog（DR 注入识别用）
+        InitOpenAddonByAgentHook();
     }
 
     public void Dispose()
@@ -159,8 +159,8 @@ public partial class ChatLog : Window, IChatWindow
 
         _setPosHook?.Dispose();
         _setPosHook = null;
-        _openSubMenuHook?.Dispose();
-        _openSubMenuHook = null;
+        _openAddonByAgentHook?.Dispose();
+        _openAddonByAgentHook = null;
 
         Plugin.ClientState.Logout -= Logout;
         Plugin.ClientState.Login -= Login;
