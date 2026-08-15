@@ -211,7 +211,12 @@ public static class ImGuiUtil
                     continue;
 
                 var firstSpace = FindFirstSpace(text, textEnd);
-                var properBreak = firstSpace <= endPrevLine;
+                // ⚠️ 2026-08-15 22:58 修复：无空格文本（纯 CJK/连续字符）视为"按字符断行"。
+                // 原版 firstSpace == textEnd（整个文本是一个"词"）时，若文本 ≤ 整行宽度但 > 当前
+                // 剩余宽度（如 Sender 占宽后画 Content），会误判"词放不下整行 → 空一行再画"，
+                // 导致"第一行空、全部内容挤到第二行"（用户实测）。中文没有空格分词，应直接按
+                // 字符断行（properBreak=true → 正常 Text + while 推进），不触发空行分支。
+                var properBreak = firstSpace <= endPrevLine || firstSpace == textEnd;
                 if (properBreak)
                 {
                     Text(text, endPrevLine);

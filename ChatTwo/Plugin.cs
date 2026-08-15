@@ -66,6 +66,11 @@ public sealed class Plugin : IDalamudPlugin
     /// PayloadHandler 触发时置 true；一级菜单关闭且无二级菜单显示时置 false。</summary>
     public static bool ChatTwoMenuSession;
 
+    // ⚠️ 2026-08-15 15:00 兜底复位（用户实测：左键点击玩家后聊天框穿透保持，直到原生菜单开关才恢复）：
+    // 菜单标志置位但菜单（或二级菜单）持续不可见超时 → FrameworkUpdate 强制复位，防 NoMouseInputs 残留。
+    public static long ContextMenuActivatedAt;
+    public static long ChatTwoMenuSessionAt;
+
     public readonly WindowSystem WindowSystem = new(PluginName);
     public SettingsWindow SettingsWindow { get; }
     public ChatLog ChatLog { get; }
@@ -131,8 +136,6 @@ public sealed class Plugin : IDalamudPlugin
             Config.PrettierTimestamps = false;      // 现代化布局
             Config.MoreCompactPretty = false;       // 更紧凑的现代布局
             Config.HideSameTimestamps = false;      // 隐藏重复的时间戳
-            Config.CollapseDuplicateMessages = false; // 折叠重复消息
-            Config.CollapseKeepUniqueLinks = false;   // 折叠时保留唯一链接
             Config.HideInBattle = false;            // 在战斗中隐藏聊天窗口
             Config.HideWhenInactive = false;        // 非活动时隐藏（已从设置移除）
             Config.InactivityHideActiveDuringBattle = false;
@@ -300,6 +303,20 @@ public sealed class Plugin : IDalamudPlugin
         // }
         GameFunctions.GameFunctions.RestoreChatPosition(); // 保留：恢复位置兜底（防 ChatLog 卡屏幕外）
 
+        // ⚠️ 2026-08-15 15:00 兜底复位：菜单标志残留（打开失败/关闭路径异常）会让 NoMouseInputs
+        // 持续生效 → 聊天框穿透（用户实测：左键点击玩家后穿透保持，直到原生菜单开关才恢复）。
+        // 标志置位后菜单（或二级菜单）持续不可见超过 1s → 强制复位两个标志。
+        // 必须放在 HideChat return 之前（用户可能未隐藏原生聊天框，此兜底需每帧执行）。
+        try
+        {
+            var menuVisible = IsNativeContextMenuVisible() || IsNativeSubContextMenuVisible();
+            if (ContextMenuActive && !menuVisible && Environment.TickCount64 - ContextMenuActivatedAt > 1000)
+                ContextMenuActive = false;
+            if (ChatTwoMenuSession && !menuVisible && Environment.TickCount64 - ChatTwoMenuSessionAt > 1000)
+                ChatTwoMenuSession = false;
+        }
+        catch (Exception ex) { Plugin.Log.Debug($"[CtxFallback] error {ex.Message}"); }
+
         if (!Config.HideChat)
             return;
 
@@ -326,6 +343,20 @@ public sealed class Plugin : IDalamudPlugin
                 var ctxAddon = RaptureAtkModule.Instance()->RaptureAtkUnitManager.GetAddonByName("ContextMenu");
                 return ctxAddon != null && ctxAddon->IsVisible;
             }
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>二级菜单（AddonContextSub）是否可见（兜底复位用）。</summary>
+    public static unsafe bool IsNativeSubContextMenuVisible()
+    {
+        try
+        {
+            var addon = RaptureAtkModule.Instance()->RaptureAtkUnitManager.GetAddonByName("AddonContextSub");
+            return addon != null && addon->IsVisible;
         }
         catch
         {

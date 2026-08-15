@@ -406,9 +406,12 @@ public unsafe class KeybindManager : IDisposable {
 
         // Ctrl+C: copy selected text from ChatLog if any, eat the key.
         // Must be checked FIRST so it takes priority over any game hotkey bound to C.
+        // ⚠️ 选字状态已移入 MessageLogState（2026-08-15 22:58，按窗口隔离）：
+        // 主窗口选字在 ChatLog.MsgState.Selection，PopOut 选字在各自 MsgState。
+        // Ctrl+C 复制主窗口选区（主窗口是最常见的复制场景）。
         if (ComboPressed(source, VirtualKey.C, ModifierFlag.Ctrl, modifierState: modifierState))
         {
-            var selText = Plugin.ChatLog.Selection.GetSelectedText();
+            var selText = Plugin.ChatLog.MsgState.Selection.GetSelectedText();
             if (!string.IsNullOrEmpty(selText))
             {
                 Plugin.KeyState[VirtualKey.C] = false; // eat it

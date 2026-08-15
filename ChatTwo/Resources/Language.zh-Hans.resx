@@ -1,110 +1,52 @@
-<?xml version="1.0" encoding="utf-8"?>
-<root>
-  <!--
-      Microsoft ResX Schema
-
-      Version 2.0
-
-      The primary goals of this format is to allow a simple XML format
-      that is mostly human readable. The generation and parsing of the
-      various data types are done through the TypeConverter classes
-      associated with the data types.
-
-      Example:
-
-      ... ado.net/XML headers & schema ...
-      <resheader name="resmimetype">text/microsoft-resx</resheader>
-      <resheader name="version">2.0</resheader>
-      <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
-      <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
-      <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
-      <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
-      <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
-          <value>[base64 mime encoded serialized .NET Framework object]</value>
-      </data>
-      <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
-          <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
-          <comment>This is a comment</comment>
-      </data>
-
-      There are any number of "resheader" rows that contain simple
-      name/value pairs.
-
-      Each data row contains a name, and value. The row also contains a
-      type or mimetype. Type corresponds to a .NET class that support
-      text/value conversion through the TypeConverter architecture.
-      Classes that don't support this are serialized and stored with the
-      mimetype set.
-
-      The mimetype is used for serialized objects, and tells the
-      ResXResourceReader how to depersist the object. This is currently not
-      extensible. For a given mimetype the value must be set accordingly:
-
-      Note - application/x-microsoft.net.object.binary.base64 is the format
-      that the ResXResourceWriter will generate, however the reader can
-      read any of the formats listed below.
-
-      mimetype: application/x-microsoft.net.object.binary.base64
-      value   : The object must be serialized with
-              : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
-              : and then encoded with base64 encoding.
-
-      mimetype: application/x-microsoft.net.object.soap.base64
-      value   : The object must be serialized with
-              : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
-              : and then encoded with base64 encoding.
-
-      mimetype: application/x-microsoft.net.object.bytearray.base64
-      value   : The object must be serialized into a byte array
-              : using a System.ComponentModel.TypeConverter
-              : and then encoded with base64 encoding.
-      -->
-  <xsd:schema xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata" id="root">
-    <xsd:import namespace="http://www.w3.org/XML/1998/namespace"/>
-    <xsd:element name="root" msdata:IsDataSet="true">
-      <xsd:complexType>
-        <xsd:choice maxOccurs="unbounded">
-          <xsd:element name="metadata">
-            <xsd:complexType>
-              <xsd:sequence>
-                <xsd:element name="value" type="xsd:string" minOccurs="0"/>
-              </xsd:sequence>
-              <xsd:attribute name="name" use="required" type="xsd:string"/>
-              <xsd:attribute name="type" type="xsd:string"/>
-              <xsd:attribute name="mimetype" type="xsd:string"/>
-              <xsd:attribute ref="xml:space"/>
-            </xsd:complexType>
-          </xsd:element>
-          <xsd:element name="assembly">
-            <xsd:complexType>
-              <xsd:attribute name="alias" type="xsd:string"/>
-              <xsd:attribute name="name" type="xsd:string"/>
-            </xsd:complexType>
-          </xsd:element>
-          <xsd:element name="data">
-            <xsd:complexType>
-              <xsd:sequence>
-                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1"/>
-                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2"/>
-              </xsd:sequence>
-              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1"/>
-              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3"/>
-              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4"/>
-              <xsd:attribute ref="xml:space"/>
-            </xsd:complexType>
-          </xsd:element>
-          <xsd:element name="resheader">
-            <xsd:complexType>
-              <xsd:sequence>
-                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1"/>
-              </xsd:sequence>
-              <xsd:attribute name="name" type="xsd:string" use="required"/>
-            </xsd:complexType>
-          </xsd:element>
-        </xsd:choice>
-      </xsd:complexType>
-    </xsd:element>
-  </xsd:schema>
+<?xml version='1.0' encoding='utf-8'?>
+<root xmlns:ns1="urn:schemas-microsoft-com:xml-msdata" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  
+  <xs:schema id="root">
+    <xs:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xs:element name="root" ns1:IsDataSet="true">
+      <xs:complexType>
+        <xs:choice maxOccurs="unbounded">
+          <xs:element name="metadata">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="value" type="xsd:string" minOccurs="0" />
+              </xs:sequence>
+              <xs:attribute name="name" use="required" type="xsd:string" />
+              <xs:attribute name="type" type="xsd:string" />
+              <xs:attribute name="mimetype" type="xsd:string" />
+              <xs:attribute ref="xml:space" />
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="assembly">
+            <xs:complexType>
+              <xs:attribute name="alias" type="xsd:string" />
+              <xs:attribute name="name" type="xsd:string" />
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="data">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="value" type="xsd:string" minOccurs="0" ns1:Ordinal="1" />
+                <xs:element name="comment" type="xsd:string" minOccurs="0" ns1:Ordinal="2" />
+              </xs:sequence>
+              <xs:attribute name="name" type="xsd:string" use="required" ns1:Ordinal="1" />
+              <xs:attribute name="type" type="xsd:string" ns1:Ordinal="3" />
+              <xs:attribute name="mimetype" type="xsd:string" ns1:Ordinal="4" />
+              <xs:attribute ref="xml:space" />
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="resheader">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="value" type="xsd:string" minOccurs="0" ns1:Ordinal="1" />
+              </xs:sequence>
+              <xs:attribute name="name" type="xsd:string" use="required" />
+            </xs:complexType>
+          </xs:element>
+        </xs:choice>
+      </xs:complexType>
+    </xs:element>
+  </xs:schema>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
   </resheader>
@@ -133,35 +75,11 @@
   <data name="Options_HideDuringCutscenes_Description">
     <value>播放过场动画时隐藏{0}。</value>
   </data>
-  <data name="Options_NativeItemTooltips_Name">
-    <value>显示原始道具帮助</value>
-  </data>
-  <data name="Options_NativeItemTooltips_Description">
-    <value>当鼠标悬停在 {0} 中的道具时，显示游戏中的道具帮助。</value>
-  </data>
-  <data name="Options_SidebarTabView_Name">
-    <value>在侧边栏中显示标签页</value>
-  </data>
-  <data name="Options_SidebarTabView_Description">
-    <value>在 {0} 中显示标签页作为侧边栏，而不是顶部。</value>
-  </data>
   <data name="Options_TabPosition_Name">
     <value>标签页位置</value>
   </data>
   <data name="Options_TabPosition_Description">
     <value>选择标签页显示在聊天窗口的顶部还是底部。</value>
-  </data>
-  <data name="Options_PrettierTimestamps_Name">
-    <value>使用现代化布局</value>
-  </data>
-  <data name="Options_PrettierTimestamps_Description">
-    <value>以更现代化的样式显示消息。</value>
-  </data>
-  <data name="Options_Use24HourClock_Name">
-    <value>24 小时制</value>
-  </data>
-  <data name="Options_Use24HourClock_Description">
-    <value>以 24 小时制显示时间戳。</value>
   </data>
   <data name="Options_ShowTimestamp_Name">
     <value>显示时间戳</value>
@@ -169,44 +87,11 @@
   <data name="Options_ShowTimestamp_Description">
     <value>在每条消息前显示时间戳。各标签页另有独立的时间戳开关，需两者都开启才显示。</value>
   </data>
-  <data name="Options_MoreCompactPretty_Name">
-    <value>更紧凑的现代布局</value>
-  </data>
-  <data name="Options_MoreCompactPretty_Description">
-    <value>缩小消息之间的间距。</value>
-  </data>
-  <data name="Options_ShowNoviceNetwork_Name">
-    <value>显示新人频道加入按钮</value>
-  </data>
-  <data name="Options_ShowNoviceNetwork_Description">
-    <value>以指导者身份登录时，在设置按钮旁边显示新人频道加入按钮。</value>
-  </data>
-  <data name="Options_ShowHideButton_Name" xml:space="preserve">
-        <value>显示隐藏按钮</value>
-    </data>
-  <data name="Options_ShowHideButton_Description" xml:space="preserve">
-        <value>在设置按钮旁边显示隐藏按钮。聊天窗口可以通过按回车键或 "/" 恢复。</value>
-    </data>
   <data name="Options_FontSize_Name">
     <value>字体大小</value>
   </data>
-  <data name="Options_WindowOpacity_Name">
-    <value>窗口不透明度</value>
-  </data>
-  <data name="Options_CanMove_Name">
-    <value>允许移动聊天窗口</value>
-  </data>
-  <data name="Options_CanResize_Name">
-    <value>允许调整聊天窗口大小</value>
-  </data>
-  <data name="Popout_CanMove_Name">
-    <value>允许移动窗口</value>
-  </data>
   <data name="Popout_CanResize_Name">
     <value>允许调整窗口大小</value>
-  </data>
-  <data name="Options_ShowTitleBar_Name">
-    <value>显示聊天窗口标题栏</value>
   </data>
   <data name="Options_Display_Tab">
     <value>基础设置</value>
@@ -267,9 +152,6 @@
   <data name="Options_Tabs_ShowTimestamps">
     <value>显示时间戳</value>
   </data>
-  <data name="Options_Tabs_UnreadMode">
-    <value>未读模式</value>
-  </data>
   <data name="Options_Tabs_InactivityBehaviour">
     <value>活动时取消隐藏聊天窗口</value>
   </data>
@@ -281,6 +163,9 @@
   </data>
   <data name="Options_Tabs_Channels">
     <value>接收频道</value>
+  </data>
+  <data name="Options_Tabs_ContentIdWarning">
+    <value>尚未绑定该玩家（收到他的第一条消息后自动完成）</value>
   </data>
   <data name="UnreadMode_All_Tooltip">
     <value>始终显示未读数。</value>
@@ -390,35 +275,11 @@
   <data name="Options_Font_Name">
     <value>字体</value>
   </data>
-  <data name="Options_JapaneseFont_Name">
-    <value>日文字体</value>
-  </data>
   <data name="Options_Font_Description">
     <value>字体将用于 {0} 显示非日文文本。</value>
   </data>
-  <data name="Options_Font_Warning">
-    <value>使用某些系统字体可能会使您的游戏崩溃。已经警告你了。</value>
-  </data>
-  <data name="Options_JapaneseFont_Description">
-    <value>字体将用于 {0} 显示日文文本。</value>
-  </data>
-  <data name="Options_ItalicFont_Name">
-    <value>斜体</value>
-  </data>
-  <data name="Options_Italic_Description">
-    <value>如果启用，则使用 {0} 中的斜体字体，否则将使用游戏中的斜体字体。</value>
-  </data>
   <data name="Options_Tabs_ChannelTypes_Special">
     <value>特殊</value>
-  </data>
-  <data name="Options_Fonts_Tab">
-    <value>字体</value>
-  </data>
-  <data name="Options_SymbolsFontSize_Name">
-    <value>符号字体大小</value>
-  </data>
-  <data name="Options_JapaneseFontSize_Name">
-    <value>日文字体大小</value>
   </data>
   <data name="Options_InputFontSize_Name">
     <value>输入字体大小</value>
@@ -431,9 +292,6 @@
   </data>
   <data name="Options_SettingsFontSize_Description">
     <value>设置窗口中文字的大小，独立于聊天主字体。</value>
-  </data>
-  <data name="Options_SymbolsFontSize_Description">
-    <value>用于游戏符号的字体大小。</value>
   </data>
   <data name="ChatLog_Tabs_Delete">
     <value>删除标签页</value>
@@ -480,62 +338,11 @@
   <data name="CommandHelpSide_Right">
     <value>右侧</value>
   </data>
-  <data name="Options_CommandHelpSide_Name">
-    <value>命令帮助方向 (无 = 关闭)</value>
-  </data>
-  <data name="Options_CommandHelpSide_Description">
-    <value>{0} 的一侧显示命令帮助。</value>
-  </data>
   <data name="Options_HideWhenUiHidden_Name">
     <value>当游戏界面隐藏时隐藏</value>
   </data>
   <data name="Options_HideWhenUiHidden_Description">
     <value>当游戏界面隐藏时隐藏 {0}。</value>
-  </data>
-  <data name="Options_HideWhenInactive_Name">
-    <value>非活动时隐藏</value>
-  </data>
-  <data name="Options_HideWhenInactive_Description">
-    <value>在一段可配置的非活动时间后隐藏聊天窗口。当前聊天标签页和设置启用的其他标签页将被视为活动状态。</value>
-  </data>
-  <data name="Options_InactivityHideTimeout_Name">
-    <value>非活动超时</value>
-  </data>
-  <data name="Options_InactivityHideTimeout_Description">
-    <value>等待多长时间 (秒) 才认为聊天记录处于非活动状态。</value>
-  </data>
-  <data name="Options_InactivityHideActiveDuringBattle_Name" xml:space="preserve">
-        <value>在战斗中启用非活动隐藏</value>
-    </data>
-  <data name="Options_InactivityHideActiveDuringBattle_Description" xml:space="preserve">
-        <value>禁用此选项，聊天记录将在战斗中保持活跃。</value>
-    </data>
-  <data name="Options_InactivityHideChannels_Name">
-    <value>视为活动状态的聊天频道</value>
-  </data>
-  <data name="Options_InactivityHideChannels_Description">
-    <value>哪些聊天频道应被视为活动状态。其他频道无论出现在哪个标签页，都不会恢复聊天。</value>
-  </data>
-  <data name="Options_InactivityHideChannels_All_Label">
-    <value>全选</value>
-  </data>
-  <data name="Options_InactivityHideChannels_None_Label">
-    <value>取消全选</value>
-  </data>
-  <data name="Options_InactivityHideChannels_Button_Tooltip">
-    <value>按住 Ctrl + Shift 键点击。</value>
-  </data>
-  <data name="Options_KeybindMode_Name">
-    <value>热键模式</value>
-  </data>
-  <data name="Options_KeybindMode_Description">
-    <value>{0} 处理热键的方式。</value>
-  </data>
-  <data name="Options_Miscellaneous_Tab">
-    <value>偏好</value>
-  </data>
-  <data name="Options_Webinterface_Tab">
-    <value>网页界面</value>
   </data>
   <data name="LanguageOverride_None">
     <value>使用Dalamud的默认语言</value>
@@ -551,12 +358,6 @@
   </data>
   <data name="KeybindMode_Strict_Tooltip">
     <value>仅当没有按键被按下时，才能使用键盘快捷键。</value>
-  </data>
-  <data name="Options_Language_Name">
-    <value>语言</value>
-  </data>
-  <data name="Options_Language_Description">
-    <value>{0} 显示的语言。</value>
   </data>
   <data name="Options_DatabaseBattleMessages_Name">
     <value>将战斗消息保存到数据库</value>
@@ -588,32 +389,11 @@
   <data name="ChatLog_Tabs_PopOut">
     <value>弹出</value>
   </data>
-  <data name="Options_HideSameTimestamps_Name">
-    <value>隐藏重复的时间戳</value>
-  </data>
-  <data name="Options_HideSameTimestamps_Description">
-    <value>当以前的消息有相同的时间戳时，隐藏时间戳。</value>
-  </data>
-  <data name="Options_ShowPopOutTitleBar_Name">
-    <value>显示弹出标签页标题栏</value>
-  </data>
   <data name="Options_Tabs_PopOut">
     <value>在单独窗口中显示</value>
   </data>
-  <data name="Options_Tabs_IndependentOpacity">
-    <value>使用与主窗口不同的不透明度</value>
-  </data>
-  <data name="Options_Tabs_Opacity">
-    <value>窗口不透明度</value>
-  </data>
   <data name="Options_Tabs_IndependentHide">
     <value>使用与主窗口不同的隐藏条件</value>
-  </data>
-  <data name="Options_FontsEnabled">
-    <value>启用自定义字体</value>
-  </data>
-  <data name="Options_ItalicEnabled">
-    <value>将文字变为斜体</value>
   </data>
   <data name="AutoTranslate_Search_Hint">
     <value>定型文搜索...</value>
@@ -624,68 +404,14 @@
   <data name="Options_SortAutoTranslate_Description">
     <value>如果启用此选项，定型文列表将按字母顺序排序。</value>
   </data>
-  <data name="Options_WebinterfaceEnable_Name">
-    <value>启用</value>
-  </data>
-  <data name="Options_WebinterfaceEnable_Description">
-    <value>启用可通过浏览器访问的网络界面。</value>
-  </data>
-  <data name="Options_WebinterfaceAutoStart_Name">
-    <value>自动启动</value>
-  </data>
-  <data name="Options_WebinterfaceAutoStart_Description">
-    <value>网页界面将随插件一同启动</value>
-  </data>
   <data name="Options_OverrideStyle_Name">
     <value>覆盖样式</value>
   </data>
   <data name="Options_OverrideStyleDropdown_Name">
     <value>样式</value>
   </data>
-  <data name="Options_ChatTabForwardKeybind_Name">
-    <value>顺序切换聊天标签页快捷键</value>
-  </data>
-  <data name="Options_ChatTabBackwardKeybind_Name">
-    <value>倒序切换聊天标签页快捷键</value>
-  </data>
-  <data name="Webinterface_CurrentPassword">
-    <value>验证码:</value>
-  </data>
-  <data name="Webinterface_PasswordReset_Tooltip">
-    <value>重置密码并使所有会话令牌失效。</value>
-  </data>
-  <data name="Webinterface_Controls">
-    <value>控制面板:</value>
-  </data>
-  <data name="Webinterface_Controls_Active">
-    <value>活动状态:</value>
-  </data>
-  <data name="Webinterface_Controls_Url">
-    <value>URL:</value>
-  </data>
-  <data name="Keybind_None">
-    <value>未设置</value>
-  </data>
-  <data name="Keybind_EscToClear">
-    <value>按下 ESC 键清除</value>
-  </data>
-  <data name="Keybind_Modifier_Ctrl">
-    <value>Ctrl</value>
-  </data>
-  <data name="Keybind_Modifier_Alt">
-    <value>Alt</value>
-  </data>
-  <data name="Keybind_Modifier_Shift">
-    <value>Shift</value>
-  </data>
   <data name="AutoTranslate_Completion_Key">
     <value>Ctrl + {0}</value>
-  </data>
-  <data name="Options_ExtraGlyphs_Name">
-    <value>额外的字体字形</value>
-  </data>
-  <data name="Options_ExtraGlyphs_Description">
-    <value>启用下面的复选框，可以将额外的字形添加到 {0} 的全局字体中。这可能需要增加Dalamud字体图集的大小。</value>
   </data>
   <data name="ExtraGlyphRanges_ChineseFull_Name">
     <value>中文(完整)</value>
@@ -708,18 +434,6 @@
   <data name="ExtraGlyphRanges_Vietnamese_Name">
     <value>越南文</value>
   </data>
-  <data name="Context_Integrations">
-    <value>整合</value>
-  </data>
-  <data name="Context_ScreenshotMode">
-    <value>截图模式</value>
-  </data>
-  <data name="Context_HideChat">
-    <value>隐藏聊天</value>
-  </data>
-  <data name="Context_Copy">
-    <value>复制</value>
-  </data>
   <data name="Context_TryOn">
     <value>试穿</value>
   </data>
@@ -741,9 +455,6 @@
   <data name="Context_ViewItemSet">
     <value>查看套装幻影化所需的装备组合</value>
   </data>
-  <data name="Context_CopyName">
-    <value>复制名称</value>
-  </data>
   <data name="Context_SendTell">
     <value>发送悄悄话</value>
   </data>
@@ -752,18 +463,6 @@
   </data>
   <data name="Context_BlockFunctions">
     <value>屏蔽机能</value>
-  </data>
-  <data name="Context_InviteToParty_SameWorld">
-    <value>同服</value>
-  </data>
-  <data name="Context_InviteToParty_DifferentWorld">
-    <value>跨服</value>
-  </data>
-  <data name="Context_Promote">
-    <value>转让队长</value>
-  </data>
-  <data name="Context_KickFromParty">
-    <value>移出小队</value>
   </data>
   <data name="Context_SendFriendRequest">
     <value>发送好友申请</value>
@@ -1029,18 +728,6 @@
   <data name="ChatType_GmNoviceNetwork">
     <value>新人频道(游戏管理员)</value>
   </data>
-  <data name="Options_CollapseDuplicateMessages_Name">
-    <value>折叠重复消息</value>
-  </data>
-  <data name="Options_CollapseDuplicateMessages_Description">
-    <value>折叠连续重复的消息并显示折叠数量。</value>
-  </data>
-  <data name="Options_CollapseDuplicateMsgUniqueLink_Name">
-    <value>保持唯一链接分开显示</value>
-  </data>
-  <data name="Options_CollapseDuplicateMsgUniqueLink_Description">
-    <value>如果消息链接到不同内容但文本相同，则不要折叠消息。</value>
-  </data>
   <data name="Options_Tabs_ExtraChatChannels">
     <value>ExtraChat频道</value>
   </data>
@@ -1050,41 +737,11 @@
   <data name="Context_AdventurerPlate">
     <value>查看冒险者铭牌</value>
   </data>
-  <data name="Context_AdventurerPlateError">
-    <value>当前无法查看冒险者铭牌</value>
-  </data>
   <data name="Context_ViewRecruitment">
     <value>队员招募</value>
   </data>
   <data name="Context_LeaveNoviceNetwork">
     <value>从新人频道中移除</value>
-  </data>
-  <data name="Context_Back">
-    <value>返回</value>
-  </data>
-  <data name="Context_PlayerSearch">
-    <value>玩家搜索</value>
-  </data>
-  <data name="Context_PlayerSearch_FFLogs">
-    <value>搜索 FFLogs</value>
-  </data>
-  <data name="Context_PlayerSearch_Tieba">
-    <value>搜索 百度贴吧</value>
-  </data>
-  <data name="Context_PlayerSearch_SuMemo">
-    <value>搜索 SuMemo</value>
-  </data>
-  <data name="Context_PlayerSearch_RisingStone">
-    <value>搜索 石之家</value>
-  </data>
-  <data name="Context_MarketBoardSearch">
-    <value>在市场板内搜索</value>
-  </data>
-  <data name="Options_TooltipOffset_Name">
-    <value>提示窗口偏移 </value>
-  </data>
-  <data name="Options_TooltipOffset_Desc">
-    <value>如果提示窗口被截断, 请启用本项</value>
   </data>
   <data name="ChatType_ExtraChatLinkshell1" xml:space="preserve">
         <value>ExtraChat 通讯贝 [1]</value>
@@ -1110,27 +767,9 @@
   <data name="ChatType_ExtraChatLinkshell8" xml:space="preserve">
         <value>ExtraChat 通讯贝 [8]</value>
     </data>
-  <data name="Context_CopyContent">
-    <value>复制内容</value>
-  </data>
-  <data name="Context_CopyContentSuccess">
-    <value>已复制消息内容至剪贴板</value>
-  </data>
-  <data name="Context_CopySuccess">
-    <value>已复制消息至剪贴板</value>
-  </data>
   <data name="PartyInvite_NoId">
     <value>未能找到此讯息的ID，请尝试使用另一个。</value>
   </data>
-  <data name="Context_CopyLink" xml:space="preserve">
-        <value>复制链接至剪贴板</value>
-    </data>
-  <data name="Context_CopyLinkNotification" xml:space="preserve">
-        <value>已复制链接至剪贴板</value>
-    </data>
-  <data name="Context_OpenInBrowser" xml:space="preserve">
-        <value>在浏览器中打开链接</value>
-    </data>
   <data name="Context_OpenInBrowserError" xml:space="preserve">
         <value>在浏览器中打开链接失败，请报告此问题</value>
     </data>
@@ -1224,23 +863,11 @@
   <data name="Options_OverrideStyle_NotAvailable" xml:space="preserve">
         <value>无可用的 dalamud 样式</value>
     </data>
-  <data name="Options_PlaySounds_Name" xml:space="preserve">
-        <value>播放音效</value>
-    </data>
-  <data name="Options_PlaySounds_Description" xml:space="preserve">
-        <value>在交互时播放音效。</value>
-    </data>
   <data name="Options_MaxLinesToShow_Name" xml:space="preserve">
         <value>在聊天窗口中可显示日志行的最大数量</value>
     </data>
   <data name="Options_MaxLinesToShow_Description" xml:space="preserve">
         <value>限制在聊天窗口中显示的日志行数。这可能会稍微提高性能。</value>
-    </data>
-  <data name="Options_WebinterfaceMaxLinesToSend_Name" xml:space="preserve">
-        <value>网页界面日志行数限制</value>
-    </data>
-  <data name="Options_WebinterfaceMaxLinesToSend_Description" xml:space="preserve">
-        <value>限制在网页界面中显示的日志行数。可提高加载性能。</value>
     </data>
   <data name="LoadMessages_Error" xml:space="preserve">
         <value>加载聊天记录时发生错误。请查看插件日志以获取更多信息以报告此问题。</value>
@@ -1259,9 +886,6 @@
     </data>
   <data name="Options_Database_Old_Delete_Success" xml:space="preserve">
         <value>旧数据库已成功删除。</value>
-    </data>
-  <data name="Options_Database_Old_Migration" xml:space="preserve">
-        <value>打开转移窗口</value>
     </data>
   <data name="Options_Tabs_NoInput" xml:space="preserve">
         <value>禁用此频道的输入</value>
@@ -1286,78 +910,6 @@
     </data>
   <data name="Options_KeepInputFocus_Description" xml:space="preserve">
         <value>保持输入焦点，即使你进入战斗或执行其他操作。</value>
-    </data>
-  <data name="Options_ShowEmotes_Name" xml:space="preserve">
-        <value>显示表情</value>
-    </data>
-  <data name="Options_ShowEmotes_Desc" xml:space="preserve">
-        <value>用表情替换单词，目前支持 BetterTTV。</value>
-    </data>
-  <data name="Options_Emote_Tab" xml:space="preserve">
-        <value>表情</value>
-    </data>
-  <data name="Options_Emote_BlockedEmotes" xml:space="preserve">
-        <value>已屏蔽的表情</value>
-    </data>
-  <data name="Options_Emote_EmoteTable" xml:space="preserve">
-        <value>表情</value>
-    </data>
-  <data name="Options_HideInBattle_Name" xml:space="preserve">
-        <value>在战斗中隐藏</value>
-    </data>
-  <data name="Options_HideInBattle_Description" xml:space="preserve">
-        <value>在战斗中隐藏聊天窗</value>
-    </data>
-  <data name="Options_Emote_EmoteStats" xml:space="preserve">
-        <value>表情状态</value>
-    </data>
-  <data name="Options_Emote_Ready" xml:space="preserve">
-        <value>准备就绪</value>
-    </data>
-  <data name="Options_Emote_NotReady" xml:space="preserve">
-        <value>尚未准备好</value>
-    </data>
-  <data name="Options_Emote_Loaded" xml:space="preserve">
-        <value>可用表情: </value>
-    </data>
-  <data name="Options_Preview_Description" xml:space="preserve">
-        <value>显示特殊参数预览，如表情和 &lt;item&gt;。</value>
-    </data>
-  <data name="Options_Preview_Name" xml:space="preserve">
-        <value>位置 (无 = 关闭)</value>
-    </data>
-  <data name="Options_Preview_None" xml:space="preserve">
-        <value>无</value>
-    </data>
-  <data name="Options_Preview_Inside" xml:space="preserve">
-        <value>内部</value>
-    </data>
-  <data name="Options_Preview_Top" xml:space="preserve">
-        <value>顶部</value>
-    </data>
-  <data name="Options_Preview_Bottom" xml:space="preserve">
-        <value>底部</value>
-    </data>
-  <data name="Options_Preview_Header" xml:space="preserve">
-        <value>消息预览: </value>
-    </data>
-  <data name="Options_Preview_Tooltip" xml:space="preserve">
-        <value>提示框</value>
-    </data>
-  <data name="Options_PreviewOnlyIf_Name" xml:space="preserve">
-        <value>必须包含参数</value>
-    </data>
-  <data name="Options_PreviewOnlyIf_Description" xml:space="preserve">
-        <value>只显示包含特殊参数的文本。</value>
-    </data>
-  <data name="Options_PreviewMinimum_Name" xml:space="preserve">
-        <value>最小输入长度</value>
-    </data>
-  <data name="Options_PreviewMinimum_Description" xml:space="preserve">
-        <value>仅显示长度大于或等于此值的文本。</value>
-    </data>
-  <data name="Options_Preview_Tab" xml:space="preserve">
-        <value>预览</value>
     </data>
   <data name="Options_Changelog_Tab" xml:space="preserve">
         <value>更新日志</value>
@@ -1470,60 +1022,6 @@
   <data name="Chat_SendTell_Error" xml:space="preserve">
         <value>发送悄悄话时发生了错误</value>
     </data>
-  <data name="Webinterface_Stop_Success" xml:space="preserve">
-        <value>网页界面已停止。</value>
-    </data>
-  <data name="Webinterface_Stop_Failed" xml:space="preserve">
-        <value>网页界面停止失败。检查 /xllog 获取更多信息。</value>
-    </data>
-  <data name="Webinterface_Button_Stop" xml:space="preserve">
-        <value>停止</value>
-    </data>
-  <data name="Webinterface_Button_Start" xml:space="preserve">
-        <value>启动</value>
-    </data>
-  <data name="Webinterface_Start_Success" xml:space="preserve">
-        <value>网页界面已停止。</value>
-    </data>
-  <data name="Webinterface_Start_Failed" xml:space="preserve">
-        <value>网页界面启动失败。检查 /xllog 获取更多信息。</value>
-    </data>
-  <data name="Webinterface_Option_Port_Name" xml:space="preserve">
-        <value>端口</value>
-    </data>
-  <data name="Webinterface_Option_Port_Description" xml:space="preserve">
-        <value>网页界面将运行在此端口。</value>
-    </data>
-  <data name="Options_Webinterface_Warning_Header" xml:space="preserve">
-        <value>勾选 “启用” 并点击 “启动” 后，将加载 Chat2 的内置网络界面，并允许网络上的设备访问游戏内聊天。此功能可用手机或其他电脑看到 Chat2 的活动、切换频道和发送信息，就像在 最终幻想14 中打字一样。</value>
-    </data>
-  <data name="Options_Webinterface_Warning_Reason" xml:space="preserve">
-        <value>出于账户安全考虑，此功能不适合在本地网络之外使用，你已收到警告!</value>
-    </data>
-  <data name="Options_Webinterface_Warning_DoNot" xml:space="preserve">
-        <value>注意事项:</value>
-    </data>
-  <data name="Options_Webinterface_DoNot_Port" xml:space="preserve">
-        <value>- 不要转发使用的端口 (9000)</value>
-    </data>
-  <data name="Options_Webinterface_DoNot_Share" xml:space="preserve">
-        <value>- 不要与任何人分享你的验证码</value>
-    </data>
-  <data name="Options_Webinterface_DoNot_Multibox" xml:space="preserve">
-        <value>- 不要尝试在多个客户端中同时使用 (仅第一个客户端工作)</value>
-    </data>
-  <data name="Options_Webinterface_Warning_Support" xml:space="preserve">
-        <value>如果 “注意事项” 中的任何条款没有得到适当遵守，将不会提供任何支持。</value>
-    </data>
-  <data name="Options_Webinterface_Hostname_Fail" xml:space="preserve">
-        <value>无法解析主机名。</value>
-    </data>
-  <data name="Options_Webinterface_Note" xml:space="preserve">
-        <value>注意：需要至少是个半现代浏览器才能正常运行。</value>
-    </data>
-  <data name="Webinterface_UsageNotice" xml:space="preserve">
-        <value>使用须知</value>
-    </data>
   <data name="Options_Help_SenderMessagesV2" xml:space="preserve">
         <value>Shows all messages coming from the target.</value>
     </data>
@@ -1570,9 +1068,6 @@
   <data name="Export_Txt_Tooltip" xml:space="preserve">
         <value>导出聊天记录为文本文件。</value>
     </data>
-  <data name="Export_Json_Tooltip" xml:space="preserve">
-        <value>导出聊天记录为 json 文件。</value>
-    </data>
   <data name="Page_ArrowLeft_Tooltip" xml:space="preserve">
         <value>上一页</value>
     </data>
@@ -1584,9 +1079,6 @@
     </data>
   <data name="ChatExport_Initial" xml:space="preserve">
         <value>正在加载日志...</value>
-    </data>
-  <data name="Options_Tabs_SupportInput" xml:space="preserve">
-        <value>Show Input Area</value>
     </data>
   <data name="Options_Tabs_TellTabChannelSelection" xml:space="preserve">
         <value>Channel selection is disabled for tell tabs.</value>
@@ -1630,4 +1122,4 @@
   <data name="Options_NativeBackground_Description">
     <value>只给消息区、输入框、标签页保留背景，窗口其余区域完全透明（显示游戏画面）。</value>
   </data>
-</root>  
+</root>

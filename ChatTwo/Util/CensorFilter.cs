@@ -78,7 +78,7 @@ public static unsafe class CensorFilter
 
     public static DalamudGameSeString ProcessContent(DalamudGameSeString input)
     {
-        if (!_available || input == null || input.Payloads.Count == 0) return input;
+        if (!_available || input == null || input.Payloads.Count == 0) return input!;
 
         // Use SeStringBuilder to construct the output, same approach as
         // DailyRoutines' HighlightCensorship. The builder's AddUiForeground
