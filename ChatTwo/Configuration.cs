@@ -75,8 +75,6 @@ public class Configuration : IPluginConfiguration
     public bool LoadPreviousSession;
     public bool FilterIncludePreviousSessions;
     public bool SortAutoTranslate;
-    public bool CollapseDuplicateMessages;
-    public bool CollapseKeepUniqueLinks;
     public bool PlaySounds = true;
     public bool KeepInputFocus = true;
     public int MaxLinesToRender = 10_000; // 1-10000
@@ -118,7 +116,6 @@ public class Configuration : IPluginConfiguration
         FontId = new DalamudAssetFontAndFamilyId(DalamudAsset.NotoSansCjkMedium),
         SizePt = 12.75f,
     };
-    public bool ItalicEnabled;
     public SingleFontSpec ItalicFontV2 = new()
     {
         FontId = new DalamudAssetFontAndFamilyId(DalamudAsset.NotoSansCjkRegular),
@@ -146,6 +143,11 @@ public class Configuration : IPluginConfiguration
 
     // Migration safety
     public MigrationStatus MigrationStatus = MigrationStatus.NotStarted;
+
+    // ⚠️ 2026-08-15 18:05 实验功能设置页：菜单位置模式开关。
+    // true（默认）= 菜单跟随鼠标（游戏原生跟手，当前方案）；false = 聊天框右侧固定（旧逻辑备份）。
+    // 实验性功能：跟随鼠标时菜单可能压在聊天框内，挖洞预算不足时可能出现文字进入菜单/圆角降级/边缘字符消失。
+    public bool ExperimentalMenuFollowMouse = true;
 
     public void UpdateFrom(Configuration other, bool backToOriginal)
     {
@@ -186,8 +188,6 @@ public class Configuration : IPluginConfiguration
         LoadPreviousSession = other.LoadPreviousSession;
         FilterIncludePreviousSessions = other.FilterIncludePreviousSessions;
         SortAutoTranslate = other.SortAutoTranslate;
-        CollapseDuplicateMessages = other.CollapseDuplicateMessages;
-        CollapseKeepUniqueLinks = other.CollapseKeepUniqueLinks;
         PlaySounds = other.PlaySounds;
         KeepInputFocus = other.KeepInputFocus;
         MaxLinesToRender = other.MaxLinesToRender;
@@ -196,7 +196,6 @@ public class Configuration : IPluginConfiguration
         FontsEnabled = other.FontsEnabled;
         InputFontSize = other.InputFontSize;
         SettingsFontSize = other.SettingsFontSize;
-        ItalicEnabled = other.ItalicEnabled;
         ExtraGlyphRanges = other.ExtraGlyphRanges;
         FontSizeV2 = other.FontSizeV2;
         InputAreaScale = other.InputAreaScale;
@@ -217,6 +216,7 @@ public class Configuration : IPluginConfiguration
         OverrideStyle = other.OverrideStyle;
         ChosenStyle = other.ChosenStyle;
         MigrationStatus = other.MigrationStatus;
+        ExperimentalMenuFollowMouse = other.ExperimentalMenuFollowMouse;
     }
 
     /// <summary>

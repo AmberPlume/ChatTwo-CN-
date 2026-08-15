@@ -117,9 +117,10 @@ public partial class ChatLog
                 var name = addon->NameString;
                 if (name == "ItemDetail" || name == "ActionDetail")
                 {
-                    // ⚠️ 根治闪帧：游戏每帧通过 SetPosition 覆盖 tooltip 位置（跟随鼠标），
-                    // 我们在 detour 里把坐标替换为我们算好的"聊天框旁"位置，游戏怎么算都白搭，
-                    // 当帧渲染即为我们的位置 → 零闪帧（2026-08-14 [SPDiag] 铁证：游戏每帧调 SetPosition）。
+                    // ⚠️ 2026-08-15 19:50 用户决策：放弃提示框"原生跟手"实验（ExperimentalTooltipFollowMouse
+                    // 已移除）→ 恒走智能放置：游戏每帧 SetPosition 覆盖 tooltip 位置（跟随鼠标），
+                    // detour 把坐标替换为我们算好的"避开聊天框"位置，当帧渲染即为我们的位置 → 零闪帧
+                    //（2026-08-14 [SPDiag] 铁证：游戏每帧调 SetPosition）。
                     if (TryComputeTooltipPos(addon, out var nx, out var ny))
                     {
                         _setPosHook!.Original(thisPtr, (short)nx, (short)ny);
@@ -142,6 +143,7 @@ public partial class ChatLog
         if (!atkBase->IsVisible)
             return;
 
+        // 智能放置（19:50 还原）：每帧把提示框放到"避开聊天框"的位置（PreDraw/PostShow 双保险）
         if (!TryComputeTooltipPos(atkBase, out var newX, out var newY))
             return;
 
@@ -257,10 +259,17 @@ public partial class ChatLog
     }
 
     /// <summary>
-    /// PreDraw 回调：将 ContextMenu addon 移动到聊天框右侧。
-    /// 与 MoveTooltip 相同的方式，使用 LastWindowPos/LastWindowSize 实时计算位置，
-    /// 确保菜单跟随聊天框移动。
-    /// 仅当 Plugin.ContextMenuActive 为 true 时移动（即菜单由 ChatTwo 触发）。
+    /// ContextMenu（一级菜单）的 PreDraw 回调，每帧执行。
+    /// ⚠️ 2026-08-15 12:05 用户决策：**不再控制菜单位置**（右侧固定/中心固定全部废弃，菜单恢复
+    /// 游戏原生跟手，由 PayloadHandler 打开时 SetPosition 定位）。本方法保留的是两类必需逻辑：
+    ///   ① OwnerAddon 清零（时分复用：注入阶段=ChatLog 供 DR/Allagan 识别，渲染阶段清 0 防二级菜单绑定）；
+    ///   ② BlockedParentId 清零（时分复用：注入阶段=ChatLog 供 OnMenuOpened 的 AddonName 识别，
+    ///      渲染阶段清 0 防"隐藏的 ChatLog 阻塞菜单 → 菜单闪没"）；
+    ///   ③ 会话状态管理（菜单隐藏时复位 ContextMenuActive / ChatTwoMenuSession，防残留穿透）。
+    /// 关联：菜单打开 = PayloadHandler.HandlePayloadClick → TryShowNativePlayerContextMenu；
+    ///      点击穿透 = ChatLog.Window.PreOpenCheck 的 NoMouseInputs（[CtxClickPass]）；
+    ///      挖洞 = RenderHole（正式功能，igRender hook）。
+    /// 仅当 Plugin.ContextMenuActive 为 true 时执行（即菜单由 ChatTwo 触发）。
     /// </summary>
     private unsafe void MoveContextMenu(AddonEvent type, AddonArgs args)
     {
@@ -316,40 +325,14 @@ public partial class ChatLog
             }
             catch (Exception ex) { Plugin.Log.Debug($"[NativeCtxMenu] blockedparent-clear error {ex.Message}"); }
 
-            // 使用 LastWindowPos/LastWindowSize（每帧在 ImGui Begin/End 中更新）
-            // 注意：SetPosition 用的是逻辑坐标（与 MoveTooltip 一致），不要再除以 globalScale，
-            // 否则菜单位置会缩水（1.5 倍缩放时弹到聊天框中央）
-            var chatRect = new MathUtil.Rectangle(LastWindowPos, LastWindowSize);
-
-            // 菜单尺寸（逻辑坐标）
-            var root = addon->RootNode;
-            if (root == null)
-                return;
-            var atkSize = new Vector2(root->GetWidth() * root->ScaleX, root->GetHeight() * root->GetScaleY());
-            var menuW = (int)atkSize.X;
-            var menuH = (int)atkSize.Y;
-
-            var viewportSize = ImGuiHelpers.MainViewport.Size;
-            var vpW = (int)viewportSize.X;
-            var vpH = (int)viewportSize.Y;
-
-            // 默认放在聊天框右侧
-            var newX = (int)(chatRect.X + chatRect.Width + 10);
-            var newY = (int)chatRect.Y;
-
-            // 右侧超出屏幕 → 翻转到聊天框左侧
-            if (newX + menuW > vpW)
-                newX = (int)(chatRect.X - 10 - menuW);
-
-            // 垂直方向超出屏幕 → 靠边对齐
-            newY = Math.Clamp(newY, 0, Math.Max(0, vpH - menuH));
-
-            // 水平方向最终 Clamp 到屏幕内
-            newX = Math.Clamp(newX, 0, Math.Max(0, vpW - menuW));
-
-            addon->SetPosition((short)newX, (short)newY);
-
-            // ===== SubMenuDiag 已确认是误报（二级菜单功能正常但 PreDraw 读不到），删除减少日志噪音 =====
+            // ═══════════════════════════════════════════════════════════════════
+            // ⚠️ 2026-08-15 12:05 用户决策：不再控制菜单位置（右侧固定/中心固定全部废弃）。
+            // 菜单恢复游戏原生"跟手"逻辑（跟随鼠标/右键目标），由游戏自己定位。
+            // 位置控制已整体注释（含 [Hole-PoC 临时] 中心固定与旧右侧固定逻辑）。
+            // 上方 OwnerAddon 清零 + BlockedParentId 清零仍必须保留（防闪没/二级菜单正常）。
+            // 点击穿透（菜单在聊天框内可点击）另由 ChatLog.Window.PreOpenCheck 的
+            // NoMouseInputs 方案解决（见 [CtxClickPass]），不在此处控制。
+            // ═══════════════════════════════════════════════════════════════════
         }
         catch (Exception ex)
         {
@@ -359,31 +342,30 @@ public partial class ChatLog
     }
 
     /// <summary>
-    /// PreDraw/PostShow 回调：将 AddonContextSub（二级菜单）移动到聊天框外。
-    /// 二级菜单是独立的 addon（2026-08-14 二进制确认，非 ContextMenu 子节点）。
-    /// ⚠️ 关键（2026-08-14 05:49 用户实测）：
-    ///   - 主菜单在二级菜单展开时会自动关闭（游戏行为）
-    ///   - PreDraw 触发时 addon 可能尚未显示（IsVisible=false）→ 只靠 PreDraw 会"闪一下消失"
-    ///   - 用 PostShow（显示完成瞬间）立即 SetPosition（当帧生效），与一级菜单"打开后立即 SetPosition"同款防闪
-    ///   - 不依赖主菜单 ContextMenu 可见性（它已关闭）、不依赖 Plugin.ContextMenuActive（已被置 false）
+    /// AddonContextSub（二级菜单）的 PreDraw/PostShow 回调，每帧执行。
+    /// ⚠️ 2026-08-15 12:05 用户决策：**不再控制二级菜单位置**（恢复游戏原生跟手，跟随一级菜单旁）。
+    /// 本方法保留的是必需逻辑：**OwnerAddon 清零**——原生聊天框隐藏（ChatTwo 常态）时，游戏检查
+    /// owner(ChatLog) 可见性失败会关闭 AddonContextSub（"闪一下消失"）；清零后游戏 owner 检查必读到 0。
+    /// 仅 ChatTwo 菜单会话（ChatTwoMenuSession）期间执行；背包等原生场景该标志恒 false → 不干预。
+    /// 关联：会话标志由 PayloadHandler 触发时置 true、一级菜单关闭且二级不可见时清 false；
+    ///      二级菜单由 ContextMenuHandler 经 OpenSubmenu（RaptureAtkModule::OpenAddon 通道）打开。
+    /// 二级菜单是独立 addon（2026-08-14 二进制确认，非 ContextMenu 子节点）；
+    /// 展开时一级自动关闭（游戏行为）；注册 PreDraw + PostShow 双事件防"闪一下消失"。
     /// </summary>
     private unsafe void MoveContextSubMenu(AddonEvent type, AddonArgs args)
     {
         try
         {
-            // ⚠️ 仅 ChatTwo 触发的菜单会话才移动二级菜单（2026-08-14 23:25 用户反馈：
-            // 背包原生右键的二级菜单也被移到聊天框右侧）。ChatTwo 会话标志由 PayloadHandler
-            // 触发时置 true，一级菜单关闭且二级不可见时清 false（且 OpenAddonByAgent detour
-            // 对非 ChatTwo 会话强制复位，防残留）；背包等原生场景该标志恒 false →
-            // 二级菜单保持游戏原生位置（跟随一级菜单旁）。
+            // ⚠️ 仅 ChatTwo 触发的菜单会话才干预二级菜单（2026-08-14 23:25 用户反馈：背包原生右键
+            // 的二级菜单不该被处理）。ChatTwo 会话标志由 PayloadHandler 触发时置 true，一级菜单关闭
+            // 且二级不可见时清 false（且 OpenAddonByAgent detour 对非 ChatTwo 会话强制复位，防残留）；
+            // 背包等原生场景该标志恒 false → 二级菜单保持游戏原生位置（跟随一级菜单旁）。
             if (!Plugin.ChatTwoMenuSession)
                 return;
 
             var addonPtr = args.Addon.Address;
             if (addonPtr == nint.Zero)
                 return;
-
-            var addon = (AtkUnitBase*)addonPtr;
 
             // 检查菜单来源：仅聊天框触发的菜单才跟随位置。
             // ⚠️ 2026-08-14：ChatTwo 触发菜单时 OwnerAddon 恒为 0（最终方案，见 MEMORY.md），
@@ -403,36 +385,12 @@ public partial class ChatLog
                     return;
             }
 
-            // 使用 LastWindowPos/LastWindowSize（每帧在 ImGui Begin/End 中更新）
-            var chatRect = new MathUtil.Rectangle(LastWindowPos, LastWindowSize);
-
-            // 二级菜单尺寸
-            var root = addon->RootNode;
-            if (root == null)
-                return;
-            var subSize = new Vector2(root->GetWidth() * root->ScaleX, root->GetHeight() * root->GetScaleY());
-            var menuW = (int)subSize.X;
-            var menuH = (int)subSize.Y;
-
-            var viewportSize = ImGuiHelpers.MainViewport.Size;
-            var vpW = (int)viewportSize.X;
-            var vpH = (int)viewportSize.Y;
-
-            // 默认放在聊天框右侧（与主菜单相同位置逻辑）
-            var newX = (int)(chatRect.X + chatRect.Width + 10);
-            var newY = (int)chatRect.Y;
-
-            // 右侧超出屏幕 → 翻转到聊天框左侧
-            if (newX + menuW > vpW)
-                newX = (int)(chatRect.X - 10 - menuW);
-
-            // 垂直方向超出屏幕 → 靠边对齐
-            newY = Math.Clamp(newY, 0, Math.Max(0, vpH - menuH));
-
-            // 水平方向最终 Clamp 到屏幕内
-            newX = Math.Clamp(newX, 0, Math.Max(0, vpW - menuW));
-
-            addon->SetPosition((short)newX, (short)newY);
+            // ═══════════════════════════════════════════════════════════════════
+            // ⚠️ 2026-08-15 12:05 用户决策：二级菜单同样恢复游戏原生位置（跟随一级菜单展开）。
+            // 位置计算 + SetPosition 已整体注释（旧逻辑：固定到聊天框右侧）。
+            // 上方 OwnerAddon 清零仍必须保留（原生聊天框隐藏会让游戏检查 owner 可见性失败并
+            // 关闭 AddonContextSub——清零后游戏后续 owner 检查必读到 0，二级菜单正常显示）。
+            // ═══════════════════════════════════════════════════════════════════
         }
         catch (Exception ex)
         {

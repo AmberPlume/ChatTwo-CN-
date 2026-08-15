@@ -1,8 +1,8 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
     <PropertyGroup>
-        <Version>1.40.8</Version>
-        <AssemblyVersion>1.40.12.0</AssemblyVersion>
-        <FileVersion>1.40.12.0</FileVersion>
+        <Version>1.40.13</Version>
+        <AssemblyVersion>1.40.13.0</AssemblyVersion>
+        <FileVersion>1.40.13.0</FileVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <!-- DLL 文件名须匹配卫月的 InternalName（ChatTwoCN）才能从插件库安装 -->
         <AssemblyName>ChatTwoCN</AssemblyName>
@@ -37,34 +37,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Content Include="SharedEmoteList.json">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>
         <Content Include="ChatTwoCN.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
-
-    <!--This doesn't work until Plogon is updated to include NodeJS-->
-    <!--    <Target Name="NodeJS Compile" BeforeTargets="BeforeCompile">-->
-    <!--        <Exec Command="npm install" WorkingDirectory="Http\Frontend"/>-->
-    <!--        <Exec Command="npm run build" WorkingDirectory="Http\Frontend"/>-->
-    <!--    </Target>-->
-    <!--    -->
-    <!--    <Target Name="CopyFiles" AfterTargets="Build">-->
-    <!--        <ItemGroup>-->
-    <!--            <Files Include="$(MSBuildThisFileDirectory)\Http\Frontend\build\**" />-->
-    <!--        </ItemGroup>-->
-    <!--        -->
-    <!--        <Copy SourceFiles="@(Files)" DestinationFolder="$(TargetDir)\Frontend\%(RecursiveDir)" />-->
-    <!--    </Target>-->
-
-<!--    <Target Name="NodeJS Compile" BeforeTargets="BeforeCompile" Condition="'$(Configuration)' == 'Debug'">-->
-<!--        <Exec Command="npm install" WorkingDirectory="Http\Frontend"/>-->
-<!--        <Exec Command="npm run build" WorkingDirectory="Http\Frontend"/>-->
-<!--    </Target>-->
-
-    <Target Name="UnzipBuild" AfterTargets="Build">
-        <Unzip SourceFiles="websiteBuild.zip" DestinationFolder="$(TargetDir)\Frontend"/>
-    </Target>
 </Project>

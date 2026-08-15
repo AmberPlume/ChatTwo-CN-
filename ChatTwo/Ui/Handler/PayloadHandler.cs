@@ -35,8 +35,6 @@ namespace ChatTwo.Ui.Handler;
 
 public sealed class PayloadHandler
 {
-    private readonly string PopupId = "chat2-context-popup";
-
     // 原生菜单打开失败时的回退验证：
     // 有些目标（如部队下线消息的玩家名）没有 ContentId/World，游戏可能拒绝打开原生菜单。
     // 触发后等若干帧，若菜单始终未显示则回退到 ImGui 弹窗（避免"点一下没反应"）。
@@ -44,7 +42,6 @@ public sealed class PayloadHandler
     private int NativeMenuFallbackFrames;
 
     private InputHandler InputHandler { get; }
-    private (Chunk, Payload?)? Popup { get; set; }
 
     public bool HandleTooltips;
     public uint HoveredItem;
@@ -56,13 +53,12 @@ public sealed class PayloadHandler
     public PayloadHandler(InputHandler inputHandler)
     {
         InputHandler = inputHandler;
-        PopupId += inputHandler.InputHandlerId;
     }
 
     public void Draw()
     {
         VerifyNativeMenuFallback();
-        DrawPopups();
+        CheckPendingMenu();   // ⚠️ 2026-08-15 15:16：左键延迟打开菜单（松开后触发）
 
         if (HandleTooltips && ++HoverCounter - LastHoverCounter > 1)
         {
@@ -85,143 +81,17 @@ public sealed class PayloadHandler
             return;
         }
 
-        // 数帧后仍未显示（游戏拒绝打开）→ 回退 ImGui 弹窗
+        // 数帧后仍未显示（游戏拒绝打开）→ 静默放弃 + 复位菜单标志。
+        // ⚠️ 2026-08-15 15:00 双修复：
+        //  ① 不再回退 ImGui 弹窗（原版菜单弃用，用户决策）
+        //  ② 必须复位标志——此前残留 ContextMenuActive=true → NoMouseInputs 持续
+        //     → 聊天框穿透（用户实测：左键点击玩家后穿透保持，直到原生菜单开关才恢复）。
         if (--NativeMenuFallbackFrames <= 0)
         {
             PendingNativeMenuFallback = null;
-            Popup = pending;
-            ImGui.OpenPopup(PopupId);
+            Plugin.ContextMenuActive = false;
+            Plugin.ChatTwoMenuSession = false;
         }
-    }
-
-    private void DrawPopups()
-    {
-        if (Popup == null)
-            return;
-
-        var (chunk, payload) = Popup.Value;
-
-        using var popup = ImRaii.Popup(PopupId);
-        if (!popup.Success)
-        {
-            Popup = null;
-            return;
-        }
-
-        using var id = ImRaii.PushId(PopupId);
-        var drawn = false;
-        switch (payload)
-        {
-            case PlayerPayload player:
-                DrawPlayerPopup(chunk, player);
-                drawn = true;
-                break;
-            case ItemPayload item:
-                DrawItemPopup(item);
-                drawn = true;
-                break;
-            case UriPayload uri:
-                DrawUriPopup(uri);
-                drawn = true;
-                break;
-            case StatusPayload status:
-                DrawStatusPopup(status);
-                drawn = true;
-                break;
-        }
-
-        ContextFooter(drawn, chunk);
-        Integrations(chunk, payload);
-    }
-
-    private void Integrations(Chunk chunk, Payload? payload)
-    {
-        var registered = InputHandler.Plugin.Ipc.Registered;
-        if (registered.Count == 0)
-            return;
-
-        ImGui.Separator();
-
-        var contentId = chunk.Message?.ContentId ?? 0;
-        var sender = chunk.Message?.Sender.Select(c => c.Link).FirstOrDefault(p => p is PlayerPayload) as PlayerPayload;
-
-        using var menu = ImRaii.Menu(Language.Context_Integrations);
-        if (!menu.Success)
-            return;
-
-        var cursor = ImGui.GetCursorPos();
-        foreach (var id in registered)
-        {
-            try
-            {
-                InputHandler.Plugin.Ipc.Invoke(id, sender, contentId, payload, chunk.Message?.SenderSource, chunk.Message?.ContentSource);
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error(ex, "Error executing integration");
-            }
-        }
-
-        if (cursor == ImGui.GetCursorPos())
-        {
-            using var pushedColor = ImRaii.PushColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled]);
-            ImGui.Text("No integrations available");
-        }
-    }
-
-    private void ContextFooter(bool didCustomContext, Chunk chunk)
-    {
-        ImRaii.MenuDisposable menu = default;
-        if (didCustomContext)
-        {
-            ImGui.Separator();
-
-            // Only place these menu items in a submenu if we've already drawn
-            // custom context menu items based on the payload.
-            //
-            // It makes it much more convenient in the majority of cases to
-            // copy the message content without having to open a submenu.
-            menu = ImRaii.Menu(Plugin.PluginName);
-            if (!menu.Success)
-                return;
-        }
-
-        if (ImGui.Selectable(Language.Context_HideChat))
-            InputHandler.MainWindow.CurrentHideState = HideState.User;
-
-        if (chunk.Message is { } message)
-        {
-            if (ImGui.Selectable(Language.Context_Copy))
-            {
-                ImGui.SetClipboardText(StringifyMessage(message, true));
-                WrapperUtil.AddNotification(Language.Context_CopySuccess, NotificationType.Info);
-            }
-
-            // Only show a separate "Copy content" option if the message has
-            // Sender chunks, so it doesn't show for system messages.
-            if (message.Sender.Count > 0 && ImGui.Selectable(Language.Context_CopyContent))
-            {
-                ImGui.SetClipboardText(StringifyMessage(message));
-                WrapperUtil.AddNotification(Language.Context_CopyContentSuccess, NotificationType.Info);
-            }
-
-            using var pushedColor = ImRaii.PushColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int) ImGuiCol.TextDisabled]);
-            ImGui.TextUnformatted(message.Code.Type.Name());
-        }
-
-        menu.Dispose();
-    }
-
-    private static string StringifyMessage(Message? message, bool withSender = false)
-    {
-        if (message == null)
-            return string.Empty;
-
-        var chunks = withSender ? message.Sender.Concat(message.Content) : message.Content;
-        return chunks.Where(chunk => chunk is TextChunk)
-            .Cast<TextChunk>()
-            .Select(text => text.Content)
-            .Aggregate(string.Concat);
     }
 
     public unsafe void Click(Chunk chunk, Payload? payload, ImGuiMouseButton button)
@@ -231,11 +101,18 @@ public sealed class PayloadHandler
 
         switch (button)
         {
+            // ⚠️ 2026-08-15 15:16 用户确认：消息区左右键功能完全一致（左键能做的右键也能做，
+            // 反之亦然）。原版把 LeftClickPayload/RightClickPayload 分开是设计缺陷。
+            // 唯一必须区分的地方是**菜单打开时机**：
+            //   - 右键：按下即打开（右键松开不触发菜单项，菜单保持）
+            //   - 左键：**松开后**打开（若按下即打开，菜单在鼠标处弹出后，用户松开左键
+            //     恰好落在菜单上 → 触发菜单项/关闭 → 菜单闪没 → 实测"左键打不开菜单"。
+            //     游戏原生正是左键松开时才开菜单）
             case ImGuiMouseButton.Left:
-                LeftClickPayload(chunk, payload);
+                HandlePayloadClick(chunk, payload, delayMenu: true);
                 break;
             case ImGuiMouseButton.Right:
-                RightClickPayload(chunk, payload);
+                HandlePayloadClick(chunk, payload, delayMenu: false);
                 break;
         }
     }
@@ -396,10 +273,33 @@ public sealed class PayloadHandler
         ImGuiUtil.WarningText(Language.Context_URLWarning);
     }
 
-    private void LeftClickPayload(Chunk chunk, Payload? payload)
+    /// <summary>
+    /// 消息区 payload 点击统一入口（左右键共用，2026-08-15 15:16 重构）。
+    /// 玩家/道具 → 原生菜单（左键延迟到松开后打开，避免松开点击落在菜单上触发菜单项）；
+    /// 其他 payload（地图/任务/招募/成就/链接）→ 对应动作，左右键一致。
+    /// </summary>
+    private void HandlePayloadClick(Chunk chunk, Payload? payload, bool delayMenu)
     {
         switch (payload)
         {
+            case PlayerPayload player:
+                if (delayMenu)
+                {
+                    PendingMenu = (chunk, player);
+                    PendingMenuDownPos = ImGui.GetIO().MousePos;
+                    break;
+                }
+                OpenPlayerContextMenu(chunk, player);
+                break;
+            case ItemPayload item:
+                if (delayMenu)
+                {
+                    PendingMenu = (chunk, item);
+                    PendingMenuDownPos = ImGui.GetIO().MousePos;
+                    break;
+                }
+                OpenItemContextMenu(item);
+                break;
             case MapLinkPayload map:
                 Plugin.GameGui.OpenMapWithMapLink(map);
                 break;
@@ -428,12 +328,102 @@ public sealed class PayloadHandler
             case UriPayload uri:
                 WrapperUtil.TryOpenUri(uri.Uri);
                 break;
-            // 左键点击有 payload 的内容（玩家/道具等）→ 与右键一致弹菜单（模拟原生聊天框：
-            // 原生左键点玩家名同样弹菜单）。原版为迁就文本选择 TEMPORARILY DISABLED 了 default，
-            // 现按需求恢复；文本选择保留给"点击空白处"（见 DrawMessageLog 点击处理）。
+            // ⚠️ 2026-08-15 15:00 用户决策：未知 payload 静默（不弹原版 ImGui 菜单）
             default:
-                RightClickPayload(chunk, payload);
                 break;
+        }
+    }
+
+    /// <summary>左键延迟打开的菜单（等左键松开且未拖拽 → CheckPendingMenu 打开）。</summary>
+    private (Chunk chunk, Payload payload)? PendingMenu;
+    private Vector2 PendingMenuDownPos;
+
+    /// <summary>每帧检查：左键已松开且位置接近按下点（快速点击）→ 打开原生菜单。</summary>
+    /// <summary>
+    /// 左键"延迟打开菜单"的触发入口（每帧由 Draw() 调用）。
+    /// 关联：Click(Left) → HandlePayloadClick(delayMenu:true) 记录 PendingMenu + 按下位置；
+    /// 本方法在左键**松开**时检查：按下→松开距离 &lt; 5px（未拖拽选字）才真正打开菜单。
+    /// 设计原因（2026-08-15 15:16 用户实测"左键打不开菜单"）：左键按下即打开时，菜单在鼠标处
+    /// 弹出后用户松开左键恰好落在菜单上 → 触发菜单项/关闭 → 菜单闪没；游戏原生正是左键松开才开。
+    /// 右键不走此路径（delayMenu:false 直接打开，右键松开不触发菜单项）。
+    /// </summary>
+    private void CheckPendingMenu()
+    {
+        if (PendingMenu is not { } pending)
+            return;
+        // 其他菜单已激活 → 丢弃（避免覆盖）
+        if (Plugin.ContextMenuActive || Plugin.ChatTwoMenuSession)
+        {
+            PendingMenu = null;
+            return;
+        }
+        var io = ImGui.GetIO();
+        if (io.MouseReleased[(int)ImGuiMouseButton.Left] && !io.MouseDown[(int)ImGuiMouseButton.Left])
+        {
+            PendingMenu = null;
+            // 按下→松开距离 < 5px = 快速点击（未拖拽选择文本）
+            if (Vector2.Distance(PendingMenuDownPos, io.MousePos) < 5f)
+            {
+                switch (pending.payload)
+                {
+                    case PlayerPayload player:
+                        OpenPlayerContextMenu(pending.chunk, player);
+                        break;
+                    case ItemPayload item:
+                        OpenItemContextMenu(item);
+                        break;
+                }
+            }
+        }
+    }
+
+    /// <summary>打开玩家原生菜单（成功则登记待验证目标，失败静默）。</summary>
+    private void OpenPlayerContextMenu(Chunk chunk, PlayerPayload player)
+    {
+        if (TryShowNativePlayerContextMenu(chunk, player))
+        {
+            // 记录待验证目标：菜单若未在数帧内显示（游戏拒绝，如无 ContentId/World 的目标），
+            // 由 VerifyNativeMenuFallback 静默放弃 + 复位标志（2026-08-15 15:00 起不再回退 ImGui 弹窗）
+            PendingNativeMenuFallback = (chunk, player);
+            NativeMenuFallbackFrames = 10;
+        }
+    }
+
+    /// <summary>打开道具原生菜单（失败静默，2026-08-15 15:00 起不再回退 ImGui 弹窗）。</summary>
+    private void OpenItemContextMenu(ItemPayload item)
+    {
+        TryShowNativeItemContextMenu(item);
+    }
+
+    /// <summary>
+    /// 计算菜单位置（实验功能开关，2026-08-15 18:05）：
+    /// Plugin.Config.ExperimentalMenuFollowMouse=true → 跟随鼠标（clamp 屏幕内，防边缘出屏）；
+    /// false → 聊天框右侧固定（旧逻辑备份，12:05 注释的模式，供环境变化时回退）。
+    /// SetPosition 用逻辑坐标（与 MoveTooltip 一致）；ImGui.GetWindowPos/GetWindowSize 在聊天框
+    /// 渲染上下文中返回聊天框位置。打开前调用 menuW/menuH 传 0（仅定位），打开后传真实尺寸。
+    /// </summary>
+    private static void ComputeMenuPos(int mouseX, int mouseY, int menuW, int menuH, out int gameX, out int gameY)
+    {
+        var vp = ImGuiHelpers.MainViewport.Size;
+        var vpW = (int)vp.X;
+        var vpH = (int)vp.Y;
+        if (Plugin.Config.ExperimentalMenuFollowMouse)
+        {
+            // 跟随鼠标（游戏原生跟手，clamp 到屏幕内）
+            gameX = Math.Clamp(mouseX, 0, Math.Max(0, vpW - menuW));
+            gameY = Math.Clamp(mouseY, 0, Math.Max(0, vpH - menuH));
+        }
+        else
+        {
+            // 聊天框右侧固定（旧逻辑备份）：默认放聊天框右侧 10px；右侧出屏翻转左侧；垂直/水平 clamp
+            var chatPos = ImGui.GetWindowPos();
+            var chatSize = ImGui.GetWindowSize();
+            gameX = (int)(chatPos.X + chatSize.X + 10);
+            gameY = (int)chatPos.Y;
+            if (gameX + menuW > vpW)
+                gameX = (int)(chatPos.X - 10 - menuW);
+            gameY = (int)Math.Clamp(gameY, 0, Math.Max(0, vpH - menuH));
+            gameX = (int)Math.Clamp(gameX, 0, Math.Max(0, vpW - menuW));
         }
     }
 
@@ -465,44 +455,13 @@ public sealed class PayloadHandler
         }
     }
 
-    private void RightClickPayload(Chunk chunk, Payload? payload)
-    {
-        switch (payload)
-        {
-            case PlayerPayload player:
-                // 尝试触发原生玩家右键菜单
-                if (TryShowNativePlayerContextMenu(chunk, player))
-                {
-                    // 记录待验证目标：菜单若未在数帧内显示（游戏拒绝，如无 ContentId/World 的目标），
-                    // 由 VerifyNativeMenuFallback 回退到 ImGui 弹窗
-                    PendingNativeMenuFallback = (chunk, payload);
-                    NativeMenuFallbackFrames = 10;
-                    return;
-                }
-                // 如果触发失败（如玩家名也为空），回退到 ImGui 弹窗（仅显示基本功能）
-                Popup = (chunk, payload);
-                ImGui.OpenPopup(PopupId);
-                break;
-            case ItemPayload item:
-                // 尝试触发原生道具右键菜单
-                if (TryShowNativeItemContextMenu(item))
-                    return;
-                // 回退
-                Popup = (chunk, payload);
-                ImGui.OpenPopup(PopupId);
-                break;
-            default:
-                Popup = (chunk, payload);
-                ImGui.OpenPopup(PopupId);
-                break;
-        }
-    }
-
     /// <summary>
-    /// 触发原生玩家右键菜单。
-    /// 设置 AgentContext 目标数据后，先用 ReceiveEvent 触发游戏事件链（让 DR 等
-    /// OnMenuOpened 插件有机会添加菜单项），再用 OpenContextMenu 确保菜单实际显示。
-    /// 位置通过 AddonLifecycle.PreDraw 持续覆盖到聊天框右侧。
+    /// 触发原生玩家右键菜单（左右键共用的打开路径，由 Click → HandlePayloadClick → OpenPlayerContextMenu 调用）。
+    /// 设置 AgentContext 目标数据后，用 OpenContextMenu 确保菜单实际显示（游戏内部重新定位 → 原生跟手）。
+    /// 位置：打开前用 ComputeMenuPos 计算并 SetPosition（实验功能开关：跟随鼠标 vs 聊天框右侧固定）；
+    /// 打开后不再每帧控制位置（2026-08-15 12:05 用户决策，菜单由游戏原生跟手）。
+    /// 菜单打开期间聊天框的点击穿透（NoMouseInputs）与挖洞（RenderHole）在 ChatLog.Window / RenderHole 处理。
+    /// 若游戏拒绝打开（无 ContentId/World 的目标），由 VerifyNativeMenuFallback 数帧后静默放弃并复位标志。
     /// </summary>
     /// <returns>true 表示成功触发原生菜单，false 表示需要回退到 ImGui 弹窗</returns>
 
@@ -542,6 +501,10 @@ public sealed class PayloadHandler
             // 同时清除 LinkedItem.LinkedItemQuality：
             // DR 的 ExpandPlayerMenuSearch 检查 *(uint*)(agent + 0x950) == 3 来跳过玩家菜单，
             // 0x950 正是 LinkedItemQuality 的位置。残留的链接道具品质（3=收藏品）会导致 DR 误判。
+            // ⚠️ 2026-08-15 22:16 补充：还要清 [0x9C8]（偏移 2504）！
+            // 道具菜单触发时我们写入 *(uint*)(agent+0x9c8)=3（见 TryShowNativeItemContextMenu），
+            // InventoryTools 用 GetObjectItemId("ChatLog", 2504)==3 判断"是否道具菜单"才注入
+            // "More Information"——残留的 3 会让玩家菜单被误判为道具菜单（用户实测主窗口出现道具项）。
             unsafe
             {
                 var chatLogAgent = AgentChatLog.Instance();
@@ -549,22 +512,24 @@ public sealed class PayloadHandler
                 {
                     chatLogAgent->ContextItemId = 0;
                     chatLogAgent->LinkedItem.LinkedItemQuality = 0;
+                    *(uint*)((byte*)chatLogAgent + 0x9c8) = 0;
                 }
             }
 
-            // 计算菜单位置：放在聊天框右侧（游戏UI坐标）
-            var chatPos = ImGui.GetWindowPos();
-            var chatSize = ImGui.GetWindowSize();
-            // SetPosition 用逻辑坐标（与 MoveContextMenu/MoveTooltip 一致），不要除以 globalScale
-            var gameX = (int)(chatPos.X + chatSize.X + 10);
-            var gameY = (int)chatPos.Y;
+            // 计算菜单位置（实验功能开关：跟随鼠标 vs 聊天框右侧固定，2026-08-15 18:05）。
+            // SetPosition 用逻辑坐标（与 MoveTooltip 一致），ImGui MousePos 即逻辑坐标，直接使用。
+            var mousePos = ImGui.GetIO().MousePos;
+            ComputeMenuPos((int)mousePos.X, (int)mousePos.Y, 0, 0, out var gameX, out var gameY);
 
-            Plugin.Log.Debug($"[NativeCtxMenu] Menu position: ({gameX}, {gameY}), chatPos=({chatPos.X:F0},{chatPos.Y:F0}), chatSize=({chatSize.X:F0},{chatSize.Y:F0})");
+            Plugin.Log.Debug($"[NativeCtxMenu] Menu position: ({gameX}, {gameY}), mouse=({mousePos.X:F0},{mousePos.Y:F0})");
 
             // 标记菜单激活，ChatLog.MoveContextMenu 会在 PreDraw 中移动菜单
+            // ⚠️ 记录激活时刻（FrameworkUpdate 兜底复位用，2026-08-15 15:00）
             Plugin.ContextMenuActive = true;
+            Plugin.ContextMenuActivatedAt = Environment.TickCount64;
             // ChatTwo 菜单会话开始（二级菜单 MoveContextSubMenu 用它区分聊天框/背包等来源）
             Plugin.ChatTwoMenuSession = true;
+            Plugin.ChatTwoMenuSessionAt = Environment.TickCount64;
 
             // 设置菜单位置提示
             agent->SetPosition(gameX, gameY);
@@ -671,11 +636,23 @@ public sealed class PayloadHandler
             agent->OpenContextMenu(false, false);
 
             // 立即设置菜单位置，防止闪烁（PreDraw 要到下一帧才执行）
+            // ⚠️ 边缘检查（2026-08-15 17:51 用户反馈：菜单会超出屏幕）：读 addon 渲染尺寸
+            //（×RootNode 缩放），按开关模式（跟随鼠标 clamp / 右侧固定）设置位置。
             try
             {
                 var ctxAddon = RaptureAtkModule.Instance()->RaptureAtkUnitManager.GetAddonByName("ContextMenu");
                 if (ctxAddon != null && ctxAddon->IsReady)
+                {
+                    ushort w, h;
+                    ctxAddon->GetSize(&w, &h, false);
+                    var root = ctxAddon->RootNode;
+                    var sx = root != null ? root->ScaleX : 1f;
+                    var sy = root != null ? root->GetScaleY() : 1f;
+                    var menuW = (int)(w * sx);
+                    var menuH = (int)(h * sy);
+                    ComputeMenuPos(gameX, gameY, menuW, menuH, out gameX, out gameY);
                     ctxAddon->SetPosition((short)gameX, (short)gameY);
+                }
             }
             catch { /* ignore */ }
 
@@ -738,19 +715,20 @@ public sealed class PayloadHandler
             // ⚠️ 必须在 ClearMenu 之后设置！ClearMenu 会清掉 AgentContext 目标字段区（含 OwnerAddon 0xDF0），
             //   先设会被清成 0 → OnMenuOpened 时 AddonName 不是 ChatLog → DR 道具项不注入（用户实测回归）。
 
-            // 计算菜单位置：放在聊天框右侧
-            var chatPos = ImGui.GetWindowPos();
-            var chatSize = ImGui.GetWindowSize();
-            // SetPosition 用逻辑坐标（与 MoveContextMenu/MoveTooltip 一致），不要除以 globalScale
-            var gameX = (int)(chatPos.X + chatSize.X + 10);
-            var gameY = (int)chatPos.Y;
+            // 计算菜单位置（实验功能开关：跟随鼠标 vs 聊天框右侧固定，2026-08-15 18:05）。
+            // SetPosition 用逻辑坐标（与 MoveTooltip 一致），ImGui MousePos 即逻辑坐标，直接使用。
+            var mousePos = ImGui.GetIO().MousePos;
+            ComputeMenuPos((int)mousePos.X, (int)mousePos.Y, 0, 0, out var gameX, out var gameY);
 
-            Plugin.Log.Debug($"[NativeCtxMenu] Item menu position: ({gameX}, {gameY})");
+            Plugin.Log.Debug($"[NativeCtxMenu] Item menu position: ({gameX}, {gameY}), mouse=({mousePos.X:F0},{mousePos.Y:F0})");
 
             // 标记菜单激活，ChatLog.MoveContextMenu 会在 PreDraw 中移动菜单
+            // ⚠️ 记录激活时刻（FrameworkUpdate 兜底复位用，2026-08-15 15:00）
             Plugin.ContextMenuActive = true;
+            Plugin.ContextMenuActivatedAt = Environment.TickCount64;
             // ChatTwo 菜单会话开始（二级菜单 MoveContextSubMenu 用它区分聊天框/背包等来源）
             Plugin.ChatTwoMenuSession = true;
+            Plugin.ChatTwoMenuSessionAt = Environment.TickCount64;
 
             // 设置菜单位置提示
             agent->SetPosition(gameX, gameY);
@@ -834,11 +812,22 @@ public sealed class PayloadHandler
             agent->OpenContextMenu(false, false);
 
             // 立即设置菜单位置，防止闪烁
+            // ⚠️ 边缘检查（2026-08-15 17:51 用户反馈：菜单会超出屏幕）+ 开关模式（18:05）
             try
             {
                 var ctxAddon = RaptureAtkModule.Instance()->RaptureAtkUnitManager.GetAddonByName("ContextMenu");
                 if (ctxAddon != null && ctxAddon->IsReady)
+                {
+                    ushort w, h;
+                    ctxAddon->GetSize(&w, &h, false);
+                    var root = ctxAddon->RootNode;
+                    var sx = root != null ? root->ScaleX : 1f;
+                    var sy = root != null ? root->GetScaleY() : 1f;
+                    var menuW = (int)(w * sx);
+                    var menuH = (int)(h * sy);
+                    ComputeMenuPos(gameX, gameY, menuW, menuH, out gameX, out gameY);
                     ctxAddon->SetPosition((short)gameX, (short)gameY);
+                }
             }
             catch { /* ignore */ }
 
@@ -851,123 +840,6 @@ public sealed class PayloadHandler
             Plugin.Log.Error($"[NativeCtxMenu] Error triggering item menu: {ex}");
             return false;
         }
-    }
-
-    private void DrawItemPopup(ItemPayload payload)
-    {
-        if (payload.Kind == ItemKind.EventItem)
-        {
-            DrawEventItemPopup(payload);
-            return;
-        }
-
-        if (!Sheets.ItemSheet.TryGetRow(payload.ItemId, out var itemRow))
-            return;
-
-        var hq = payload.Kind == ItemKind.Hq;
-        if (Plugin.TextureProvider.GetFromGameIcon(new GameIconLookup(itemRow.Icon, hq)).GetWrapOrDefault() is { } icon)
-            InlineIcon(icon);
-
-        var name = itemRow.Name.ToDalamudString();
-        // hq symbol
-        if (hq)
-            name.Payloads.Add(new TextPayload(" "));
-        else if (payload.Kind == ItemKind.Collectible)
-            name.Payloads.Add(new TextPayload(" "));
-
-        InputHandler.ChunkHandler.DrawChunks(ChunkUtil.ToChunks(name, ChunkSource.None, null).ToList(), false);
-        ImGui.Separator();
-
-        // ═══════════════════════════════════════════════════════════
-        // 硬编码菜单已注释 —— 改用原生右键菜单触发方案
-        // 原生菜单通过 TryShowNativeItemContextMenu() 触发，
-        // 此 fallback 仅在最简情况下显示
-        // ═══════════════════════════════════════════════════════════
-
-        // 复制名字
-        if (ImGui.Selectable(Language.Context_CopyItemName))
-            ImGui.SetClipboardText(name.TextValue);
-
-    }
-
-    private void DrawEventItemPopup(ItemPayload payload)
-    {
-        if (payload.Kind != ItemKind.EventItem)
-            return;
-
-        if (!Sheets.EventItemSheet.HasRow(payload.ItemId))
-            return;
-
-        var item = Sheets.EventItemSheet.GetRow(payload.ItemId);
-        if (Plugin.TextureProvider.GetFromGameIcon(new GameIconLookup(item.Icon)).GetWrapOrDefault() is { } icon)
-            InlineIcon(icon);
-
-        InputHandler.ChunkHandler.DrawChunks(ChunkUtil.ToChunks(item.Name.ToDalamudString(), ChunkSource.None, null).ToList(), false);
-        ImGui.Separator();
-
-        var realItemId = payload.RawItemId;
-        if (ImGui.Selectable(Language.Context_Link))
-            GameFunctions.Context.LinkItem(realItemId);
-
-        if (ImGui.Selectable(Language.Context_CopyItemName))
-            ImGui.SetClipboardText(item.Name.ToString());
-    }
-
-    private unsafe void DrawPlayerPopup(Chunk chunk, PlayerPayload player)
-    {
-        // Possible that GMs return a null payload
-        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-        if (player == null)
-            return;
-
-        var world = player.World;
-        if (chunk.Message?.Code.Type == ChatType.FreeCompanyLoginLogout)
-            if (Plugin.PlayerState.HomeWorld.IsValid)
-                world = Plugin.PlayerState.HomeWorld;
-
-        var name = new List<Chunk> { new TextChunk(ChunkSource.None, null, player.PlayerName) };
-        // ⚠️ 不要用 World.IsPublic（CN 世界行恒为 false）；fallback 弹窗无法查 ObjectTable，
-        // 用"目标家服 != 本地当前世界"做展示与 tell 后缀的近似判断（本地用当前世界，
-        // 避免自己跨区时把留在家服的玩家误判为同服）
-        var localCurrentWorldId = (ushort)(Plugin.ObjectTable.LocalPlayer?.CurrentWorld.RowId ?? 0);
-        var isDifferentWorld = world.RowId != 0 && world.RowId != localCurrentWorldId;
-        if (isDifferentWorld)
-        {
-            name.AddRange([
-                new IconChunk(ChunkSource.None, null, BitmapFontIcon.CrossWorld),
-                new TextChunk(ChunkSource.None, null, world.Value.Name.ToString())
-            ]);
-        }
-
-        InputHandler.ChunkHandler.DrawChunks(name, false);
-        ImGui.Separator();
-
-        // ═══════════════════════════════════════════════════════════
-        // 硬编码菜单已注释 —— 改用原生右键菜单触发方案
-        // 原生菜单通过 TryShowNativePlayerContextMenu() 触发，
-        // 此 fallback 仅在最简情况下显示
-        // ═══════════════════════════════════════════════════════════
-
-        var validContentId = chunk.Message?.ContentId is not (null or 0);
-        var isSelf = validContentId && chunk.Message!.ContentId == Plugin.PlayerState.ContentId;
-        if (!isSelf && player.PlayerName == Plugin.PlayerState.CharacterName)
-            isSelf = true;
-
-        // 发送悄悄话（非自己）
-        if (!isSelf && ImGui.Selectable(Language.Context_SendTell))
-        {
-            InputHandler.ChatInput = $"/tell {player.PlayerName}";
-            // 无条件加 @世界名（按角色路由）：同服玩家若当前不在你的世界也必须带 @（用户实测）
-            if (world.IsValid)
-                InputHandler.ChatInput += $"@{world.Value.Name}";
-            InputHandler.ChatInput += " ";
-            InputHandler.Activate = true;
-        }
-
-        // 复制名字
-        if (ImGui.Selectable(Language.Context_CopyItemName))
-            ImGui.SetClipboardText(player.PlayerName);
-
     }
 
     private IPlayerCharacter? FindCharacterForPayload(PlayerPayload payload)
@@ -1020,51 +892,5 @@ public sealed class PayloadHandler
             // 好友列表访问失败，默认为非好友
         }
         return false;
-    }
-
-    private void DrawUriPopup(UriPayload uri)
-    {
-        ImGui.TextUnformatted(string.Format(Language.Context_URLDomain, uri.Uri.Authority));
-        ImGuiUtil.WarningText(Language.Context_URLWarning, false);
-        ImGui.Separator();
-
-        if (ImGui.Selectable(Language.Context_OpenInBrowser))
-            WrapperUtil.TryOpenUri(uri.Uri);
-
-        if (ImGui.Selectable(Language.Context_CopyLink))
-        {
-            ImGui.SetClipboardText(uri.Uri.ToString());
-            WrapperUtil.AddNotification(Language.Context_CopyLinkNotification, NotificationType.Info);
-        }
-    }
-
-    private void DrawStatusPopup(StatusPayload status)
-    {
-        if (Plugin.TextureProvider.GetFromGameIcon(new GameIconLookup(status.Status.Value.Icon)).GetWrapOrDefault() is { } icon)
-            InlineIcon(icon);
-
-        var builder = new SeStringBuilder();
-        var nameValue = status.Status.Value.Name.ToString();
-        switch (status.Status.Value.StatusCategory)
-        {
-            case 1:
-                builder.AddUiForeground($"{SeIconChar.Buff.ToIconString()}{nameValue}", 517);
-                break;
-            case 2:
-                builder.AddUiForeground($"{SeIconChar.Debuff.ToIconString()}{nameValue}", 518);
-                break;
-            default:
-                builder.AddUiForeground(nameValue, 1);
-                break;
-        }
-
-        InputHandler.ChunkHandler.DrawChunks(ChunkUtil.ToChunks(builder.BuiltString, ChunkSource.None, null).ToList(), false);
-        ImGui.Separator();
-
-        if (ImGui.Selectable(Language.Context_Link))
-        {
-            GameFunctions.Context.LinkStatus(status.Status.RowId);
-            InputHandler.ChatInput += " <status>";
-        }
     }
 }

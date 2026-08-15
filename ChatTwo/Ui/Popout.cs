@@ -136,6 +136,12 @@ public class Popout : Window, IChatWindow
             // 仿原生：窗口整体透明（背景只画在消息区，与主窗口一致）
             BgAlpha = Plugin.Config.NativeBackground ? 0f : Plugin.Config.BackgroundAlpha / 100f;
         }
+
+        // ⚠️ [CtxClickPass] 菜单打开期间：PopOut 窗口也不捕获鼠标（NoMouseInputs）→
+        // 与主窗口一致：菜单若在 PopOut 上打开，鼠标穿透到游戏原生菜单可点击。
+        // （child 的 NoMouseInputs 由共享的 DrawMessageLog 内部逻辑覆盖，无需在此处理。）
+        if (Plugin.ContextMenuActive || Plugin.ChatTwoMenuSession)
+            Flags |= ImGuiWindowFlags.NoMouseInputs;
     }
 
     public override void Draw()

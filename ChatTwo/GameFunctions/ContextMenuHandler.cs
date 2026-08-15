@@ -319,36 +319,8 @@ public sealed partial class ContextMenuHandler : IDisposable
                 });
             }
 
-            // 返回：关闭二级菜单并重新打开一级菜单（原生返回=回到一级菜单）。
-            // ⚠️ 经验：① IsSubmenu=true 会生成"右指"箭头（▶，子菜单指示），原生返回是"左指" →
-            //   不用 IsSubmenu，Name 直接带左箭头 "←"（U+2190，CJK 字体必有字形；◁ U+25C1 无字形）；
-            // ② 展开二级时游戏会关闭一级菜单（ContextMenu addon），Show() 不生效（内容/状态已被清）→
-            //   用 AgentContext.OpenContextMenu 重新打开（右键时写入的目标字段/菜单结构仍在，未清）；
-            // ③ OpenSubmenu 生成的子菜单不带自动返回（ReturnArrowMask 依赖原生右键标志 _gap_0x6BC，
-            //   插件场景为 0）。Priority=MaxValue 保证升序排列中位于最底部。
-            blockItems.Add(new MenuItem
-            {
-                Name = "← " + Language.Context_Back,
-                Priority = int.MaxValue,
-                OnClicked = _ =>
-                {
-                    unsafe
-                    {
-                        var mgr = RaptureAtkModule.Instance()->RaptureAtkUnitManager;
-                        var sub = mgr.GetAddonByName("AddonContextSub");
-                        if (sub != null)
-                            sub->Hide(true, false, 0);
-                        var agent = AgentContext.Instance();
-                        if (agent != null)
-                        {
-                            // 重开一级菜单前恢复 OwnerAddon=ChatLog（时分复用：触发时设 ChatLog 供
-                            // OnMenuOpened 注入，MoveContextMenu 渲染时清零防二级绑定）。
-                            agent->OwnerAddon = ChatTwo.GameFunctions.GameFunctions.GetChatLogAddonId();
-                            agent->OpenContextMenu(false, false);
-                        }
-                    }
-                },
-            });
+            // ⚠️ 2026-08-15 17:32 用户决策：删除"← 返回"子项（不必要的按钮，徒增代码复杂度）。
+            // 二级菜单通过点击菜单项/点击菜单外（游戏原生）关闭。
 
             if (blockItems.Count > 0)
             {

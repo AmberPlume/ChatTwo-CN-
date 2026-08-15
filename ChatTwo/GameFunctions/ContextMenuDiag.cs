@@ -48,7 +48,11 @@ public sealed partial class ContextMenuHandler
 
     [Signature("40 57 48 83 EC 40 48 8B 51 18 48 8B F9 48 85 D2 0F 84 83 03 00 00 48 8D 4A 40", DetourName = nameof(MenuGenDetour))]
     private Hook<MenuGenDelegate>? MenuGenHook = null!;
-    private delegate void MenuGenDelegate(nint self);
+    // 0x4b0e70 = 统一 handler 的 ReceiveEvent（交接文档事实 5，反汇编复核）。
+    // ⚠️ 2026-08-15 07:30 修正：delegate 补全为完整 AtkEventInterface.ReceiveEvent 签名
+    //（此前 1 参数 self 是错的，Original 缺参调用有崩溃风险，已禁用）。签名参考
+    // OmenTools AgentExtension.SendEvent：ReceiveEvent(ret, atkValues, count, eventKind)。
+    private unsafe delegate AtkValue* MenuGenDelegate(FFXIVClientStructs.FFXIV.Component.GUI.AtkModuleInterface.AtkEventInterface* self, AtkValue* returnValue, AtkValue* values, uint valueCount, ulong eventKind);
 
     [Signature("40 55 53 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 C8 FD FF FF 48 81 EC 68 03 00 00 48 8B 05", DetourName = nameof(CtxReceiveEventDetour))]
     private Hook<CtxReceiveEventDelegate>? CtxReceiveEventHook = null!;
@@ -56,6 +60,7 @@ public sealed partial class ContextMenuHandler
 
     private Hook<AddMenuItemDelegate>? AddMenuItemHook = null!;
     private delegate void AddMenuItemDelegate(nint thisPtr, nint text, nint handler, long handlerParam, byte disabled, byte submenu);
+
 
     // ⚠️ GenHook（0xed6060）= 崩溃源，禁用。留注释记录签名与坑。
     // [Signature("48 89 5C 24 20 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 30 FA FF FF 48 81 EC D0 06 00 00", DetourName = nameof(GenDetour))]
@@ -67,17 +72,19 @@ public sealed partial class ContextMenuHandler
     // hook 初始化 / 释放
     // ────────────────────────────────────────────────────────────────────
 
-    public void InitDiagnostics()
+    public unsafe void InitDiagnostics()
     {
         Plugin.GameInteropProvider.InitializeFromAttributes(this);
+        // 0x4b0e70 = 统一 handler 的 ReceiveEvent（事实 5）。delegate 已补全 5 参（07:30），
+        // 重新启用——抓"游戏真实点击菜单项"时 handler 收到的 eventKind/values 参数。
         if (MenuGenHook != null)
         {
             MenuGenHook.Enable();
-            Plugin.Log.Error($"[B2Hook] 0x4b0e70 hook 已启用 addr=0x{(nint)MenuGenHook.Address:X}");
+            Plugin.Log.Error($"[HR2] 0x4b0e70 hook 已启用 addr=0x{(nint)MenuGenHook.Address:X}");
         }
         else
         {
-            Plugin.Log.Error("[B2Hook] 0x4b0e70 hook 初始化失败（签名未命中）");
+            Plugin.Log.Error("[HR2] 0x4b0e70 hook 初始化失败（签名未命中）");
         }
         if (CtxReceiveEventHook != null)
         {
@@ -94,6 +101,7 @@ public sealed partial class ContextMenuHandler
             (nint)FFXIVClientStructs.FFXIV.Client.UI.Agent.AgentContext.Addresses.AddMenuItem.Value, AddMenuItemDetour);
         AddMenuItemHook.Enable();
         Plugin.Log.Error($"[AMDI] AddMenuItem hook 已启用 addr=0x{(nint)AgentContext.Addresses.AddMenuItem.Value:X}");
+
     }
 
     public void DisposeDiagnostics()
@@ -107,28 +115,38 @@ public sealed partial class ContextMenuHandler
     // detours
     // ────────────────────────────────────────────────────────────────────
 
-    private void MenuGenDetour(nint self)
+    private unsafe AtkValue* MenuGenDetour(FFXIVClientStructs.FFXIV.Component.GUI.AtkModuleInterface.AtkEventInterface* self, AtkValue* returnValue, AtkValue* values, uint valueCount, ulong eventKind)
     {
         try
         {
-            unsafe
+            // ⚠️ 仅菜单会话时输出（防止每帧刷屏）
+            if (Plugin.ContextMenuActive && values != null)
             {
-                var b = (byte*)self;
-                var sub = *(nint*)(b + 0x18);
-                Plugin.Log.Error($"[B2Hook] 生成器被调 self=0x{self:X} [self+0x18]=0x{sub:X} [self+0x10]=0x{*(nint*)(b + 0x10):X} [self+0x20]=0x{*(nint*)(b + 0x20):X} head={HexBytes(b, 32)}");
+                var sb = new System.Text.StringBuilder();
+                for (var i = 0; i < valueCount && i < 8; i++)
+                {
+                    var v = values + i;
+                    sb.Append($"[{i}]=T{v->Type} V{v->Int} ");
+                }
+                var self18 = *(nint*)((byte*)self + 0x18);
+                Plugin.Log.Error($"[HR2] 0x4b0e70 self=0x{(nint)self:X} self18=0x{self18:X} kind={eventKind} count={valueCount} {sb}");
             }
         }
         catch (Exception ex)
         {
-            Plugin.Log.Error($"[B2Hook] error {ex.Message}");
+            Plugin.Log.Error($"[HR2] error {ex.Message}");
         }
-        MenuGenHook!.Original(self);
+        return MenuGenHook!.Original(self, returnValue, values, valueCount, eventKind);
     }
 
     private nint CtxReceiveEventDetour(nint self, nint returnValue, nint values, uint valueCount, ulong eventKind)
     {
         try
         {
+            // ⚠️ 仅菜单会话时输出（2026-08-15 07:20：AgentContext.ReceiveEvent 每帧被调多次，
+            // 无条件输出会刷屏；只有菜单打开期间的事件才与右键菜单相关）
+            if (!Plugin.ContextMenuActive)
+                return CtxReceiveEventHook!.Original(self, returnValue, values, valueCount, eventKind);
             unsafe
             {
                 if (values == 0)
@@ -156,6 +174,7 @@ public sealed partial class ContextMenuHandler
     {
         try
         {
+
             Plugin.Log.Error($"[AMDI] AddMenuItem this=0x{thisPtr:X} handler=0x{handler:X} param=0x{handlerParam:X} disabled={disabled} sub={submenu}");
         }
         catch (Exception ex)
@@ -164,6 +183,7 @@ public sealed partial class ContextMenuHandler
         }
         AddMenuItemHook!.Original(thisPtr, text, handler, handlerParam, disabled, submenu);
     }
+
 
     // ⚠️ 崩溃源，勿启用（见文件头注释）。保留签名备查。
     // private void GenDetour(nint self, nint a2, nint a3, nint a4, nint a5) { ... }
@@ -180,8 +200,12 @@ public sealed partial class ContextMenuHandler
     // OnMenuOpened 诊断 dump（OnMenuOpened 开头调用）
     // ────────────────────────────────────────────────────────────────────
 
+    // ⚠️ 2026-08-15 07:36：不再每次打开菜单自动 dump（用户反馈日志刷屏）。
+    // 手动触发开关（DumpNextMenu）随 /ct2poc 命令一并移除（08:30 清理）。
+    // 需要完整 dump 时：临时把此方法改为无条件调用即可。
     public void DumpOnMenuOpened(IMenuOpenedArgs args)
     {
+        return; // 默认禁用（防刷屏）
         DumpB2Fields(args);
         DumpContextFields(args);
         DumpNativeMenuItems(args);

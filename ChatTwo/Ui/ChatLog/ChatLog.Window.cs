@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Numerics;
@@ -34,6 +34,13 @@ public sealed class MessageLogState
     public bool DraggingScrollbar;
     public float ScrollbarDragStartY;
     public float ScrollbarDragStartScroll;
+
+    // ⚠️ 选字状态必须按窗口隔离（2026-08-15 22:58 用户实测修复）：
+    // 主窗口与 PopOut 都调用 ChatLog.DrawMessageLog（Popout.cs L175），若 Selection 挂在
+    // ChatLog 实例上则所有窗口共享同一个 → 选几个字变一大片/无法取消/多 PopOut 只有一个能选。
+    // MessageLogState 每个窗口独立持有（主窗口 MsgState / PopOut 各自 new），
+    // 选字互不干扰。
+    public TextSelectionState Selection = new();
 }
 
 public partial class ChatLog : Window, IChatWindow
@@ -103,9 +110,6 @@ public partial class ChatLog : Window, IChatWindow
     // DrawMessageLog.
     private int _renderedTabIndex = -1;
 
-    // Text selection state
-    public TextSelectionState Selection = new();
-
     public ChatLog(Plugin plugin) : base($"{Plugin.PluginName}###chat2")
     {
         Plugin = plugin;
@@ -147,6 +151,8 @@ public partial class ChatLog : Window, IChatWindow
         InitSetPosHook();
         // OpenAddonByAgent vtable 22 hook：OpenContextMenu 前设 BlockedParentId=ChatLog（DR 注入识别用）
         InitOpenAddonByAgentHook();
+        // 顶点挖洞（正式功能，2026-08-15 20:11 出宏）：hook igRender 剔除聊天框内菜单区域三角形
+        RenderHole.Init(Plugin);
     }
 
     public void Dispose()
@@ -164,6 +170,7 @@ public partial class ChatLog : Window, IChatWindow
         _setPosHook = null;
         _openAddonByAgentHook?.Dispose();
         _openAddonByAgentHook = null;
+        RenderHole.Dispose();
 
         Plugin.ClientState.Logout -= Logout;
         Plugin.ClientState.Login -= Login;
@@ -430,6 +437,13 @@ public partial class ChatLog : Window, IChatWindow
 
         if (!Plugin.Config.ShowTitleBar)
             Flags |= ImGuiWindowFlags.NoTitleBar;
+
+        // ⚠️ [CtxClickPass] 菜单打开期间：聊天框窗口不捕获鼠标（NoMouseInputs）→
+        // io.WantCaptureMouse 不因聊天框为 true → 游戏原生 UI 正常收到鼠标 →
+        // 原生菜单在聊天框内也能点击（2026-08-15 点击穿透方案，点击无解则挖洞无意义）。
+        // 代价：菜单打开期间聊天框不可滚动/选字/拖拽（模态菜单，可接受）。
+        if (Plugin.ContextMenuActive || Plugin.ChatTwoMenuSession)
+            Flags |= ImGuiWindowFlags.NoMouseInputs;
 
         // Hit-test using LastWindowPos/Size (set from inside Begin/End in a
         // previous frame — the only reliable coords we have before Begin runs).
@@ -1069,7 +1083,7 @@ public partial class ChatLog : Window, IChatWindow
         using var sbGrabActive = ImRaii.PushColor(ImGuiCol.ScrollbarGrabActive, 0u);
         using var sbBg = ImRaii.PushColor(ImGuiCol.ScrollbarBg, 0u);
         using var sbSize = ImRaii.PushStyle(ImGuiStyleVar.ScrollbarSize, 0f);
-        using var child = ImRaii.Child("##chat2-messages", new Vector2(-1, childHeight), false, ImGuiWindowFlags.NoScrollWithMouse);
+        using var child = ImRaii.Child("##chat2-messages", new Vector2(-1, childHeight), false, ImGuiWindowFlags.NoScrollWithMouse | (Plugin.ContextMenuActive || Plugin.ChatTwoMenuSession ? ImGuiWindowFlags.NoMouseInputs : ImGuiWindowFlags.None));
         if (!child.Success)
             return;
 
@@ -1089,10 +1103,13 @@ public partial class ChatLog : Window, IChatWindow
 
         HandleWheelScrollLineByLine(state);
 
-        Selection.Chunks.Clear(); // rebuild every frame (scroll changes positions)
-        ImGuiUtil.CurrentSelection = Selection;
+        // ⚠️ 选字状态按窗口隔离（state.Selection，见 MessageLogState 注释）：
+        // 主窗口与各 PopOut 的 DrawMessageLog 各自持有独立 Selection，互不干扰。
+        var selection = state.Selection;
+        selection.Chunks.Clear(); // rebuild every frame (scroll changes positions)
+        ImGuiUtil.CurrentSelection = selection;
         var scrollY = ImGui.GetScrollY();
-        Selection.CurrentScrollY = scrollY;
+        selection.CurrentScrollY = scrollY;
 
         // 左缩进留出左侧滚动条空间（用户要求贴近滚动条，从 14 减到 10）
         ImGui.Indent(10f);
@@ -1104,11 +1121,11 @@ public partial class ChatLog : Window, IChatWindow
 
         ImGuiUtil.CurrentSelection = null;
 
-        if (Selection.IsDragging)
+        if (selection.IsDragging)
         {
-            var sDoc = new Vector2(Selection.DragStart.X, Selection.DragStart.Y - scrollY);
-            var eDoc = new Vector2(Selection.DragEnd.X, Selection.DragEnd.Y - scrollY);
-            var (s, e) = (Selection.PointToChar(sDoc), Selection.PointToChar(eDoc));
+            var sDoc = new Vector2(selection.DragStart.X, selection.DragStart.Y - scrollY);
+            var eDoc = new Vector2(selection.DragEnd.X, selection.DragEnd.Y - scrollY);
+            var (s, e) = (selection.PointToChar(sDoc), selection.PointToChar(eDoc));
         }
 
         // --- Text selection interaction ---
@@ -1127,7 +1144,7 @@ public partial class ChatLog : Window, IChatWindow
         // Ctrl+C copy - check early so it works even during drag
         if (ImGui.GetIO().KeyCtrl && ImGui.IsKeyPressed(ImGuiKey.C))
         {
-            var text = Selection.GetSelectedText();
+            var text = selection.GetSelectedText();
             if (!string.IsNullOrEmpty(text))
                 ImGui.SetClipboardText(text);
         }
@@ -1142,34 +1159,34 @@ public partial class ChatLog : Window, IChatWindow
             if (Plugin.ContextMenuActive)
                 CloseNativeContextMenu();
 
-            Selection.IsDragging = true;
-            Selection.HasSelection = false;
-            Selection.DragStart = new Vector2(mp.X, mp.Y + scrollY);
-            Selection.DragEnd = new Vector2(mp.X, mp.Y + scrollY);
+            selection.IsDragging = true;
+            selection.HasSelection = false;
+            selection.DragStart = new Vector2(mp.X, mp.Y + scrollY);
+            selection.DragEnd = new Vector2(mp.X, mp.Y + scrollY);
         }
         // Left click outside child AND outside scrollbar → clear selection (like Word)
         else if (leftClicked && !inChild && !onLeftScrollbar)
         {
-            Selection.DropSelection();
+            selection.DropSelection();
         }
 
-        if (Selection.IsDragging)
+        if (selection.IsDragging)
         {
-            Selection.DragEnd = new Vector2(mp.X, mp.Y + scrollY);
+            selection.DragEnd = new Vector2(mp.X, mp.Y + scrollY);
         }
 
-        if (leftReleased && Selection.IsDragging)
+        if (leftReleased && selection.IsDragging)
         {
-            Selection.IsDragging = false;
+            selection.IsDragging = false;
             // If start and end are at same point → treat as click, clear selection
-            if (Vector2.DistanceSquared(Selection.DragStart, Selection.DragEnd) < 2f)
-                Selection.DropSelection();
+            if (Vector2.DistanceSquared(selection.DragStart, selection.DragEnd) < 2f)
+                selection.DropSelection();
             else
-                Selection.HasSelection = true;
+                selection.HasSelection = true;
         }
 
         // Draw highlight (whether dragging or persistent)
-        Selection.DrawHighlight();
+        selection.DrawHighlight();
 
         DrawCustomLeftScrollbar(state);
     }
@@ -1236,8 +1253,6 @@ public partial class ChatLog : Window, IChatWindow
 
             var lastPosY = ImGui.GetCursorPosY();
             var lastTimestamp = string.Empty;
-            int? lastMessageHash = null;
-            var sameCount = 0;
 
             var maxLines = Plugin.Config.MaxLinesToRender;
             var startLine = messages.Count > maxLines ? messages.Count - maxLines : 0;
@@ -1248,35 +1263,6 @@ public partial class ChatLog : Window, IChatWindow
                 {
                     message.Height[tab.Identifier] = null;
                     message.IsVisible[tab.Identifier] = false;
-                }
-
-                if (Plugin.Config.CollapseDuplicateMessages)
-                {
-                    var messageHash = message.Hash;
-                    var same = lastMessageHash == messageHash;
-                    if (same)
-                    {
-                        sameCount += 1;
-                        message.IsVisible[tab.Identifier] = false;
-                        if (i != messages.Count - 1)
-                            continue;
-                    }
-
-                    if (sameCount > 0)
-                    {
-                        ImGui.SameLine();
-                        InputHandler.ChunkHandler.DrawChunks(
-                            [new TextChunk(ChunkSource.None, null, $" ({sameCount + 1}x)") { FallbackColor = ChatType.System, Italic = true }],
-                            true,
-                            handler,
-                            ImGui.GetContentRegionAvail().X
-                        );
-                        sameCount = 0;
-                    }
-
-                    lastMessageHash = messageHash;
-                    if (same && i == messages.Count - 1)
-                        continue;
                 }
 
                 // go to next row
@@ -1448,7 +1434,7 @@ public partial class ChatLog : Window, IChatWindow
         using var sbGrabActive = ImRaii.PushColor(ImGuiCol.ScrollbarGrabActive, 0u);
         using var sbBg = ImRaii.PushColor(ImGuiCol.ScrollbarBg, 0u);
         using var sbSize = ImRaii.PushStyle(ImGuiStyleVar.ScrollbarSize, 0f);
-        using var child = ImRaii.Child("##chat2-bottom-log", new Vector2(-1, childHeight), false, ImGuiWindowFlags.NoScrollWithMouse);
+        using var child = ImRaii.Child("##chat2-bottom-log", new Vector2(-1, childHeight), false, ImGuiWindowFlags.NoScrollWithMouse | (Plugin.ContextMenuActive || Plugin.ChatTwoMenuSession ? ImGuiWindowFlags.NoMouseInputs : ImGuiWindowFlags.None));
         if (!child.Success)
             return;
 
@@ -1764,7 +1750,7 @@ public partial class ChatLog : Window, IChatWindow
 
         var hasTabSwitched = false;
         var childHeight = GetRemainingHeightForMessageLog();
-        using (var child = ImRaii.Child("##chat2-tab-sidebar", new Vector2(-1, childHeight), false, ImGuiWindowFlags.NoScrollbar))
+        using (var child = ImRaii.Child("##chat2-tab-sidebar", new Vector2(-1, childHeight), false, ImGuiWindowFlags.NoScrollbar | (Plugin.ContextMenuActive || Plugin.ChatTwoMenuSession ? ImGuiWindowFlags.NoMouseInputs : ImGuiWindowFlags.None)))
         {
             if (child)
             {
