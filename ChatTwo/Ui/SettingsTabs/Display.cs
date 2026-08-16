@@ -51,6 +51,11 @@ public sealed class Display : ISettingsTab
         ImGuiUtil.OptionCheckbox(ref Mutable.NativeBackground, Language.Options_NativeBackground_Name, Language.Options_NativeBackground_Description);
         ImGui.Spacing();
 
+        // 锁定窗口移动（用户 2026-08-17：锁按钮从工具栏移除，改回设置项；
+        // 开启后只有消息区不可拖动（选字防误拖），窗口其他区域仍可拖）
+        ImGuiUtil.OptionCheckbox(ref Mutable.MoveLocked, Language.Options_MoveLocked_Name, Language.Options_MoveLocked_Description);
+        ImGui.Spacing();
+
         using (var tabCombo = ImGuiUtil.BeginComboVertical(Language.Options_TabPosition_Name, Mutable.TabPosition.Name()))
         {
             if (tabCombo.Success)

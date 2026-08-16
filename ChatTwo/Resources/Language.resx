@@ -159,6 +159,12 @@
     <data name="Options_Tabs_InputChannel">
         <value>Input channel</value>
     </data>
+    <data name="Options_Tabs_InputChannelLocked">
+        <value>Always lock input channel</value>
+    </data>
+    <data name="Options_Help_InputChannelLocked">
+        <value>When enabled, the input channel is forced every frame (manual switching is reverted). When disabled, the channel is set once when switching to this tab and can be freely changed afterwards.</value>
+    </data>
     <data name="Options_Tabs_Channels">
         <value>Channels</value>
     </data>
@@ -1119,5 +1125,83 @@ Your old database can still be recovered, please contact the plugin author for h
     </data>
     <data name="Options_NativeBackground_Description">
         <value>Keep backgrounds only for the message area, input box and tab bar; the rest of the window is fully transparent (showing the game behind it).</value>
+    </data>
+    <data name="Options_MoveLocked_Name">
+        <value>Lock window movement</value>
+    </data>
+    <data name="Options_MoveLocked_Description">
+        <value>Only the message area becomes non-draggable (prevents accidentally dragging the window while selecting text); the rest of the window can still be dragged.</value>
+    </data>
+    <data name="Search_Title">
+        <value>Chat Log History</value>
+    </data>
+    <data name="Search_Hint">
+        <value>Search player or keyword...</value>
+    </data>
+    <data name="Search_Go">
+        <value>Search</value>
+    </data>
+    <data name="Search_ResultCount">
+        <value>{0} result(s)</value>
+    </data>
+    <data name="Search_Empty">
+        <value>No matching messages found.</value>
+    </data>
+    <data name="Search_Column_Date">
+        <value>Time</value>
+    </data>
+    <data name="Search_Column_Sender">
+        <value>Sender</value>
+    </data>
+    <data name="Search_Column_Content">
+        <value>Content</value>
+    </data>
+    <data name="Search_Loading">
+        <value>Searching...</value>
+    </data>
+    <data name="Search_Back">
+        <value>Back</value>
+    </data>
+    <data name="Search_PrevDay">
+        <value>Previous day</value>
+    </data>
+    <data name="Search_NextDay">
+        <value>Next day</value>
+    </data>
+    <data name="Search_Today">
+        <value>Today</value>
+    </data>
+    <data name="Search_ClickToLocate">
+        <value>Click to locate this message</value>
+    </data>
+    <data name="Search_NoResult">
+        <value>No matching messages found.</value>
+    </data>
+    <data name="Search_Clear">
+        <value>Reset</value>
+    </data>
+    <data name="Search_Players">
+        <value>Filter Players</value>
+    </data>
+    <data name="Search_Calendar">
+        <value>Filter Date</value>
+    </data>
+    <data name="Search_PlayerHint">
+        <value>Search players...</value>
+    </data>
+    <data name="Search_NoPlayers">
+        <value>No players</value>
+    </data>
+    <data name="Search_Close">
+        <value>Close</value>
+    </data>
+    <data name="Search_ChannelTab">
+        <value>Use channels from tab</value>
+    </data>
+    <data name="Search_Latest">
+        <value>Latest</value>
+    </data>
+    <data name="Search_ResultsFor">
+        <value>Search: {0}</value>
     </data>
 </root>

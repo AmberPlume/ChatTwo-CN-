@@ -1,8 +1,8 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
     <PropertyGroup>
-        <Version>1.40.13</Version>
-        <AssemblyVersion>1.40.13.0</AssemblyVersion>
-        <FileVersion>1.40.13.0</FileVersion>
+        <Version>1.40.14</Version>
+        <AssemblyVersion>1.40.14.0</AssemblyVersion>
+        <FileVersion>1.40.14.0</FileVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <!-- DLL 文件名须匹配卫月的 InternalName（ChatTwoCN）才能从插件库安装 -->
         <AssemblyName>ChatTwoCN</AssemblyName>
@@ -30,6 +30,22 @@
             <Generator>ResXFileCodeGenerator</Generator>
             <LastGenOutput>Language.Designer.cs</LastGenOutput>
         </EmbeddedResource>
+    </ItemGroup>
+
+    <!-- 原生 UI 图标（FFXIV circlebuttons_hr1 切出，作为插件嵌入资源分发）。 -->
+    <!-- 资源 ID = "ChatTwo.images.&lt;filename&gt;.png"（RootNamespace=ChatTwo；⚠️ 不是 ChatTwoCN）。 -->
+    <ItemGroup>
+        <EmbeddedResource Include="images\toolbar_chatsearch.png" />
+        <EmbeddedResource Include="images\toolbar_searchgo.png" />
+        <EmbeddedResource Include="images\toolbar_players.png" />
+        <EmbeddedResource Include="images\toolbar_close.png" />
+        <EmbeddedResource Include="images\toolbar_gear.png" />
+        <EmbeddedResource Include="images\toolbar_funnel.png" />
+        <EmbeddedResource Include="images\toolbar_bubble.png" />
+        <EmbeddedResource Include="images\toolbar_plus.png" />
+        <EmbeddedResource Include="images\toolbar_leaf.png" />
+        <EmbeddedResource Include="images\toolbar_lock_open.png" />
+        <EmbeddedResource Include="images\toolbar_lock_closed.png" />
     </ItemGroup>
 
     <ItemGroup>

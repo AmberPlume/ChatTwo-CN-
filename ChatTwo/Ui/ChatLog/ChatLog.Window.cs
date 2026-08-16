@@ -31,6 +31,8 @@ public sealed class MessageLogState
 {
     public float PendingWheel;
     public bool UserScrolled;
+    /// <summary>消息区是否已滚动到顶部（滚轮消费处更新）。聊天记录窗口的无限滚动依赖它：</summary>
+    public bool AtTop;
     public bool DraggingScrollbar;
     public float ScrollbarDragStartY;
     public float ScrollbarDragStartScroll;
@@ -85,8 +87,30 @@ public partial class ChatLog : Window, IChatWindow
     // 快捷锁定：选字时锁定窗口移动（防止拖拽选字误拖动窗口）
     public bool MoveLocked;
 
+    // 消息区屏幕矩形（上一帧 DrawMessageLog 记录，供"消息区永远不可拖" hit-test）
+    // ⚠️ 共享 DrawMessageLog 的窗口用 onMessageArea 回调写自己的矩形，勿改此字段
+    public Vector2 LastMessageAreaMin = Vector2.Zero;
+    public Vector2 LastMessageAreaMax = Vector2.Zero;
+
     public Vector2 LastWindowPos { get; set; } = Vector2.Zero;
     public Vector2 LastWindowSize { get; set; } = Vector2.Zero;
+
+    // —— 分辨率变化窗口重定位（2026-08-17 方案 A v3，按原生 HUD 逻辑） ——
+    // 聊天框位置是绝对客户区坐标，游戏 HUD 按分辨率重排——全屏↔窗口切换（客户区大小
+    // 变化）时聊天框不跟随 → 相对 HUD 位移（用户反馈）。
+    // 原生 HUD 逻辑：元素带锚点，元素到锚点的边距随分辨率**等比缩放**。所以：
+    // ①稳定帧记录窗口就近的边（左/右、上/下，锚点）+ 绝对像素边距
+    // ②变化帧只标记；稳定后延迟一帧按"边距 × 缩放系数"重建位置（与原生 HUD 行为一致）
+    // ③变化帧不刷新锚定（避免切换瞬间中间态/自动 clamp 污染 → 多次切换漂移超屏，v1 教训）
+    // ④目标 clamp 到可视区兜底防超屏
+    // 开销：稳定帧一次四则运算，可忽略。
+    private Vector2 _lastDisplaySize = Vector2.Zero;
+    private Vector2 _resizeFromSize = Vector2.Zero;
+    private bool _resizePending;
+    private bool _anchorLeft; // true=锚左（记录左边距），false=锚右（记录右边距）
+    private float _marginX;
+    private bool _anchorTop;  // true=锚上，false=锚下
+    private float _marginY;
 
     public readonly List<bool> PopOutDocked = [];
     public readonly HashSet<Guid> PopOutWindows = [];
@@ -359,8 +383,10 @@ public partial class ChatLog : Window, IChatWindow
         SyncSeenAcrossTabs(newTab);
 
         // Use the fixed channel if set by the user, or set it to the current tabs channel if this tab wasn't accessed before
+        // ⚠️ 用 SetChannel（清空 Name）而非直接赋值 Channel：原直接赋值残留旧 Name，
+        // 移除每帧锁定后 ReadChannelName 会读到旧名称（2026-08-17 用户实测"频道名不变化"）
         if (newTab.Channel is not null)
-            newTab.CurrentChannel.Channel = newTab.Channel.Value;
+            newTab.CurrentChannel.SetChannel(newTab.Channel.Value);
         else if (newTab.CurrentChannel.Channel is InputChannel.Invalid)
             newTab.CurrentChannel = previousTab.CurrentChannel;
 
@@ -460,9 +486,12 @@ public partial class ChatLog : Window, IChatWindow
         MouseOverResizeHandle = mp.X >= handleMin.X && mp.X <= handleMax.X
                               && mp.Y >= handleMin.Y && mp.Y <= handleMax.Y;
 
-        // Block native window drag when: locked (选字防误拖), actively resizing,
-        // or cursor is over the handle (so clicking handle never starts a drag).
-        if (MoveLocked || IsResizingTopRight || MouseOverResizeHandle)
+        // ⚠️ 2026-08-17 用户决策（17:38 纠正）：消息区任何情况下都不可拖（不依赖锁定开关），
+        // NoMove 只禁窗口拖动、不影响插件自身文本选取；未锁定时其余区域（tab/输入框/空白）
+        // 仍可拖动窗口；打开"锁定窗口移动"后剩余区域也不可拖（整个窗口锁死）。
+        // 缩放中/手柄上照旧禁止拖动。
+        // ⚠️ MoveLocked 实时读 Config（锁按钮移除后设置页是唯一入口，字段会过期）。
+        if (IsMouseOverMessageAreaPublic() || Plugin.Config.MoveLocked || IsResizingTopRight || MouseOverResizeHandle)
             Flags |= ImGuiWindowFlags.NoMove;
 
         if (LastViewport == ImGuiHelpers.MainViewport.Handle && !WasDocked)
@@ -471,6 +500,14 @@ public partial class ChatLog : Window, IChatWindow
 
         LastViewport = ImGui.GetWindowViewport().Handle;
         WasDocked = ImGui.IsWindowDocked();
+    }
+
+    /// <summary>鼠标是否在消息区矩形内（消息区永远不可拖，hit-test 用）。矩形由 DrawMessageLog 每帧记录。</summary>
+    public bool IsMouseOverMessageAreaPublic()
+    {
+        var mp = ImGui.GetIO().MousePos;
+        return mp.X >= LastMessageAreaMin.X && mp.X <= LastMessageAreaMax.X
+            && mp.Y >= LastMessageAreaMin.Y && mp.Y <= LastMessageAreaMax.Y;
     }
 
     public override bool DrawConditions()
@@ -505,6 +542,10 @@ public partial class ChatLog : Window, IChatWindow
 
         if (Plugin.Config is { OverrideStyle: true, ChosenStyle: not null })
             StyleModel.GetConfiguredStyles()?.FirstOrDefault(style => style.Name == Plugin.Config.ChosenStyle)?.Push();
+
+        // ⚠️ 分辨率重定位逻辑在 Draw() 开头（Begin 之后）执行：PreDraw 在窗口 Begin 前，
+        // GetWindowPos/GetWindowSize 读到的是错误/过期值，SetWindowPos 也不可靠（v3 实测
+        // 每次切换向同一方向漂移超屏的根因）。Draw 内位置读取与立即定位才正确。
     }
 
     public override void PostDraw()
@@ -529,6 +570,55 @@ public partial class ChatLog : Window, IChatWindow
     public override void Draw()
     {
         DrewThisFrame = true;
+
+        // 分辨率变化窗口重定位（方案 A v4，原生 HUD 逻辑）：此处已处于窗口 Begin 之后，
+        // GetWindowPos/GetWindowSize 可靠、SetWindowPos 立即生效（v3 在 PreDraw 读位置导致
+        // 锚定污染、每次切换同向漂移超屏——已修正）。
+        // 原生 HUD = 锚点 + 边距随分辨率等比缩放：稳定帧记录就近锚点与边距，
+        // 切换帧延迟一拍后按"边距 × 缩放系数"重建位置，clamp 防超屏。
+        var display = ImGui.GetIO().DisplaySize;
+        if (display.X > 1f && display.Y > 1f)
+        {
+            if (_lastDisplaySize.X <= 0f)
+            {
+                _lastDisplaySize = display;
+            }
+            else if (display != _lastDisplaySize)
+            {
+                _resizeFromSize = _lastDisplaySize;
+                _lastDisplaySize = display;
+                _resizePending = true;
+            }
+            else if (_resizePending)
+            {
+                // 尺寸已稳定的第一帧：用记录的锚定边距 × 缩放系数重建位置
+                // （此刻 pos 还是旧位置，不刷新锚定——避免污染导致累积漂移）
+                _resizePending = false;
+                var size = ImGui.GetWindowSize();
+                var sx = display.X / _resizeFromSize.X;
+                var sy = display.Y / _resizeFromSize.Y;
+                var x = _anchorLeft ? _marginX * sx : display.X - _marginX * sx - size.X;
+                var y = _anchorTop ? _marginY * sy : display.Y - _marginY * sy - size.Y;
+                x = Math.Clamp(x, 0f, Math.Max(0f, display.X - size.X));
+                y = Math.Clamp(y, 0f, Math.Max(0f, display.Y - size.Y));
+                ImGui.SetWindowPos(new Vector2(x, y));
+            }
+            else
+            {
+                // 稳定帧：记录就近边锚定 + 绝对像素边距（窗口在左半→锚左，上半→锚上…）
+                var pos = ImGui.GetWindowPos();
+                var size = ImGui.GetWindowSize();
+                var left = pos.X;
+                var right = display.X - pos.X - size.X;
+                _anchorLeft = left <= right;
+                _marginX = _anchorLeft ? left : right;
+                var top = pos.Y;
+                var bottom = display.Y - pos.Y - size.Y;
+                _anchorTop = top <= bottom;
+                _marginY = _anchorTop ? top : bottom;
+            }
+        }
+
         // 聊天内容：默认 Axis 游戏字体（原生观感）；用户选了自定义字体后改用 RegularFont
         using var mainFont = (Plugin.Config.FontsEnabled ? Plugin.FontManager.RegularFont : Plugin.FontManager.Axis).Push();
         try
@@ -637,6 +727,9 @@ public partial class ChatLog : Window, IChatWindow
     {
         // 不检查 IsWindowHovered：鼠标在滚动条/输入区上（child 外）也要能滚消息区；
         // DrawChatLog 开头已确认鼠标在本窗口内（RootAndChildWindows）才记录 PendingWheel
+        // ⚠️ 滚到顶标志：内容不满一屏（无滚动）或当前已在顶部 → AtTop=true。
+        // 聊天记录窗口的"滚动到顶自动加载上一天"依赖它（外层 child 的 GetScrollY 恒 0 不可靠）。
+        state.AtTop = ImGui.GetScrollMaxY() <= 0f || ImGui.GetScrollY() <= 0f;
         if (Math.Abs(state.PendingWheel) < 0.001f) return;
         // ⚠️ 外层容器 child（##chat2-bottom-log）刚 Begin 时内容未画、maxY=0——此时消费
         // SetScrollY 无效且会吞掉滚动，导致内层真实滚动区（##chat2-messages）拿不到。
@@ -645,6 +738,7 @@ public partial class ChatLog : Window, IChatWindow
             return;
         ImGui.SetScrollY(ImGui.GetScrollY() - state.PendingWheel * ImGui.GetTextLineHeight());
         state.PendingWheel = 0f;
+        state.AtTop = ImGui.GetScrollY() <= 0f;
     }
 
     private void DrawCustomLeftScrollbar(MessageLogState state)
@@ -808,12 +902,11 @@ public partial class ChatLog : Window, IChatWindow
         // 首行缩进感，输入框相应缩水，整体长度不变）。⚠️ 必须先回到行首 X——
         // 否则会沿用频道名行末的 X，气泡和输入框都被频道名宽度挤到右边
         ImGui.SetCursorPosX(inputBoxHeight * 0.5f); // 一个"字母"≈半字
-        using (Plugin.FontManager.FontAwesomeSmall.Push())
-        {
-            ImGui.SetCursorPosY(iconTop);
-            if (ImGui.Button(FontAwesomeIcon.Comment.ToIconString() + "##channel-switcher") && activeTab.Channel is null)
-                ImGui.OpenPopup(ChatChannelPicker);
-        }
+        // 原生图标：用户新素材 icon_05 聊天气泡；wrap 未加载时回退 Comment FontAwesome。
+        // ⚠️ 无按钮音（用户排除项"选择频道"——点击会弹频道列表，原生列表本身有声音）
+        if (ImGuiUtil.NativeIconButton(NativeIcons.Bubble, "channel-switcher-bubble", null, FontAwesomeIcon.Comment, sfx: ImGuiUtil.BtnSfx.None)
+            && activeTab.Channel is null)
+            ImGui.OpenPopup(ChatChannelPicker);
         if (activeTab.Channel is not null && ImGui.IsItemHovered())
             ImGuiUtil.Tooltip(Language.ChatLog_SwitcherDisabled);
 
@@ -832,7 +925,7 @@ public partial class ChatLog : Window, IChatWindow
 
         var buttonWidth = ImGuiUtil.CalcIconButtonSize().X;
         var showNovice = Plugin.Config.ShowNoviceNetwork && GameFunctions.GameFunctions.IsMentor();
-        // Cog + 锁定按钮恒显示；隐藏/新人按钮按配置
+        // Cog + 搜索恒显示；隐藏/新人按钮按配置（锁按钮已移除，2026-08-17 用户决策）
         var buttonsRight = 1 + 1 + (showNovice ? 1 : 0) + (Plugin.Config.ShowHideButton ? 1 : 0);
         var inputWidth = ImGui.GetContentRegionAvail().X - buttonWidth * buttonsRight - ImGui.GetStyle().ItemSpacing.X * buttonsRight;
         InputHandler.DrawInputArea(activeTab, inputWidth, ref TellSpecial);
@@ -841,19 +934,18 @@ public partial class ChatLog : Window, IChatWindow
         ImGui.SetCursorPosY(iconTop);
 
         // 右侧图标与左侧气泡同尺寸，底部对齐输入框底边（不随输入字体变化）
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.Cog, font: Plugin.FontManager.FontAwesomeSmall))
+        // 原生图标：用户新素材 icon_00 齿轮
+        ImGui.SetCursorPosY(iconTop);
+        if (ImGuiUtil.NativeIconButton(NativeIcons.Gear, "chat-settings", "设置", FontAwesomeIcon.Cog))
             Plugin.SettingsWindow.Toggle();
-        if (ImGui.IsItemHovered())
-            ImGuiUtil.Tooltip("设置");
 
         if (Plugin.Config.ShowHideButton)
         {
             ImGui.SameLine();
+            // 原生图标：用户新素材 icon_24 粗X（与聊天记录窗口关闭/重置同源）；SFX 25 关闭音
             ImGui.SetCursorPosY(iconTop);
-            if (ImGuiUtil.IconButton(FontAwesomeIcon.EyeSlash, font: Plugin.FontManager.FontAwesomeSmall))
+            if (ImGuiUtil.NativeIconButton(NativeIcons.Close, "chat-hide", "隐藏消息栏", FontAwesomeIcon.EyeSlash, sfx: ImGuiUtil.BtnSfx.Dismiss))
                 UserHide();
-            if (ImGui.IsItemHovered())
-                ImGuiUtil.Tooltip("隐藏消息栏");
         }
 
         if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
@@ -862,25 +954,19 @@ public partial class ChatLog : Window, IChatWindow
         if (showNovice)
         {
             ImGui.SameLine();
+            // 原生图标：用户新素材 icon_14 双叶嫩芽
+            // ⚠️ 无按钮音（点击触发游戏原生新人频道按钮，原生自带开关声音——再加会双响）
             ImGui.SetCursorPosY(iconTop);
-            if (ImGuiUtil.IconButton(FontAwesomeIcon.Leaf, font: Plugin.FontManager.FontAwesomeSmall))
+            if (ImGuiUtil.NativeIconButton(NativeIcons.Leaf, "chat-novice", "加入新人频道", FontAwesomeIcon.Leaf, sfx: ImGuiUtil.BtnSfx.None))
                 GameFunctions.GameFunctions.ClickNoviceNetworkButton();
-            if (ImGui.IsItemHovered())
-                ImGuiUtil.Tooltip("加入新人频道");
         }
 
-        // 快捷锁定（放新人频道右侧）：选字时锁定窗口移动
+        // 聊天记录搜索（工具栏放大镜，Ctrl+F 也可打开）
         ImGui.SameLine();
         ImGui.SetCursorPosY(iconTop);
-        if (ImGuiUtil.IconButton(MoveLocked ? FontAwesomeIcon.Lock : FontAwesomeIcon.Unlock, font: Plugin.FontManager.FontAwesomeSmall))
-        {
-            MoveLocked = !MoveLocked;
-            // 持久化锁定状态（记忆上次状态，重启不丢）
-            Plugin.Config.MoveLocked = MoveLocked;
-            Plugin.SaveConfig();
-        }
-        if (ImGui.IsItemHovered())
-            ImGuiUtil.Tooltip(MoveLocked ? "解锁窗口移动" : "锁定窗口移动");
+        // 原生图标：用户新素材 icon_09 放大镜（与聊天记录窗口内"搜索"按钮 icon_34 不同图）
+        if (ImGuiUtil.NativeIconButton(NativeIcons.ChatSearch, "chat-search", Language.Search_Title, FontAwesomeIcon.Search))
+            Plugin.SearchWindow.Toggle();
     }
 
     public Dictionary<string, InputChannel> GetValidChannels()
@@ -961,8 +1047,11 @@ public partial class ChatLog : Window, IChatWindow
         {
             channelNameChunks = GenerateTellTargetName(activeTab.CurrentChannel.TellTarget);
         }
-        else if (activeTab is { Channel: { } channel })
+        else if (activeTab is { Channel: { } channel } && activeTab.InputChannelLocked)
         {
+            // 仅"始终锁定"的标签页固定显示 tab 配置的频道名（每帧强制，显示=实际一致）；
+            // 未锁定的标签页走下方 else 分支显示 CurrentChannel 的实际频道
+            // （2026-08-17 修复：原条件不看锁定，手动切频道后名称不更新）
             if (channel == InputChannel.Tell && activeTab.TellTarget.IsSet())
             {
                 channelNameChunks = GenerateTellTargetName(activeTab.TellTarget);
@@ -1059,7 +1148,7 @@ public partial class ChatLog : Window, IChatWindow
         return new Vector4(winBg.X, winBg.Y, winBg.Z, winBg.W * (Plugin.Config.WindowAlpha / 100f));
     }
 
-    public void DrawMessageLog(Tab tab, PayloadHandler handler, float childHeight, bool switchedTab, MessageLogState state)
+    public void DrawMessageLog(Tab tab, PayloadHandler handler, float childHeight, bool switchedTab, MessageLogState state, Guid? scrollToMessageId = null, Action<Message>? onMessageClick = null, Action<Vector2, Vector2>? onMessageArea = null)
     {
         // 字体 atlas 异步构建（插件加载后首个 Draw 帧可能尚未就绪）：主字体未就绪时
         // IFontHandle.Push() 是 no-op，消息会用默认字体渲染并写入错误的高度缓存
@@ -1086,6 +1175,19 @@ public partial class ChatLog : Window, IChatWindow
         using var child = ImRaii.Child("##chat2-messages", new Vector2(-1, childHeight), false, ImGuiWindowFlags.NoScrollWithMouse | (Plugin.ContextMenuActive || Plugin.ChatTwoMenuSession ? ImGuiWindowFlags.NoMouseInputs : ImGuiWindowFlags.None));
         if (!child.Success)
             return;
+
+        // 记录消息区屏幕矩形（供各窗口"消息区永远不可拖"hit-test，2026-08-17 用户决策）。
+        // ⚠️ 共享 DrawMessageLog 的窗口（PopOut/SearchWindow）必须传 onMessageArea 写各自的
+        // 矩形——否则共用 ChatLog 字段会被最后 Draw 的窗口覆盖（主窗口/PopOut 互相污染）。
+        var areaMin = ImGui.GetWindowPos();
+        var areaMax = areaMin + ImGui.GetWindowSize();
+        if (onMessageArea != null)
+            onMessageArea(areaMin, areaMax);
+        else
+        {
+            LastMessageAreaMin = areaMin;
+            LastMessageAreaMax = areaMax;
+        }
 
         // 仿原生消息区背景（非嵌套模式：PopOut 独立窗口 / 顶部 tab 布局）：
         // 窗口透明后 child 背景在此显式绘制圆角——ChildRounding 在本版本可能不读，
@@ -1115,9 +1217,9 @@ public partial class ChatLog : Window, IChatWindow
         ImGui.Indent(10f);
 
         if (tab.DisplayTimestamp && Plugin.Config.PrettierTimestamps)
-            DrawLogTableStyle(tab, handler, switchedTab, state);
+            DrawLogTableStyle(tab, handler, switchedTab, state, scrollToMessageId, onMessageClick);
         else
-            DrawLogNormalStyle(tab, handler, switchedTab, state);
+            DrawLogNormalStyle(tab, handler, switchedTab, state, scrollToMessageId, onMessageClick);
 
         ImGuiUtil.CurrentSelection = null;
 
@@ -1191,10 +1293,10 @@ public partial class ChatLog : Window, IChatWindow
         DrawCustomLeftScrollbar(state);
     }
 
-    private void DrawLogNormalStyle(Tab tab, PayloadHandler handler, bool switchedTab, MessageLogState state)
+    private void DrawLogNormalStyle(Tab tab, PayloadHandler handler, bool switchedTab, MessageLogState state, Guid? scrollToMessageId = null, Action<Message>? onMessageClick = null)
     {
         using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
-            DrawMessages(tab, handler, false);
+            DrawMessages(tab, handler, false, scrollToMessageId: scrollToMessageId, onMessageClick: onMessageClick);
 
         // ⚠️ 用户手动滚轮时禁止自动贴底：SetScrollY 设的是 ScrollTarget，当帧 GetScrollY()
         // 还是旧值（底部）→ 贴底判断仍成立 → SetScrollHereY(1f) 把滚动拉回底部 → 向上滚失效
@@ -1204,7 +1306,7 @@ public partial class ChatLog : Window, IChatWindow
         handler.Draw();
     }
 
-    private void DrawLogTableStyle(Tab tab, PayloadHandler handler, bool switchedTab, MessageLogState state)
+    private void DrawLogTableStyle(Tab tab, PayloadHandler handler, bool switchedTab, MessageLogState state, Guid? scrollToMessageId = null, Action<Message>? onMessageClick = null)
     {
         var compact = Plugin.Config.MoreCompactPretty;
         var oldItemSpacing = ImGui.GetStyle().ItemSpacing;
@@ -1220,7 +1322,7 @@ public partial class ChatLog : Window, IChatWindow
             ImGui.TableSetupColumn("timestamps", ImGuiTableColumnFlags.WidthFixed);
             ImGui.TableSetupColumn("messages", ImGuiTableColumnFlags.WidthStretch);
 
-            DrawMessages(tab, handler, true, compact, oldCellPadding.Y);
+            DrawMessages(tab, handler, true, compact, oldCellPadding.Y, scrollToMessageId, onMessageClick);
 
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, oldItemSpacing))
             using (ImRaii.PushStyle(ImGuiStyleVar.CellPadding, oldCellPadding))
@@ -1236,7 +1338,7 @@ public partial class ChatLog : Window, IChatWindow
         }
     }
 
-    private void DrawMessages(Tab tab, PayloadHandler handler, bool isTable, bool moreCompact = false, float oldCellPaddingY = 0)
+    private void DrawMessages(Tab tab, PayloadHandler handler, bool isTable, bool moreCompact = false, float oldCellPaddingY = 0, Guid? scrollToMessageId = null, Action<Message>? onMessageClick = null)
     {
         try
         {
@@ -1259,6 +1361,14 @@ public partial class ChatLog : Window, IChatWindow
             for (var i = startLine; i < messages.Count; i++)
             {
                 var message = messages[i];
+
+                // 滚动定位到指定消息（聊天记录窗口用）：目标消息滚动到可视区中央，仅定位一次
+                if (scrollToMessageId is { } targetId && message.Id == targetId)
+                {
+                    ImGui.SetScrollHereY(0.5f);
+                    scrollToMessageId = null;
+                }
+
                 if (reset)
                 {
                     message.Height[tab.Identifier] = null;
@@ -1369,6 +1479,10 @@ public partial class ChatLog : Window, IChatWindow
                     InputHandler.ChunkHandler.DrawChunks(message.Content, true, handler, lineWidth);
 
                 message.IsVisible[tab.Identifier] = ImGui.IsItemVisible();
+
+                // 消息点击回调（聊天记录窗口用：点击消息定位上下文）
+                if (onMessageClick != null && ImGui.IsItemClicked(ImGuiMouseButton.Left))
+                    onMessageClick(message);
             }
         }
         catch (ApplicationException)
@@ -1405,7 +1519,10 @@ public partial class ChatLog : Window, IChatWindow
             }
         }
 
-        if (activeTab.Channel is not null)
+        // 输入频道：勾选"输入频道始终锁定"的标签页每帧强制频道（用户手动切换会被拉回）；
+        // 未勾选的只依赖 TabSwitched（切换 tab 时设置一次），之后可自由切换频道
+        // （2026-08-17 用户需求：默认不要每帧锁定）
+        if (activeTab.Channel is not null && activeTab.InputChannelLocked)
             activeTab.CurrentChannel.SetChannel(activeTab.Channel.Value);
 
         var style = ImGui.GetStyle();
@@ -1566,10 +1683,12 @@ public partial class ChatLog : Window, IChatWindow
             }
         }
 
-        // 末尾"+"：用 IconButton（无边框图标按钮，与输入框右侧齿轮/新人频道一致），
-        // 字号 FontAwesomeSmall（随输入区缩放字体重建）
+        // 末尾"+"：原生加号图标（用户新素材 icon_11；wrap 缺失时回退 FontAwesome Plus，布局不变）。
+        // ⚠️ 高度对齐 tab（tabHeight）并垂直居中——之前用 CalcIconButtonSize（~18px）比 tab 矮，
+        // 用户实测"+"与 tab 不齐。无按钮音（用户排除项"添加tab"）。
         ImGui.SameLine(0, 0);
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.Plus, "new-tab-bottom", font: Plugin.FontManager.FontAwesomeSmall))
+        if (ImGuiUtil.NativeIconButton(NativeIcons.Plus, "new-tab-bottom", null, FontAwesomeIcon.Plus,
+                size: new Vector2(ImGuiUtil.CalcIconButtonSize().X, tabHeight), sfx: ImGuiUtil.BtnSfx.None))
         {
             NewTabName = string.Empty;
             ImGui.OpenPopup("chat2-new-tab-name");

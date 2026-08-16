@@ -297,6 +297,9 @@ public class Tab
     public bool UnhideOnActivity;
     public bool DisplayTimestamp = true;
     public InputChannel? Channel;
+    /// <summary>输入频道始终锁定（2026-08-17 用户需求）：勾选后每帧强制频道（原默认行为）；
+    /// 不勾选则只在切换到本标签页时自动设置一次频道，之后可自由切换。</summary>
+    public bool InputChannelLocked;
     public bool PopOut;
     public bool IndependentOpacity;
     public float Opacity = 100f;
@@ -389,6 +392,7 @@ public class Tab
             LastActivity = LastActivity,
             DisplayTimestamp = DisplayTimestamp,
             Channel = Channel,
+            InputChannelLocked = InputChannelLocked,
             PopOut = PopOut,
             IndependentOpacity = IndependentOpacity,
             Opacity = Opacity,

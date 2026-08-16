@@ -41,6 +41,10 @@ public class InputHandler
     public long LastActivityTime = Environment.TickCount64;
 
     public int CursorPos;
+
+    // [InputScrollFix v2] 两步滚动修复状态（文本长度变化时触发）
+    private int _lastScrollFixLen = -1;
+    private bool _scrollFixStep2;
     public int ActivatePos = -1;
 
     public readonly string InputHandlerId;
@@ -212,6 +216,38 @@ public class InputHandler
         }
 
         CursorPos = data.CursorPos;
+        // ⚠️ [InputScrollFix] 2026-08-17 中文长文本输入框不自动滚动修复（v2，v1 no-op 无效）：
+        // ImGui 源码 imgui_widgets.cpp L4806：Callback 返回后仅当
+        //   callback_data.CursorPos != utf8_cursor_pos  时 state->CursorFollow = true
+        // （v1 的 no-op 赋值值相同 → 不触发 → 无效）；滚动执行在 L4975
+        //   if (render_cursor && state->CursorFollow) { 算 scroll_x; state->CursorFollow = false; }
+        // 即滚动是"事件驱动"的：IME/TSF 上屏不走 ImGui 字符输入路径 → 永不置位 → 不滚动；
+        // Backspace 走按键路径 → 置位 → 恢复（用户实测"删一字即恢复"）。
+        // 修复：文本长度变化 + 光标在末尾时，做"退1字符→下帧回末尾"两步移动（值确实变化 → 触发
+        // 滚动跟随）；只在文本变化时触发（不变化不触发 → 打字期间不会每帧闪烁）。
+        if (data.EventFlag == ImGuiInputTextFlags.CallbackAlways && data.BufTextLen > 0)
+        {
+            if (_scrollFixStep2)
+            {
+                // 第二步：光标回末尾（值变化 → 触发滚动到末尾）
+                _scrollFixStep2 = false;
+                data.CursorPos = data.BufTextLen;
+            }
+            else if (data.BufTextLen != _lastScrollFixLen)
+            {
+                _lastScrollFixLen = data.BufTextLen; // 文本变化（输入/删除）
+                if (data.CursorPos >= data.BufTextLen)
+                {
+                    // 光标在末尾 → 退 1 个 UTF-8 字符（⚠️ 不能 -1 字节：可能落在多字节字符中间）
+                    var curText = MemoryHelper.ReadString((nint)data.Buf, data.BufTextLen);
+                    var lastLen = 1;
+                    if (curText.Length > 0)
+                        lastLen = System.Text.Encoding.UTF8.GetByteCount(curText[^1].ToString());
+                    _scrollFixStep2 = true;
+                    data.CursorPos = Math.Max(0, data.BufTextLen - lastLen);
+                }
+            }
+        }
         if (data.EventFlag == ImGuiInputTextFlags.CallbackCompletion)
         {
             if (data.CursorPos == 0)

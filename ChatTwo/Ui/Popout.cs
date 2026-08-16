@@ -41,6 +41,11 @@ public class Popout : Window, IChatWindow
     // 快捷锁定：选字时锁定窗口移动（防止拖拽选字误拖动窗口）
     public bool MoveLocked;
 
+    // 消息区屏幕矩形（上一帧 DrawMessageLog 记录，PopOut 自己的矩形——与主窗口隔离，
+    // 共享 DrawMessageLog 时最后 Draw 的窗口会覆盖 ChatLog 上的字段，不能互读）
+    public Vector2 LastMessageAreaMin = Vector2.Zero;
+    public Vector2 LastMessageAreaMax = Vector2.Zero;
+
     // 消息区交互状态（独立于主窗口，互不干扰）
     public readonly MessageLogState MsgState = new();
 
@@ -90,6 +95,14 @@ public class Popout : Window, IChatWindow
         return FrameTime - lastActivityTime <= 1000 * Plugin.Config.InactivityHideTimeout;
     }
 
+    /// <summary>鼠标是否在 PopOut 消息区矩形内（消息区永远不可拖）。矩形由 DrawMessageLog 每帧回调记录。</summary>
+    public bool IsMouseOverMessageAreaPublic()
+    {
+        var mp = ImGui.GetIO().MousePos;
+        return mp.X >= LastMessageAreaMin.X && mp.X <= LastMessageAreaMax.X
+            && mp.Y >= LastMessageAreaMin.Y && mp.Y <= LastMessageAreaMax.Y;
+    }
+
     public override void PreDraw()
     {
         if (Plugin.Config is { OverrideStyle: true, ChosenStyle: not null })
@@ -105,7 +118,13 @@ public class Popout : Window, IChatWindow
         if (!Plugin.Config.ShowPopOutTitleBar)
             Flags |= ImGuiWindowFlags.NoTitleBar;
 
-        if (MoveLocked)
+        // ⚠️ 2026-08-17 用户决策（17:38 纠正）：消息区任何情况下都不可拖（不依赖锁定开关），
+        // NoMove 只禁窗口拖动、不影响文本选取；未锁定时其余区域可拖；
+        // 打开"锁定窗口移动"后整个窗口锁死。
+        // ⚠️ 矩形用 PopOut 自己的（不能读 Plugin.ChatLog 的——共享 DrawMessageLog，
+        // 主窗口最后画会覆盖 PopOut 的矩形）。
+        // MoveLocked 从设置页读取（Config.MoveLocked，2026-08-17 锁按钮移除后改设置项）。
+        if (IsMouseOverMessageAreaPublic() || Plugin.Config.MoveLocked)
             Flags |= ImGuiWindowFlags.NoMove;
 
         if (!Tab.CanResize)
@@ -172,7 +191,8 @@ public class Popout : Window, IChatWindow
         // PopOut 无输入区（游戏原生弹出的消息窗口本来就不能输入）：消息区 + 底部 tab 行
         var remainingHeight = ImGui.GetContentRegionAvail().Y - PopOutTabBarHeight();
 
-        Plugin.ChatLog.DrawMessageLog(Tab, InputHandler.PayloadHandler, remainingHeight, false, MsgState);
+        Plugin.ChatLog.DrawMessageLog(Tab, InputHandler.PayloadHandler, remainingHeight, false, MsgState,
+            onMessageArea: (min, max) => { LastMessageAreaMin = min; LastMessageAreaMax = max; });
 
         // 底部行：左下角 tab 名 + 右侧 锁定/关闭
         DrawPopOutTabBar();
@@ -218,38 +238,32 @@ public class Popout : Window, IChatWindow
         return (ImGui.GetTextLineHeight() + style.FramePadding.Y * 2) * 0.9f;
     }
 
-    // 底部行：左下角 tab 名（像 tab 标签）+ 右侧 锁定/关闭 按钮。
-    // 锁定与关闭是窗口级按钮，放这里两种模式（有无输入区）都可见。
-    // ⚠️ 无 Separator：用户实测分割线会让 tab 行下移被底部截断
-    private void DrawPopOutTabBar()
-    {
-        using var tabFont = Plugin.FontManager.TabFont.Push();
+        // 底部行：左下角 tab 名（像 tab 标签）+ 右侧 关闭 按钮。
+        // 锁定按钮已移除（2026-08-17 用户决策：锁定改到设置页，且只锁消息区）。
+        // 关闭是窗口级按钮，放这里两种模式（有无输入区）都可见。
+        // ⚠️ 无 Separator：用户实测分割线会让 tab 行下移被底部截断
+        private void DrawPopOutTabBar()
+        {
+            using var tabFont = Plugin.FontManager.TabFont.Push();
 
-        var lineHeight = ImGui.GetTextLineHeight();
-        var availWidth = ImGui.GetContentRegionAvail().X;
-        var iconSize = ImGui.GetFrameHeight();
-        var nameWidth = ImGui.CalcTextSize(Tab.Name).X;
-        var maxNameWidth = Math.Max(0f, availWidth - iconSize * 2 - ImGui.GetStyle().ItemSpacing.X * 2 - 8f);
+            var lineHeight = ImGui.GetTextLineHeight();
+            var availWidth = ImGui.GetContentRegionAvail().X;
+            var iconSize = ImGui.GetFrameHeight();
+            var nameWidth = ImGui.CalcTextSize(Tab.Name).X;
+            var maxNameWidth = Math.Max(0f, availWidth - iconSize * 2 - ImGui.GetStyle().ItemSpacing.X * 2 - 8f);
 
-        ImGui.TextUnformatted(nameWidth > maxNameWidth && maxNameWidth > 8f ? Tab.Name[..Math.Max(1, Tab.Name.Length * (int)(maxNameWidth / nameWidth))] : Tab.Name);
+            ImGui.TextUnformatted(nameWidth > maxNameWidth && maxNameWidth > 8f ? Tab.Name[..Math.Max(1, Tab.Name.Length * (int)(maxNameWidth / nameWidth))] : Tab.Name);
 
-        // 右侧：锁定（选字时锁定窗口移动）+ 关闭（收回主窗口）
-        ImGui.SameLine();
-        ImGui.SetCursorPosX(availWidth - iconSize * 2 - ImGui.GetStyle().ItemSpacing.X);
-        var iconTop = ImGui.GetCursorPosY() + (lineHeight - iconSize) / 2f;
-        ImGui.SetCursorPosY(iconTop);
-        if (ImGuiUtil.IconButton(MoveLocked ? FontAwesomeIcon.Lock : FontAwesomeIcon.Unlock, font: Plugin.FontManager.FontAwesomeSmall))
-            MoveLocked = !MoveLocked;
-        if (ImGui.IsItemHovered())
-            ImGuiUtil.Tooltip(MoveLocked ? "解锁窗口移动" : "锁定窗口移动");
-
-        ImGui.SameLine();
-        ImGui.SetCursorPosY(iconTop);
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.Times, font: Plugin.FontManager.FontAwesomeSmall))
-            IsOpen = false; // 触发 OnClose：Tab.PopOut=false，tab 收回主窗口
-        if (ImGui.IsItemHovered())
-            ImGuiUtil.Tooltip("关闭");
-    }
+            // 右侧：关闭（收回主窗口）
+            ImGui.SameLine();
+            ImGui.SetCursorPosX(availWidth - iconSize - ImGui.GetStyle().ItemSpacing.X);
+            var iconTop = ImGui.GetCursorPosY() + (lineHeight - iconSize) / 2f;
+            ImGui.SetCursorPosY(iconTop);
+            if (ImGuiUtil.IconButton(FontAwesomeIcon.Times, font: Plugin.FontManager.FontAwesomeSmall))
+                IsOpen = false; // 触发 OnClose：Tab.PopOut=false，tab 收回主窗口
+            if (ImGui.IsItemHovered())
+                ImGuiUtil.Tooltip("关闭");
+        }
 
     // 仿原生 FFXIV 缩放手柄：金字塔形三条 NW-SE 斜线（与主窗口同款）
     private void DrawTopRightResizeHandle()

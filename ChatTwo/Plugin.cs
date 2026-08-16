@@ -75,6 +75,7 @@ public sealed class Plugin : IDalamudPlugin
     public SettingsWindow SettingsWindow { get; }
     public ChatLog ChatLog { get; }
     public DbViewer DbViewer { get; }
+    public SearchWindow SearchWindow { get; }
     public CommandHelpWindow CommandHelpWindow { get; }
 
     public Commands Commands { get; }
@@ -123,15 +124,16 @@ public sealed class Plugin : IDalamudPlugin
             // 强制关闭：显示聊天窗口标题栏 / 显示弹出标签页标题栏
             Config.ShowTitleBar = false;
             Config.ShowPopOutTitleBar = false;
-            // 频道切换策略：改回"灵活"（此前用户要求固定严格，现恢复）
+            // 频道切换策略：灵活模式（用户实测体感灵活且要求保留——2026-08-16 确认。
+            // ⚠️ 原版遗留：L133 曾有"偏好页已删除：热键固定严格模式"的覆盖行，与这里的 Flexible
+            // 冲突（后写覆盖先写），且与用户体感（按住 W 移动时也能切频道）矛盾 → 已删除 Strict 覆盖行。
+            // Flexible：修饰键"包含"即触发（Ctrl+R、Ctrl+Shift+R 都行）；Strict 需"完全相等"。
             Config.KeybindMode = KeybindMode.Flexible;
             // 中文适配：界面语言固定简体中文。
             // ⚠️ 不能设为 None：None 会跟随 Interface.UiLanguage（国服卫月返回 "en"），界面会变英文
             Config.LanguageOverride = LanguageOverride.ChineseSimplified;
             // 命令帮助方向功能已从设置移除，保持关闭
             Config.CommandHelpSide = CommandHelpSide.None;
-            // 偏好页已删除：热键固定严格模式（仅无其他按键按下时触发，防打字误触）
-            Config.KeybindMode = KeybindMode.Strict;
             // 已删除的设置项锁定默认值（等效于功能关闭）
             Config.PrettierTimestamps = false;      // 现代化布局
             Config.MoreCompactPretty = false;       // 更紧凑的现代布局
@@ -175,14 +177,23 @@ public sealed class Plugin : IDalamudPlugin
             ChatLog = new ChatLog(this);
             SettingsWindow = new SettingsWindow(this);
             DbViewer = new DbViewer(this);
+            SearchWindow = new SearchWindow(this);
             CommandHelpWindow = new CommandHelpWindow(ChatLog);
 
             WindowSystem.AddWindow(ChatLog);
             WindowSystem.AddWindow(SettingsWindow);
             WindowSystem.AddWindow(DbViewer);
+            WindowSystem.AddWindow(SearchWindow);
             WindowSystem.AddWindow(CommandHelpWindow);
 
             FontManager.BuildFonts();
+
+            // 原生 UI 图标（聊天记录窗口工具栏使用的 FFXIV 原生 PNG）。
+            // ⚠️ 2026-08-17 修复：恢复构造函数直接 Load（首次成功验证过的逻辑，16:12 日志
+            // search=True）。之前改懒加载时把这里的调用删了、又没给 NativeIcons 设 _tp，
+            // 导致 EnsureLoaded 永远不加载 → 全部回退 FontAwesome（用户实测图标消失）。
+            // 失败时按钮回退到 FontAwesome，不会阻塞插件启动。
+            NativeIcons.Load(TextureProvider);
 
             Interface.UiBuilder.DisableCutsceneUiHide = true;
             Interface.UiBuilder.DisableGposeUiHide = true;
@@ -236,6 +247,7 @@ public sealed class Plugin : IDalamudPlugin
         MessageManager?.DisposeAsync().AsTask().Wait();
         Functions?.Dispose();
         Commands?.Dispose();
+        NativeIcons.DisposeAll();
     }
 
     private void Draw()

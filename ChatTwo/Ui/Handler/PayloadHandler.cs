@@ -433,11 +433,24 @@ public sealed class PayloadHandler
             return;
 
         var start = source.Payloads.IndexOf(payload);
-        var end = source.Payloads.IndexOf(RawPayload.LinkTerminator, start == -1 ? 0 : start);
-        if (start == -1 || end == -1)
+        if (start == -1)
+        {
+            // ⚠️ 历史消息（SQLite 加载）的 chunk.Link 是 MessagePack 反序列化实例，
+            // 与 ContentSource.Payloads 的元素不是同一引用，而 DalamudLinkPayload 未重写
+            // Equals（引用比较）→ IndexOf 返回 -1 → 点击无效（用户实测 2026-08-17）。
+            // 回退：按 Plugin+CommandId 语义匹配链接起点。
+            for (var i = 0; i < source.Payloads.Count; i++)
+            {
+                if (source.Payloads[i] is DalamudLinkPayload dl && dl.Plugin == link.Plugin && dl.CommandId == link.CommandId)
+                {
+                    start = i;
+                    break;
+                }
+            }
+        }
+        if (start == -1)
             return;
 
-        var payloads = source.Payloads.Skip(start).Take(end - start + 1).ToList();
         if (!Plugin.ChatGui.RegisteredLinkHandlers.TryGetValue((link.Plugin, link.CommandId), out var value))
         {
             Plugin.Log.Warning("Could not find DalamudLinkHandlers");
@@ -446,8 +459,22 @@ public sealed class PayloadHandler
 
         try
         {
-            // Running XivCommon SendChat instantly, without RunOnTick, leads to a game freeze, for whatever reason
-            Plugin.Framework.RunOnTick(() => value.Invoke(link.CommandId, new SeString(payloads)));
+            // ⚠️ 传完整消息而非链接段：原生点击时 handler 收到整条 SeString，而 OmniToolbox 的
+            // 传送点链接结构是 [MapLink(坐标@消息开头) ... DalamudLink(传送点)]——坐标在链接段外，
+            // 上游只传段导致 handler 解析不到坐标 → 传送不发起（用户实测 2026-08-17，FULL/SEG dump 证实）。
+            // ⚠️ try 必须包在 RunOnTick 回调内部：RunOnTick 只是注册回调，value.Invoke 在下一帧执行，
+            // 包在外面捕获不到 handler 异常（上游 bug，异常会被吞掉）。
+            Plugin.Framework.RunOnTick(() =>
+            {
+                try
+                {
+                    value.Invoke(link.CommandId, source);
+                }
+                catch (Exception ex)
+                {
+                    Plugin.Log.Error(ex, "Error executing DalamudLinkPayload handler");
+                }
+            });
         }
         catch (Exception ex)
         {
