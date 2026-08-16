@@ -213,7 +213,7 @@ public class SearchWindow : Window
         ImGui.AlignTextToFramePadding();
         if (CurrentMode == Mode.Context)
         {
-            if (ImGuiUtil.IconButton(FontAwesomeIcon.ArrowLeft, tooltip: Language.Search_Back))
+            if (ImGuiUtil.IconButton(FontAwesomeIcon.ArrowLeft, id: "ctx-back", tooltip: Language.Search_Back))
                 ShowBrowse(BrowseDate, DateLocked);
             ImGui.SameLine(0, spacing);
         }
@@ -228,7 +228,7 @@ public class SearchWindow : Window
             ImGui.TextColored(ImGuiColors.DalamudGrey, BrowseDate.ToString("yyyy-MM-dd"));
             // 重置：清除日期锁定 → 回滚动模式
             ImGui.SameLine(0, 2f * ImGuiHelpers.GlobalScale);
-            if (ImGuiUtil.IconButton(FontAwesomeIcon.Times, tooltip: Language.Search_Clear))
+            if (ImGuiUtil.IconButton(FontAwesomeIcon.Times, id: "date-clear", tooltip: Language.Search_Clear))
             {
                 DateLocked = false;
                 ShowBrowse(DateTime.Today);
@@ -246,7 +246,7 @@ public class SearchWindow : Window
             ImGui.SameLine(0, spacing);
             ImGui.TextColored(ImGuiColors.DalamudOrange, $"@{PlayerFilter}");
             ImGui.SameLine(0, 2f * ImGuiHelpers.GlobalScale);
-            if (ImGuiUtil.IconButton(FontAwesomeIcon.Times, tooltip: Language.Search_Clear))
+            if (ImGuiUtil.IconButton(FontAwesomeIcon.Times, id: "player-clear", tooltip: Language.Search_Clear))
             {
                 PlayerFilter = "";
                 RequeryCurrent();
@@ -268,7 +268,7 @@ public class SearchWindow : Window
         if (CurrentMode == Mode.Context)
         {
             ImGui.SameLine(0, spacing);
-            if (ImGuiUtil.IconButton(FontAwesomeIcon.Home, tooltip: Language.Search_Today))
+            if (ImGuiUtil.IconButton(FontAwesomeIcon.Home, id: "ctx-home", tooltip: Language.Search_Today))
                 ShowBrowse(DateTime.Today);
         }
 
@@ -301,7 +301,7 @@ public class SearchWindow : Window
         if (ImGui.Button(tabText, new Vector2(tabTextW, 0)))
             ImGui.OpenPopup("history-tab-picker");
         ImGui.SameLine(0, 0);
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.ChevronDown, font: Plugin.FontManager.FontAwesomeSmall))
+        if (ImGuiUtil.IconButton(FontAwesomeIcon.ChevronDown, id: "tab-arrow", font: Plugin.FontManager.FontAwesomeSmall))
             ImGui.OpenPopup("history-tab-picker");
         if (ImGui.IsItemHovered())
             ImGuiUtil.Tooltip(Language.Search_ChannelTab);
@@ -319,7 +319,7 @@ public class SearchWindow : Window
 
         // 🔍 搜索（不清 PlayerFilter：可与玩家筛选叠加）
         ImGui.SameLine(0, spacing);
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.Search, tooltip: Language.Search_Go, font: Plugin.FontManager.FontAwesomeSmall) || submit)
+        if (ImGuiUtil.IconButton(FontAwesomeIcon.Search, id: "search-go", tooltip: Language.Search_Go, font: Plugin.FontManager.FontAwesomeSmall) || submit)
         {
             if (SearchTerm.Length > 0)
                 ShowResults(SearchTerm);
@@ -330,24 +330,24 @@ public class SearchWindow : Window
         // 👤 玩家
         ImGui.SameLine(0, spacing);
         var playersActive = Panel == SidePanel.Players;
-        if (ImGuiUtil.IconButton(playersActive ? FontAwesomeIcon.UserCircle : FontAwesomeIcon.User,
+        if (ImGuiUtil.IconButton(playersActive ? FontAwesomeIcon.UserCircle : FontAwesomeIcon.User, id: "panel-players",
                 tooltip: Language.Search_Players, font: Plugin.FontManager.FontAwesomeSmall))
             Panel = playersActive ? SidePanel.None : SidePanel.Players;
 
         // 📅 日历
         ImGui.SameLine(0, spacing);
         var calActive = Panel == SidePanel.Calendar;
-        if (ImGuiUtil.IconButton(calActive ? FontAwesomeIcon.CalendarCheck : FontAwesomeIcon.CalendarAlt,
+        if (ImGuiUtil.IconButton(calActive ? FontAwesomeIcon.CalendarCheck : FontAwesomeIcon.CalendarAlt, id: "panel-calendar",
                 tooltip: Language.Search_Calendar, font: Plugin.FontManager.FontAwesomeSmall))
             Panel = calActive ? SidePanel.None : SidePanel.Calendar;
 
         // 🔒 锁定 / × 关闭（流式跟在后面，搜索框已预留空间）
         ImGui.SameLine(0, spacing);
-        if (ImGuiUtil.IconButton(MoveLocked ? FontAwesomeIcon.Lock : FontAwesomeIcon.Unlock, tooltip: MoveLocked ? "解锁窗口移动" : "锁定窗口移动", font: Plugin.FontManager.FontAwesomeSmall))
+        if (ImGuiUtil.IconButton(MoveLocked ? FontAwesomeIcon.Lock : FontAwesomeIcon.Unlock, id: "toggle-lock", tooltip: MoveLocked ? "解锁窗口移动" : "锁定窗口移动", font: Plugin.FontManager.FontAwesomeSmall))
             MoveLocked = !MoveLocked;
 
         ImGui.SameLine(0, spacing);
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.Times, tooltip: Language.Search_Close, font: Plugin.FontManager.FontAwesomeSmall))
+        if (ImGuiUtil.IconButton(FontAwesomeIcon.Times, id: "window-close", tooltip: Language.Search_Close, font: Plugin.FontManager.FontAwesomeSmall))
             IsOpen = false;
     }
 
@@ -447,7 +447,7 @@ public class SearchWindow : Window
         if (PlayerFilter.Length > 0)
         {
             ImGui.SameLine();
-            if (ImGuiUtil.IconButton(FontAwesomeIcon.Times, tooltip: Language.Search_Clear))
+            if (ImGuiUtil.IconButton(FontAwesomeIcon.Times, id: "player-input-clear", tooltip: Language.Search_Clear))
             {
                 PlayerFilter = "";
                 RequeryCurrent();
@@ -503,13 +503,13 @@ public class SearchWindow : Window
         ImGui.Spacing();
 
         // 月份头部：◀ 2026年8月 ▶
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.ChevronLeft))
+        if (ImGuiUtil.IconButton(FontAwesomeIcon.ChevronLeft, id: "cal-prev"))
             CalendarMonth = CalendarMonth.AddMonths(-1);
         ImGui.SameLine(0, 8f * ImGuiHelpers.GlobalScale);
         var title = CalendarMonth.ToString("yyyy年M月");
         ImGui.TextUnformatted(title);
         ImGui.SameLine(0, 8f * ImGuiHelpers.GlobalScale);
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.ChevronRight))
+        if (ImGuiUtil.IconButton(FontAwesomeIcon.ChevronRight, id: "cal-next"))
             CalendarMonth = CalendarMonth.AddMonths(1);
 
         ImGui.Spacing();
