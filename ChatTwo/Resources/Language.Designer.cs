@@ -3075,6 +3075,222 @@ namespace ChatTwo.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Back.
+        /// </summary>
+        internal static string Search_Back {
+            get {
+                return ResourceManager.GetString("Search_Back", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Calendar.
+        /// </summary>
+        internal static string Search_Calendar {
+            get {
+                return ResourceManager.GetString("Search_Calendar", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use channels from tab.
+        /// </summary>
+        internal static string Search_ChannelTab {
+            get {
+                return ResourceManager.GetString("Search_ChannelTab", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Clear.
+        /// </summary>
+        internal static string Search_Clear {
+            get {
+                return ResourceManager.GetString("Search_Clear", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Click to locate this message.
+        /// </summary>
+        internal static string Search_ClickToLocate {
+            get {
+                return ResourceManager.GetString("Search_ClickToLocate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Close.
+        /// </summary>
+        internal static string Search_Close {
+            get {
+                return ResourceManager.GetString("Search_Close", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Content.
+        /// </summary>
+        internal static string Search_Column_Content {
+            get {
+                return ResourceManager.GetString("Search_Column_Content", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Time.
+        /// </summary>
+        internal static string Search_Column_Date {
+            get {
+                return ResourceManager.GetString("Search_Column_Date", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Sender.
+        /// </summary>
+        internal static string Search_Column_Sender {
+            get {
+                return ResourceManager.GetString("Search_Column_Sender", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No matching messages found..
+        /// </summary>
+        internal static string Search_Empty {
+            get {
+                return ResourceManager.GetString("Search_Empty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Search.
+        /// </summary>
+        internal static string Search_Go {
+            get {
+                return ResourceManager.GetString("Search_Go", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Search player or keyword....
+        /// </summary>
+        internal static string Search_Hint {
+            get {
+                return ResourceManager.GetString("Search_Hint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Latest.
+        /// </summary>
+        internal static string Search_Latest {
+            get {
+                return ResourceManager.GetString("Search_Latest", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Searching....
+        /// </summary>
+        internal static string Search_Loading {
+            get {
+                return ResourceManager.GetString("Search_Loading", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Next day.
+        /// </summary>
+        internal static string Search_NextDay {
+            get {
+                return ResourceManager.GetString("Search_NextDay", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No players.
+        /// </summary>
+        internal static string Search_NoPlayers {
+            get {
+                return ResourceManager.GetString("Search_NoPlayers", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No matching messages found..
+        /// </summary>
+        internal static string Search_NoResult {
+            get {
+                return ResourceManager.GetString("Search_NoResult", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Search players....
+        /// </summary>
+        internal static string Search_PlayerHint {
+            get {
+                return ResourceManager.GetString("Search_PlayerHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Players.
+        /// </summary>
+        internal static string Search_Players {
+            get {
+                return ResourceManager.GetString("Search_Players", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Previous day.
+        /// </summary>
+        internal static string Search_PrevDay {
+            get {
+                return ResourceManager.GetString("Search_PrevDay", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {0} result(s).
+        /// </summary>
+        internal static string Search_ResultCount {
+            get {
+                return ResourceManager.GetString("Search_ResultCount", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Search: {0}.
+        /// </summary>
+        internal static string Search_ResultsFor {
+            get {
+                return ResourceManager.GetString("Search_ResultsFor", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Chat Log History.
+        /// </summary>
+        internal static string Search_Title {
+            get {
+                return ResourceManager.GetString("Search_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Today.
+        /// </summary>
+        internal static string Search_Today {
+            get {
+                return ResourceManager.GetString("Search_Today", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Discard.
         /// </summary>
         internal static string Settings_Discard {

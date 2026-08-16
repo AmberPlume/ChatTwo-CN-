@@ -77,6 +77,13 @@ public sealed class SettingsWindow : Window
 
     private void Command(string command, string args)
     {
+        // /chat2 search：打开聊天记录搜索窗口；无参数：设置窗口
+        if (!string.IsNullOrWhiteSpace(args) && args.Trim().Equals("search", StringComparison.InvariantCultureIgnoreCase))
+        {
+            Plugin.SearchWindow.Toggle();
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(args))
             Toggle();
     }

@@ -85,7 +85,7 @@ public static class RenderHole
             }
             _renderHook = Plugin.GameInteropProvider.HookFromAddress<IgRenderDelegate>(addr, RenderDetour);
             _renderHook.Enable();
-            Plugin.Log.Error($"[Hole] igRender hook 启用 addr=0x{addr:X}");
+            Plugin.Log.Information($"[Hole] igRender hook 启用 addr=0x{addr:X}");
         }
         catch (Exception ex) { Plugin.Log.Error($"[Hole] init error {ex.Message}"); }
     }
