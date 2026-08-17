@@ -39,6 +39,13 @@ public sealed class Plugin : IDalamudPlugin
     internal static bool AnyInteractiveHovered;
     private static AtkCursor.CursorType? _lastSetType;
 
+    /// <summary>标记鼠标在本聊天窗口内（三窗口共用；帧末 UpdateCursorDecision 统一决策光标）。</summary>
+    internal static void MarkCursorInChatWindow()
+    {
+        if (ImGui.IsWindowHovered(ImGuiHoveredFlags.RootAndChildWindows))
+            CursorInChatWindow = true;
+    }
+
     /// <summary>鼠标在聊天窗口内：按钮/tab 上 → 游戏手指 Clickable；其他区域 → 游戏默认 Arrow。
     /// ⚠️ 只在类型变化时调用——游戏 SetCursorType 会播悬停音，每帧重复设会连续响（03:09 用户反馈）。</summary>
     internal static void UpdateCursorDecision()

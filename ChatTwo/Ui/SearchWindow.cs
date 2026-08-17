@@ -127,7 +127,7 @@ public class SearchWindow : Window
         Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar
               | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoFocusOnAppearing
               | ImGuiWindowFlags.NoResize;
-        BgAlpha = 0f;
+
 
         // ⚠️ 2026-08-17 用户决策（17:38 纠正）：消息区任何情况下都不可拖（不依赖锁定开关），
         // 未锁定时其余区域可拖；锁定时整个窗口锁死。缩放手柄的 NoMove 由下方 CanResize 分支处理。
@@ -139,9 +139,9 @@ public class SearchWindow : Window
         if (Plugin.Config.CanResize)
         {
             var st = ImGui.GetStyle();
-            var hSize = 10f * ImGuiHelpers.GlobalScale;  // ⚠️ 2026-08-18 原生手柄素材尺寸
-            var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
-            var insetY = (Plugin.Config.NativeBackground ? 4f : 3f) + 5f;
+            var hSize = NativeIcons.ResizeHandleSize();  // ⚠️ 2026-08-18 原生手柄素材尺寸
+            var insetX = NativeIcons.ResizeHandleInsetX(Plugin.Config.NativeBackground);
+            var insetY = NativeIcons.ResizeHandleInsetY(Plugin.Config.NativeBackground);
             var areaMin = MsgAreaMax.X > 0f ? MsgAreaMin : ImGui.GetWindowPos();
             var areaSize = MsgAreaMax.X > 0f ? MsgAreaMax - MsgAreaMin : ImGui.GetWindowSize();
             var handleMin = new Vector2(
@@ -174,8 +174,7 @@ public class SearchWindow : Window
     public override void Draw()
     {
         // ⚠️ 2026-08-18 鼠标在聊天窗口内 → 帧末光标决策（保持游戏指针；按钮/tab 上手指）
-        if (ImGui.IsWindowHovered(ImGuiHoveredFlags.RootAndChildWindows))
-            Plugin.CursorInChatWindow = true;
+        Plugin.MarkCursorInChatWindow();
 
         // ⚠️ 2026-08-17 用户决策（布局重构）：顶栏完全移除（原 DrawCornerControls 状态行沉底
         // 到 DrawStatusRow）；缩放手柄从窗口右上角移到消息区右上角。顶部只留消息区。
@@ -756,14 +755,14 @@ public class SearchWindow : Window
         var windowPos = ImGui.GetWindowPos();
         var windowSize = ImGui.GetWindowSize();
         var style = ImGui.GetStyle();
-        var hSize = 10f * ImGuiHelpers.GlobalScale;  // ⚠️ 2026-08-18 原生手柄素材尺寸
+        var hSize = NativeIcons.ResizeHandleSize();  // ⚠️ 2026-08-18 原生手柄素材尺寸
 
         // 锚点 = 消息区容器右上角（上一帧 DrawMessageArea 记录；窗口刚打开第一帧为 Zero 则退化到窗口）
         var areaMin = MsgAreaMax.X > 0f ? MsgAreaMin : windowPos;
         var areaSize = MsgAreaMax.X > 0f ? MsgAreaMax - MsgAreaMin : windowSize;
 
-        var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
-        var insetY = (Plugin.Config.NativeBackground ? 4f : 3f) + 5f;
+        var insetX = NativeIcons.ResizeHandleInsetX(Plugin.Config.NativeBackground);
+        var insetY = NativeIcons.ResizeHandleInsetY(Plugin.Config.NativeBackground);
         var localPos = new Vector2(
             areaSize.X - hSize - style.WindowPadding.X - insetX,
             style.WindowPadding.Y + insetY);
@@ -852,11 +851,11 @@ public class SearchWindow : Window
         var windowPos = ImGui.GetWindowPos();
         var windowSize = ImGui.GetWindowSize();
         var style = ImGui.GetStyle();
-        var hSize = 10f * ImGuiHelpers.GlobalScale;
+        var hSize = NativeIcons.ResizeHandleSize();
         var areaMin = MsgAreaMax.X > 0f ? MsgAreaMin : windowPos;
         var areaSize = MsgAreaMax.X > 0f ? MsgAreaMax - MsgAreaMin : windowSize;
-        var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
-        var insetY = (Plugin.Config.NativeBackground ? 4f : 3f) + 5f;
+        var insetX = NativeIcons.ResizeHandleInsetX(Plugin.Config.NativeBackground);
+        var insetY = NativeIcons.ResizeHandleInsetY(Plugin.Config.NativeBackground);
         var localPos = new Vector2(
             areaSize.X - hSize - style.WindowPadding.X - insetX,
             style.WindowPadding.Y + insetY);

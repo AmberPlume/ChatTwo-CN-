@@ -475,9 +475,9 @@ public partial class ChatLog : Window, IChatWindow
         // previous frame — the only reliable coords we have before Begin runs).
         // 偏移量必须与 DrawTopRightResizeHandle 的绘制位置一致（默认 3px / 仿原生 X8 Y-2）
         var st = ImGui.GetStyle();
-        var hSize = 10f * ImGuiHelpers.GlobalScale;  // ⚠️ 2026-08-18 原生手柄素材尺寸
-        var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
-        var insetY = (Plugin.Config.NativeBackground ? 4f : 3f) + 5f;
+        var hSize = NativeIcons.ResizeHandleSize();  // ⚠️ 2026-08-18 原生手柄素材尺寸
+        var insetX = NativeIcons.ResizeHandleInsetX(Plugin.Config.NativeBackground);
+        var insetY = NativeIcons.ResizeHandleInsetY(Plugin.Config.NativeBackground);
         var handleMin = new Vector2(
             LastWindowPos.X + LastWindowSize.X - hSize - st.WindowPadding.X - insetX,
             LastWindowPos.Y + st.WindowPadding.Y + insetY);
@@ -495,9 +495,7 @@ public partial class ChatLog : Window, IChatWindow
             Flags |= ImGuiWindowFlags.NoMove;
 
         if (LastViewport == ImGuiHelpers.MainViewport.Handle && !WasDocked)
-            // ⚠️ 2026-08-18 大工程：背景透明度永远 0（窗口永远透明；NativeBackground 改为素材开关，
-            // 不再控制背景；消息区背景无条件绘制 + BackgroundAlpha 设置项已移除）
-            BgAlpha = 0f;
+
 
         LastViewport = ImGui.GetWindowViewport().Handle;
         WasDocked = ImGui.IsWindowDocked();
@@ -571,9 +569,9 @@ public partial class ChatLog : Window, IChatWindow
     private void DrawResizeHandleOverlay()
     {
         var style = ImGui.GetStyle();
-        var hSize = 10f * ImGuiHelpers.GlobalScale;
-        var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
-        var insetY = (Plugin.Config.NativeBackground ? 4f : 3f) + 5f;
+        var hSize = NativeIcons.ResizeHandleSize();
+        var insetX = NativeIcons.ResizeHandleInsetX(Plugin.Config.NativeBackground);
+        var insetY = NativeIcons.ResizeHandleInsetY(Plugin.Config.NativeBackground);
         var localPos = new Vector2(
             LastWindowSize.X - hSize - style.WindowPadding.X - insetX,
             style.WindowPadding.Y + insetY);
@@ -593,8 +591,7 @@ public partial class ChatLog : Window, IChatWindow
         DrewThisFrame = true;
 
         // ⚠️ 2026-08-18 鼠标在聊天窗口内 → 帧末光标决策（保持游戏指针；按钮/tab 上手指）
-        if (ImGui.IsWindowHovered(ImGuiHoveredFlags.RootAndChildWindows))
-            Plugin.CursorInChatWindow = true;
+        Plugin.MarkCursorInChatWindow();
 
         // 分辨率变化窗口重定位（方案 A v4，原生 HUD 逻辑）：此处已处于窗口 Begin 之后，
         // GetWindowPos/GetWindowSize 可靠、SetWindowPos 立即生效（v3 在 PreDraw 读位置导致
@@ -709,13 +706,13 @@ public partial class ChatLog : Window, IChatWindow
         var windowSize = ImGui.GetWindowSize();
         var style = ImGui.GetStyle();
         // ⚠️ 2026-08-18 原生手柄素材替换金字塔：尺寸基准 31x31（高亮 42x42 缩到同区域绘制）
-        var hSize = 10f * ImGuiHelpers.GlobalScale;
+        var hSize = NativeIcons.ResizeHandleSize();
 
         // 缩放手柄位置：默认界面贴窗口背景右上角内侧 3px（恰到好处）；
         // 仿原生：X 内缩 8px 落在消息区背景内；Y 用户实测"再往上 2px 就对了"
         // （Y inset=-2 → 手柄顶 = WindowPadding.Y - 2）
-        var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
-        var insetY = (Plugin.Config.NativeBackground ? 4f : 3f) + 5f;
+        var insetX = NativeIcons.ResizeHandleInsetX(Plugin.Config.NativeBackground);
+        var insetY = NativeIcons.ResizeHandleInsetY(Plugin.Config.NativeBackground);
         var localPos = new Vector2(
             windowSize.X - hSize - style.WindowPadding.X - insetX,
             style.WindowPadding.Y + insetY);
@@ -1546,8 +1543,13 @@ public partial class ChatLog : Window, IChatWindow
             // 会覆盖下面的 DrawMessageLog，导致消息文字被 12pt 字体渲染
             // （实测 msgFontSize=24px=12pt×4/3×1.5，改主字体消息完全不变）
             using var tabFont = Plugin.FontManager.TabFont.Push();
-            // ⚠️ 2026-08-18 原生 tab：高度 17px×scale + 下移 3px（与 DrawBottomTabBar 一致）
-            tabBarHeight = 17f * ImGuiHelpers.GlobalScale + 4f;
+            // ⚠️ 03:50 Bug 修复：按素材模式计算预留高度——
+            // 原生：17px×scale×InputAreaScale + 下移 4px（tab 高度随输入区缩放等比例变）；
+            // Legacy：旧公式（TabFont 12pt×inputScale 的 TextLineHeight）——之前固定 17px
+            // 导致缩放后 Legacy tab 变高被底边切
+            tabBarHeight = Plugin.Config.NativeBackground
+                ? 17f * ImGuiHelpers.GlobalScale * Plugin.Config.InputAreaScale + 4f
+                : (ImGui.GetTextLineHeight() + style.FramePadding.Y * 2) * 0.9f + 2f;
         }
         // separatorHeight（1+ItemSpacing*0.3）是历史"分隔线余量"——实际 DrawBottomTabBar 不画 separator
         // （tab 上移 2px 重叠已经是 separator），曾让 childHeight 偏大约 2px → 底部空白
@@ -1616,10 +1618,9 @@ public partial class ChatLog : Window, IChatWindow
 
         // ⚠️ 2026-08-18 原生 tab 三段式 v2（用户重制素材，高统一 48px）：
         // 拼装顺序 = 左帽 → 分割线 → (中段 + 分割线)×N → 右帽 → "+"（+ 前无分割线）。
-        // tab 高度 17px×scale（比 + 按钮的 18px 视觉还低 1px——贴图是实心色块显"重"，
-        // + 是悬浮图标显"轻"，同高时 tab 视觉偏高，用户实测要求再小）；
-        // 中段宽度随文字动态延伸；金点固定偏移贴左上角；文字字号 = tab 高 3/5。
-        var tabHeight = 17f * scale;
+        // ⚠️ 03:50 Bug 修复：tab 高度必须 × InputAreaScale——tab 文字字号 = 12pt×inputScale，
+        // 之前只变长不变高 → 比例破坏；左/下固定、缩放向右上。
+        var tabHeight = 17f * scale * Plugin.Config.InputAreaScale;
         var tabScale = tabHeight / 48f;  // 素材原始高 48px → 目标高度
         var capLeftSize = new Vector2(39f, 48f) * tabScale;
         var capRightSize = new Vector2(40f, 48f) * tabScale;
@@ -1721,8 +1722,10 @@ public partial class ChatLog : Window, IChatWindow
             var tabTextSize = ImGui.CalcTextSize(tab.Name);
             var fontScale = effectiveFontSize / activeFont.FontSize;
             var textPos = new Vector2(
-                // 水平居中后往右 5px（用户 01:26：+3 基础上再右移 2px）
-                btnMin.X + (btnMax.X - btnMin.X - tabTextSize.X) / 2f + 5f * scale,
+                // 水平居中后往右 5px（用户 01:26：+3 基础上再右移 2px）。
+                // ⚠️ 03:59 Bug 修复：修正量必须 × InputAreaScale——tab 随输入区缩放等比例变大后，
+                // 绝对 5px 修正占比被淡化（文字又不居中），乘缩放保持相对比例
+                btnMin.X + (btnMax.X - btnMin.X - tabTextSize.X) / 2f + 5f * scale * Plugin.Config.InputAreaScale,
                 btnMin.Y + (btnMax.Y - btnMin.Y) / 2f - activeFont.Ascent * fontScale + effectiveFontSize * 0.38f - 2f * fontScale);
             // ⚠️ 必须显式指定字体：AddText(pos,col,text) 重载会用窗口开始时的字体
             drawList.AddText(activeFont, effectiveFontSize, textPos, tabTextColor, tab.Name);
@@ -1734,20 +1737,9 @@ public partial class ChatLog : Window, IChatWindow
             // 分割线在每个中段后（含最后一个——中段N与右帽之间也要；+ 前（右帽后）无）
             DrawDivider();
 
-            if (clicked || Plugin.WantedTab == tabI)
-            {
-                // ⚠️ 2026-08-18 tab 切换音效 = 游戏原生频道切换 SFX 1（用户确认）
-                if (Plugin.Config.PlaySounds)
-                    unsafe { UIGlobals.PlaySoundEffect(1); }
+            // ⚠️ 04:06 重构：点击切换逻辑抽公共 HandleTabClick（原生/非原生共用）
+            if (HandleTabClick(tabI, clicked, tab))
                 anyClicked = true;
-                var previousTab = Plugin.CurrentTab;
-                // ⚠️ hasTabSwitched 必须在本行前算：LastTab 已被赋值为 tabI 后再判断
-                var hasTabSwitched = Plugin.WantedTab == tabI || Plugin.LastTab != tabI;
-                Plugin.LastTab = tabI;
-                tab.Unread = 0;
-                if (hasTabSwitched)
-                    TabSwitched(tab, previousTab);
-            }
         }
 
         // 右帽：最右侧装饰（素材 47x51）
@@ -1768,34 +1760,7 @@ public partial class ChatLog : Window, IChatWindow
             ImGui.OpenPopup("chat2-new-tab-name");
         }
 
-        using (var namePopup = ImRaii.Popup("chat2-new-tab-name"))
-        {
-            if (namePopup)
-            {
-                ImGui.TextUnformatted("新标签页名称");
-                ImGui.SetNextItemWidth(220f * ImGuiHelpers.GlobalScale);
-                ImGui.InputText("##new-tab-name-input", ref NewTabName, 64);
-                if (ImGui.IsItemDeactivatedAfterEdit() && ImGui.IsKeyPressed(ImGuiKey.Enter))
-                    ImGui.CloseCurrentPopup();
-
-                ImGui.Spacing();
-
-                var canCreate = !string.IsNullOrWhiteSpace(NewTabName);
-                using var disabled = ImRaii.Disabled(!canCreate);
-                if (ImGui.Button("创建") && canCreate)
-                {
-                    var newTab = TabsUtil.VanillaGeneral;
-                    newTab.Name = NewTabName.Trim();
-                    Plugin.Config.Tabs.Add(newTab);
-                    Plugin.WantedTab = Plugin.Config.Tabs.Count - 1;
-                    ImGui.CloseCurrentPopup();
-                }
-
-                ImGui.SameLine();
-                if (ImGui.Button("取消"))
-                    ImGui.CloseCurrentPopup();
-            }
-        }
+        DrawNewTabPopup();
 
         ImGui.NewLine();
 
@@ -1803,7 +1768,58 @@ public partial class ChatLog : Window, IChatWindow
             Plugin.WantedTab = null;
     }
 
-        private void DrawBottomTabBarLegacy()
+        // ⚠️ 04:06 重构：tab 双模式公共逻辑（原生/非原生共用，改一处即可）
+
+    /// <summary>tab 点击切换（音效 1 + 切换逻辑）；返回是否发生点击。</summary>
+    private bool HandleTabClick(int tabI, bool clicked, Tab tab)
+    {
+        if (!clicked && Plugin.WantedTab != tabI)
+            return false;
+        // tab 切换音效 = 游戏原生频道切换 SFX 1（用户确认）
+        if (Plugin.Config.PlaySounds)
+            unsafe { UIGlobals.PlaySoundEffect(1); }
+        var previousTab = Plugin.CurrentTab;
+        // ⚠️ hasTabSwitched 必须在本行前算：LastTab 已被赋值为 tabI 后再判断
+        // `LastTab != tabI` 恒为 false → TabSwitched 永不执行 → 跨 tab 未读同步失效
+        var hasTabSwitched = Plugin.WantedTab == tabI || Plugin.LastTab != tabI;
+        Plugin.LastTab = tabI;
+        tab.Unread = 0;
+        if (hasTabSwitched)
+            TabSwitched(tab, previousTab);
+        return true;
+    }
+
+    /// <summary>新建 tab 弹窗（"+"/右键菜单新建共用）。</summary>
+    private void DrawNewTabPopup()
+    {
+        using var namePopup = ImRaii.Popup("chat2-new-tab-name");
+        if (!namePopup)
+            return;
+        ImGui.TextUnformatted("新标签页名称");
+        ImGui.SetNextItemWidth(220f * ImGuiHelpers.GlobalScale);
+        ImGui.InputText("##new-tab-name-input", ref NewTabName, 64);
+        if (ImGui.IsItemDeactivatedAfterEdit() && ImGui.IsKeyPressed(ImGuiKey.Enter))
+            ImGui.CloseCurrentPopup();
+
+        ImGui.Spacing();
+
+        var canCreate = !string.IsNullOrWhiteSpace(NewTabName);
+        using var disabled = ImRaii.Disabled(!canCreate);
+        if (ImGui.Button("创建") && canCreate)
+        {
+            var newTab = TabsUtil.VanillaGeneral;
+            newTab.Name = NewTabName.Trim();
+            Plugin.Config.Tabs.Add(newTab);
+            Plugin.WantedTab = Plugin.Config.Tabs.Count - 1;
+            ImGui.CloseCurrentPopup();
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("取消"))
+            ImGui.CloseCurrentPopup();
+    }
+
+    private void DrawBottomTabBarLegacy()
         {
             var tabs = Plugin.Config.Tabs;
             var anyClicked = false;
@@ -1890,21 +1906,9 @@ public partial class ChatLog : Window, IChatWindow
 
                 ImGui.SameLine(0, 0);
 
-                if (clicked || Plugin.WantedTab == tabI)
-                {
-                    // ⚠️ 2026-08-18 tab 切换音效 = 游戏原生频道切换 SFX 1（与原生模式一致）
-                    if (Plugin.Config.PlaySounds)
-                        unsafe { UIGlobals.PlaySoundEffect(1); }
+                // ⚠️ 04:06 重构：点击切换逻辑抽公共 HandleTabClick（原生/非原生共用）
+                if (HandleTabClick(tabI, clicked, tab))
                     anyClicked = true;
-                    var previousTab = Plugin.CurrentTab;
-                    // ⚠️ hasTabSwitched 必须在本行前算：LastTab 已被赋值为 tabI 后再判断
-                    // `LastTab != tabI` 恒为 false → TabSwitched 永不执行 → 跨 tab 未读同步失效
-                    var hasTabSwitched = Plugin.WantedTab == tabI || Plugin.LastTab != tabI;
-                    Plugin.LastTab = tabI;
-                    tab.Unread = 0;
-                    if (hasTabSwitched)
-                        TabSwitched(tab, previousTab);
-                }
             }
 
             // 末尾"+"：用 IconButton（无边框图标按钮，与输入框右侧齿轮/新人频道一致），
@@ -1916,34 +1920,7 @@ public partial class ChatLog : Window, IChatWindow
                 ImGui.OpenPopup("chat2-new-tab-name");
             }
 
-            using (var namePopup = ImRaii.Popup("chat2-new-tab-name"))
-            {
-                if (namePopup)
-                {
-                    ImGui.TextUnformatted("新标签页名称");
-                    ImGui.SetNextItemWidth(220f * ImGuiHelpers.GlobalScale);
-                    ImGui.InputText("##new-tab-name-input", ref NewTabName, 64);
-                    if (ImGui.IsItemDeactivatedAfterEdit() && ImGui.IsKeyPressed(ImGuiKey.Enter))
-                        ImGui.CloseCurrentPopup();
-
-                    ImGui.Spacing();
-
-                    var canCreate = !string.IsNullOrWhiteSpace(NewTabName);
-                    using var disabled = ImRaii.Disabled(!canCreate);
-                    if (ImGui.Button("创建") && canCreate)
-                    {
-                        var newTab = TabsUtil.VanillaGeneral;
-                        newTab.Name = NewTabName.Trim();
-                        Plugin.Config.Tabs.Add(newTab);
-                        Plugin.WantedTab = Plugin.Config.Tabs.Count - 1;
-                        ImGui.CloseCurrentPopup();
-                    }
-
-                    ImGui.SameLine();
-                    if (ImGui.Button("取消"))
-                        ImGui.CloseCurrentPopup();
-                }
-            }
+            DrawNewTabPopup();
 
             ImGui.NewLine();
 

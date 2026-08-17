@@ -4,6 +4,7 @@ using System.Reflection;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Textures.TextureWraps;
+using Dalamud.Interface.Utility;
 using Dalamud.Plugin.Services;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -103,6 +104,17 @@ internal static class NativeIcons
         var uv1 = highlighted ? new Vector2(36f / 42f, 36f / 42f) : Vector2.One;
         dl.AddImage(wrap.Handle, pos, pos + size, uv0, uv1);
     }
+
+    // ⚠️ 2026-08-18 缩放手柄几何统一（三窗口 × 绘制/hit-test/置顶共 9 处之前各写魔法数字，
+    // 改过 4 次尺寸/位置——抽成统一方法防漏改）。
+    /// <summary>缩放手柄尺寸（10px × UI scale）</summary>
+    public static float ResizeHandleSize() => 10f * ImGuiHelpers.GlobalScale;
+
+    /// <summary>缩放手柄 X 内缩：默认 3px / 仿原生 8px（落在消息区背景内）</summary>
+    public static float ResizeHandleInsetX(bool nativeBg) => nativeBg ? 8f : 3f;
+
+    /// <summary>缩放手柄 Y 内缩：默认 3px / 仿原生 4px + 下移 5px（用户实测校准）</summary>
+    public static float ResizeHandleInsetY(bool nativeBg) => (nativeBg ? 4f : 3f) + 5f;
 
     private static T? EnsureLoaded<T>(T? value) where T : class
     {
