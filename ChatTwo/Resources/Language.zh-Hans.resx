@@ -1126,7 +1126,7 @@
     <value>仿原生界面</value>
   </data>
   <data name="Options_NativeBackground_Description">
-    <value>只给消息区、输入框、标签页保留背景，窗口其余区域完全透明（显示游戏画面）。</value>
+    <value>使用 FFXIV 原生 UI 贴图素材（工具栏图标 / 底部标签页）。关闭时回退为 FontAwesome 图标与纯色标签页；窗口背景始终透明。</value>
   </data>
   <data name="Options_MoveLocked_Name">
     <value>锁定窗口移动</value>

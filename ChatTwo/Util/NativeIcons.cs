@@ -1,5 +1,7 @@
 using System.IO;
+using System.Numerics;
 using System.Reflection;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Plugin.Services;
@@ -33,8 +35,13 @@ internal static class NativeIcons
     private static IDalamudTextureWrap? _bubble;
     private static IDalamudTextureWrap? _plus;
     private static IDalamudTextureWrap? _leaf;
-    private static IDalamudTextureWrap? _lockOpen;
-    private static IDalamudTextureWrap? _lockClosed;
+    private static IDalamudTextureWrap? _tabCapLeft;
+    private static IDalamudTextureWrap? _tabMiddle;
+    private static IDalamudTextureWrap? _tabCapRight;
+    private static IDalamudTextureWrap? _tabDivider;
+    private static IDalamudTextureWrap? _tabIndicator;
+    private static IDalamudTextureWrap? _resizeHandleNormal;
+    private static IDalamudTextureWrap? _resizeHandleHighlighted;
 
     /// <summary>🔍 打开聊天记录（放大镜）— 用户新素材 icon_09</summary>
     public static IDalamudTextureWrap? ChatSearch => EnsureLoaded(_chatSearch);
@@ -64,10 +71,38 @@ internal static class NativeIcons
     public static IDalamudTextureWrap? Leaf => EnsureLoaded(_leaf);
 
     /// <summary>🔓 开锁（锁梁断开）— actionbar_hr1 r3c3（用户提供素材）</summary>
-    public static IDalamudTextureWrap? LockOpen => EnsureLoaded(_lockOpen);
 
     /// <summary>🔒 上锁（实心锁体+钥匙孔）— actionbar_hr1 r3c4（用户提供素材）</summary>
-    public static IDalamudTextureWrap? LockClosed => EnsureLoaded(_lockClosed);
+
+    // ============ 底部 tab 栏三段式（2026-08-18 用户提供 chatlog_extracted） ============
+    /// <summary>tab 栏最左侧装饰左帽（可拖动聊天框）43x50</summary>
+    public static IDalamudTextureWrap? TabCapLeft => EnsureLoaded(_tabCapLeft);
+    /// <summary>tab 栏中间真正的 tab（写名称）56x51，每加一个 tab 拼一个</summary>
+    public static IDalamudTextureWrap? TabMiddle => EnsureLoaded(_tabMiddle);
+    /// <summary>tab 栏最右侧右帽 40x48</summary>
+    public static IDalamudTextureWrap? TabCapRight => EnsureLoaded(_tabCapRight);
+    /// <summary>tab 之间分割线 6x48（左帽、分割线、中段、分割线、中段…右帽）</summary>
+    public static IDalamudTextureWrap? TabDivider => EnsureLoaded(_tabDivider);
+    /// <summary>选中指示点（金色）21x21，选中 tab 左上角</summary>
+    public static IDalamudTextureWrap? TabIndicator => EnsureLoaded(_tabIndicator);
+
+    /// <summary>缩放手柄常态 31x31（替换三窗口金字塔手柄）</summary>
+    public static IDalamudTextureWrap? ResizeHandleNormal => EnsureLoaded(_resizeHandleNormal);
+    /// <summary>缩放手柄高亮/被选中态 42x42（图形内容 31x31 居中，周围 6px 透明边）</summary>
+    public static IDalamudTextureWrap? ResizeHandleHighlighted => EnsureLoaded(_resizeHandleHighlighted);
+
+    /// <summary>绘制缩放手柄：常态/高亮两图按"图形内容"统一尺寸（UV 裁剪内容 bbox），
+    /// 否则高亮图 42x42 拉伸后内容比常态小（2026-08-18 用户实测"常态比亮起大太多"根因）。</summary>
+    public static void DrawResizeHandle(ImDrawListPtr dl, Vector2 pos, Vector2 size, bool highlighted)
+    {
+        var wrap = highlighted ? ResizeHandleHighlighted : ResizeHandleNormal;
+        if (wrap == null)
+            return;
+        // 高亮图图形内容 bbox = (6,6)-(36,36) 归一化 UV；常态占满
+        var uv0 = highlighted ? new Vector2(6f / 42f, 6f / 42f) : Vector2.Zero;
+        var uv1 = highlighted ? new Vector2(36f / 42f, 36f / 42f) : Vector2.One;
+        dl.AddImage(wrap.Handle, pos, pos + size, uv0, uv1);
+    }
 
     private static T? EnsureLoaded<T>(T? value) where T : class
     {
@@ -100,8 +135,13 @@ internal static class NativeIcons
             _bubble     = LoadOne("toolbar_bubble.png");
             _plus       = LoadOne("toolbar_plus.png");
             _leaf       = LoadOne("toolbar_leaf.png");
-            _lockOpen    = LoadOne("toolbar_lock_open.png");
-            _lockClosed  = LoadOne("toolbar_lock_closed.png");
+            _tabCapLeft  = LoadOne("toolbar_tab_cap_left.png");
+            _tabMiddle   = LoadOne("toolbar_tab_middle.png");
+            _tabCapRight = LoadOne("toolbar_tab_cap_right.png");
+            _tabDivider  = LoadOne("toolbar_tab_divider.png");
+            _tabIndicator = LoadOne("toolbar_tab_indicator.png");
+            _resizeHandleNormal = LoadOne("toolbar_resize_handle_normal.png");
+            _resizeHandleHighlighted = LoadOne("toolbar_resize_handle_highlighted.png");
             _loaded = true;
         }
         catch (System.Exception e)
@@ -153,7 +193,12 @@ internal static class NativeIcons
         _bubble?.Dispose();       _bubble = null;
         _plus?.Dispose();         _plus = null;
         _leaf?.Dispose();         _leaf = null;
-        _lockOpen?.Dispose();     _lockOpen = null;
-        _lockClosed?.Dispose();   _lockClosed = null;
+        _tabCapLeft?.Dispose();   _tabCapLeft = null;
+        _tabMiddle?.Dispose();    _tabMiddle = null;
+        _tabCapRight?.Dispose();  _tabCapRight = null;
+        _tabDivider?.Dispose();   _tabDivider = null;
+        _tabIndicator?.Dispose(); _tabIndicator = null;
+        _resizeHandleNormal?.Dispose();      _resizeHandleNormal = null;
+        _resizeHandleHighlighted?.Dispose(); _resizeHandleHighlighted = null;
     }
 }

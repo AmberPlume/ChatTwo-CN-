@@ -1124,7 +1124,7 @@ Your old database can still be recovered, please contact the plugin author for h
         <value>Native-style interface</value>
     </data>
     <data name="Options_NativeBackground_Description">
-        <value>Keep backgrounds only for the message area, input box and tab bar; the rest of the window is fully transparent (showing the game behind it).</value>
+        <value>Use FFXIV native UI textures (toolbar icons / bottom tabs). When off, falls back to FontAwesome icons and flat tabs; the window background is always transparent.</value>
     </data>
     <data name="Options_MoveLocked_Name">
         <value>Lock window movement</value>

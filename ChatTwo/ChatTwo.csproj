@@ -44,8 +44,13 @@
         <EmbeddedResource Include="images\toolbar_bubble.png" />
         <EmbeddedResource Include="images\toolbar_plus.png" />
         <EmbeddedResource Include="images\toolbar_leaf.png" />
-        <EmbeddedResource Include="images\toolbar_lock_open.png" />
-        <EmbeddedResource Include="images\toolbar_lock_closed.png" />
+        <EmbeddedResource Include="images\toolbar_tab_cap_left.png" />
+        <EmbeddedResource Include="images\toolbar_tab_middle.png" />
+        <EmbeddedResource Include="images\toolbar_tab_cap_right.png" />
+        <EmbeddedResource Include="images\toolbar_tab_divider.png" />
+        <EmbeddedResource Include="images\toolbar_tab_indicator.png" />
+        <EmbeddedResource Include="images\toolbar_resize_handle_normal.png" />
+        <EmbeddedResource Include="images\toolbar_resize_handle_highlighted.png" />
     </ItemGroup>
 
     <ItemGroup>

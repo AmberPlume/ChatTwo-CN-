@@ -127,7 +127,7 @@ public class SearchWindow : Window
         Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar
               | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoFocusOnAppearing
               | ImGuiWindowFlags.NoResize;
-        BgAlpha = Plugin.Config.NativeBackground ? 0f : Plugin.Config.BackgroundAlpha / 100f;
+        BgAlpha = 0f;
 
         // ⚠️ 2026-08-17 用户决策（17:38 纠正）：消息区任何情况下都不可拖（不依赖锁定开关），
         // 未锁定时其余区域可拖；锁定时整个窗口锁死。缩放手柄的 NoMove 由下方 CanResize 分支处理。
@@ -139,9 +139,9 @@ public class SearchWindow : Window
         if (Plugin.Config.CanResize)
         {
             var st = ImGui.GetStyle();
-            const float hSize = 16f;
+            var hSize = 10f * ImGuiHelpers.GlobalScale;  // ⚠️ 2026-08-18 原生手柄素材尺寸
             var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
-            var insetY = Plugin.Config.NativeBackground ? 4f : 3f;
+            var insetY = (Plugin.Config.NativeBackground ? 4f : 3f) + 5f;
             var areaMin = MsgAreaMax.X > 0f ? MsgAreaMin : ImGui.GetWindowPos();
             var areaSize = MsgAreaMax.X > 0f ? MsgAreaMax - MsgAreaMin : ImGui.GetWindowSize();
             var handleMin = new Vector2(
@@ -173,6 +173,10 @@ public class SearchWindow : Window
 
     public override void Draw()
     {
+        // ⚠️ 2026-08-18 鼠标在聊天窗口内 → 帧末光标决策（保持游戏指针；按钮/tab 上手指）
+        if (ImGui.IsWindowHovered(ImGuiHoveredFlags.RootAndChildWindows))
+            Plugin.CursorInChatWindow = true;
+
         // ⚠️ 2026-08-17 用户决策（布局重构）：顶栏完全移除（原 DrawCornerControls 状态行沉底
         // 到 DrawStatusRow）；缩放手柄从窗口右上角移到消息区右上角。顶部只留消息区。
 
@@ -449,7 +453,7 @@ public class SearchWindow : Window
         // 与 ChatLog.DrawMessageLog 同款条件——NativeBackground（窗口透明）时 push WindowBg 色背景，
         // 非 Native 时透出窗口背景（行为完全一致）；透明度跟随 WindowAlpha 设置。
         var bgColor = SidePanelBgColor();
-        using var bg = ImRaii.PushColor(ImGuiCol.ChildBg, bgColor, Plugin.Config.NativeBackground);
+        using var bg = ImRaii.PushColor(ImGuiCol.ChildBg, bgColor, true);
         using var panel = ImRaii.Child("##history-side", new Vector2(w, height), true);
         if (!panel.Success)
             return;
@@ -752,14 +756,14 @@ public class SearchWindow : Window
         var windowPos = ImGui.GetWindowPos();
         var windowSize = ImGui.GetWindowSize();
         var style = ImGui.GetStyle();
-        const float hSize = 16f;
+        var hSize = 10f * ImGuiHelpers.GlobalScale;  // ⚠️ 2026-08-18 原生手柄素材尺寸
 
         // 锚点 = 消息区容器右上角（上一帧 DrawMessageArea 记录；窗口刚打开第一帧为 Zero 则退化到窗口）
         var areaMin = MsgAreaMax.X > 0f ? MsgAreaMin : windowPos;
         var areaSize = MsgAreaMax.X > 0f ? MsgAreaMax - MsgAreaMin : windowSize;
 
         var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
-        var insetY = Plugin.Config.NativeBackground ? 4f : 3f;
+        var insetY = (Plugin.Config.NativeBackground ? 4f : 3f) + 5f;
         var localPos = new Vector2(
             areaSize.X - hSize - style.WindowPadding.X - insetX,
             style.WindowPadding.Y + insetY);
@@ -796,16 +800,7 @@ public class SearchWindow : Window
                 IsResizingTopRight = false;
         }
 
-        // 绘制金字塔手柄（三条斜线，淡白）
-        var lineColor = hovered || IsResizingTopRight
-            ? ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.8f))
-            : ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.4f));
-        var drawList = ImGui.GetWindowDrawList();
-        var p = areaMin + localPos;
-        const float thickness = 2f;
-        drawList.AddLine(p + new Vector2(10f, 2f), p + new Vector2(15f, 7f), lineColor, thickness);
-        drawList.AddLine(p + new Vector2(4f, 2f), p + new Vector2(15f, 13f), lineColor, thickness);
-        drawList.AddLine(p + new Vector2(-2f, 2f), p + new Vector2(15f, 19f), lineColor, thickness);
+        // ⚠️ 2026-08-18 绘制已移至 PostDraw（前台 dl 置顶）；这里只保留 hit-test + resize 交互
     }
 
     // ================= 工具 =================
@@ -847,5 +842,25 @@ public class SearchWindow : Window
                     IsLoading = false;
             }
         });
+    }
+
+    // ⚠️ 2026-08-18 缩放手柄置顶（前台 dl；锚点 = 消息区矩形 MsgAreaMin/Max，与 DrawTopRightResizeHandle 一致）
+    public override void PostDraw()
+    {
+        if (!Plugin.Config.CanResize)
+            return;
+        var windowPos = ImGui.GetWindowPos();
+        var windowSize = ImGui.GetWindowSize();
+        var style = ImGui.GetStyle();
+        var hSize = 10f * ImGuiHelpers.GlobalScale;
+        var areaMin = MsgAreaMax.X > 0f ? MsgAreaMin : windowPos;
+        var areaSize = MsgAreaMax.X > 0f ? MsgAreaMax - MsgAreaMin : windowSize;
+        var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
+        var insetY = (Plugin.Config.NativeBackground ? 4f : 3f) + 5f;
+        var localPos = new Vector2(
+            areaSize.X - hSize - style.WindowPadding.X - insetX,
+            style.WindowPadding.Y + insetY);
+        NativeIcons.DrawResizeHandle(ImGui.GetForegroundDrawList(), areaMin + localPos,
+            new Vector2(hSize, hSize), MouseOverResizeHandle || IsResizingTopRight);
     }
 }
