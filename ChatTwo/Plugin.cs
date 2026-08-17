@@ -307,9 +307,6 @@ public sealed class Plugin : IDalamudPlugin
         if (DeferredSaveFrames >= 0 && DeferredSaveFrames-- == 0)
             SaveConfig();
 
-        // SFX 批量试听驱动（/chat2 sfxscan，调试命令，2026-08-17）
-        SettingsWindow.UpdateSfxScan();
-
         // ⚠️ 2026-08-14 07:57 实验：注释"屏幕外可见"hack，干净验证 OwnerAddon=0（bindToOwner=false 等效）是否单独有效。
         // if (GameFunctions.GameFunctions.IsNativeSubContextMenuVisible())
         // {

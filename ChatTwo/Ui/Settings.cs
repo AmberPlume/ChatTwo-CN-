@@ -6,18 +6,12 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
 using Dalamud.Bindings.ImGui;
-using FFXIVClientStructs.FFXIV.Client.UI;
 
 namespace ChatTwo.Ui;
 
 public sealed class SettingsWindow : Window
 {
     private readonly Plugin Plugin;
-
-    // SFX 批量试听状态（/chat2 sfxscan <起> <止>，每 500ms 播一个，2026-08-17 调试用）
-    private uint? _sfxScanCurrent;
-    private uint _sfxScanEnd;
-    private long _sfxScanNextTick;
 
     private Configuration Mutable { get; }
     private List<ISettingsTab> Tabs { get; }
@@ -90,74 +84,8 @@ public sealed class SettingsWindow : Window
             return;
         }
 
-        // /chat2 sfx <id>：播放指定 UI 音效（SFX 试听调试命令，2026-08-17 加；
-        // 用于挑选按钮点击音，找到合适的 id 后固化到 ImGuiUtil.ButtonClickSfx 并移除本命令）
-        if (!string.IsNullOrWhiteSpace(args) && args.Trim().StartsWith("sfx", StringComparison.InvariantCultureIgnoreCase))
-        {
-            var parts = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length >= 2 && uint.TryParse(parts[1], out var sfxId))
-            {
-                unsafe { UIGlobals.PlaySoundEffect(sfxId); }
-                Plugin.ChatGui.Print($"ChatTwoCN: playing SFX #{sfxId}");
-            }
-            else
-            {
-                Plugin.ChatGui.Print("ChatTwoCN: usage /chat2 sfx <id>（例如 /chat2 sfx 17）");
-            }
-            return;
-        }
-
-        // /chat2 sfxscan <起> <止>：每 500ms 依次播放一段区间并回显 id（批量试听）
-        if (!string.IsNullOrWhiteSpace(args) && args.Trim().StartsWith("sfxscan", StringComparison.InvariantCultureIgnoreCase))
-        {
-            var parts = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length >= 3 && uint.TryParse(parts[1], out var sfxStart) && uint.TryParse(parts[2], out var sfxEnd))
-            {
-                _sfxScanCurrent = sfxStart;
-                _sfxScanEnd = Math.Max(sfxStart, sfxEnd);
-                _sfxScanNextTick = Environment.TickCount64;
-                Plugin.ChatGui.Print($"ChatTwoCN: scanning SFX #{sfxStart}~#{_sfxScanEnd}（每 0.5s 一个，输 /chat2 sfxstop 停止）");
-            }
-            else
-            {
-                Plugin.ChatGui.Print("ChatTwoCN: usage /chat2 sfxscan <起始id> <结束id>（例如 /chat2 sfxscan 1 60）");
-            }
-            return;
-        }
-
-        // /chat2 sfxstop：停止批量试听
-        if (!string.IsNullOrWhiteSpace(args) && args.Trim().Equals("sfxstop", StringComparison.InvariantCultureIgnoreCase))
-        {
-            _sfxScanCurrent = null;
-            Plugin.ChatGui.Print("ChatTwoCN: sfx scan stopped");
-            return;
-        }
-
         if (string.IsNullOrWhiteSpace(args))
             Toggle();
-    }
-
-    /// <summary>SFX 批量试听驱动（由 Plugin.FrameworkUpdate 每帧调用，不依赖设置窗口打开）：
-    /// 每 500ms 播一个并回显当前 id，直到播完或 /chat2 sfxstop。</summary>
-    public void UpdateSfxScan()
-    {
-        if (_sfxScanCurrent is not { } scanCur)
-            return;
-        var now = Environment.TickCount64;
-        if (now < _sfxScanNextTick)
-            return;
-        _sfxScanNextTick = now + 500;
-        unsafe { UIGlobals.PlaySoundEffect(scanCur); }
-        Plugin.ChatGui.Print($"ChatTwoCN: SFX #{scanCur}");
-        if (scanCur >= _sfxScanEnd)
-        {
-            _sfxScanCurrent = null;
-            Plugin.ChatGui.Print("ChatTwoCN: sfx scan done");
-        }
-        else
-        {
-            _sfxScanCurrent = scanCur + 1;
-        }
     }
 
     private void Initialise()

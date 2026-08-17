@@ -103,11 +103,6 @@ internal static class NativeIcons
             _lockOpen    = LoadOne("toolbar_lock_open.png");
             _lockClosed  = LoadOne("toolbar_lock_closed.png");
             _loaded = true;
-            // 诊断日志（Warning 级，正式版可移除）
-            Plugin.Log.Warning($"[NativeIcons] loaded ok: chatSearch={_chatSearch != null} searchGo={_searchGo != null} " +
-                               $"players={_players != null} close={_close != null} gear={_gear != null} funnel={_funnel != null} " +
-                               $"bubble={_bubble != null} plus={_plus != null} leaf={_leaf != null} " +
-                               $"lockOpen={_lockOpen != null} lockClosed={_lockClosed != null}");
         }
         catch (System.Exception e)
         {

@@ -42,8 +42,6 @@ public class InputHandler
 
     public int CursorPos;
 
-    // [InputDiag] 输入框滚动诊断节流（2026-08-17 临时，定位后移除）
-    private long _inputDiagUntil;
     // [InputScrollFix v2] 两步滚动修复状态（文本长度变化时触发）
     private int _lastScrollFixLen = -1;
     private bool _scrollFixStep2;
@@ -125,29 +123,6 @@ public class InputHandler
             }
             var inputActive = ImGui.IsItemActive();
             InputFocused = isChatEnabled && inputActive;
-
-            // ⚠️ [InputDiag] 2026-08-17 用户反馈：中文长文本输入框不自动滚动到光标（字母数字正常）。
-            // 临时诊断（Error 级——LogLevel=4 只显示 Error+，Information 会被过滤）：
-            // 低频打印 文本UTF8字节数/光标位置/渲染文本宽/输入框可视宽。
-            if (inputActive && Environment.TickCount64 > _inputDiagUntil)
-            {
-                _inputDiagUntil = Environment.TickCount64 + 2000;
-                var textBytes = System.Text.Encoding.UTF8.GetBytes(ChatInput);
-                float textW = 0f;
-                if (textBytes.Length > 0)
-                {
-                    unsafe
-                    {
-                        var size = new Vector2();
-                        fixed (byte* p = textBytes)
-                            ImGuiNative.CalcTextSizeA(&size, ImGui.GetFont().Handle, ImGui.GetFontSize(), float.MaxValue, 0f, p, p + textBytes.Length, null);
-                        textW = size.X;
-                    }
-                }
-                var rectW = ImGui.GetItemRectMax().X - ImGui.GetItemRectMin().X;
-                Plugin.Log.Error(
-                    $"[InputDiag] bytes={textBytes.Length} cursor={CursorPos} textW={textW:F1} rectW={rectW:F1} overflow={textW > rectW}");
-            }
 
             // 输入框轮廓描边（用户要求默认界面也描边，不再限于仿原生）：外圈 1px 黑线
             //（与背景交融）+ 内圈 1px 灰白线（可见边界），四角磨圆
