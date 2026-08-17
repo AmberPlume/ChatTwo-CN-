@@ -113,10 +113,17 @@ public partial class ChatLog : Window, IChatWindow
     private float _marginY;
 
     public readonly List<bool> PopOutDocked = [];
-    public readonly HashSet<Guid> PopOutWindows = [];
+    // ⚠️ 04:17 长按拖出 v2：HashSet → Dictionary（需持有 Popout 实例用于拖拽时跟随指针）
+    public readonly Dictionary<Guid, Popout> PopOutInstances = [];
 
-    // ⚠️ 2026-08-18 长按拖出：tab 按下起始时间（tabI → TickCount64；松手时判断是否 ≥600ms）
+    // ⚠️ 2026-08-18 长按拖出 v2：tab 按下时间/位置（长按 ≥600ms 后**移动**才拖出）；
+    // _draggingTabOut = 拖出中的 tab 索引（拖拽期间画幽灵跟随指针，松手才建窗）；
+    // _popOutPlaceId/_popOutPlacePos = 释放点（AddPopOutsToDraw 建窗时定位）
     private readonly Dictionary<int, long> _tabPressStart = [];
+    private readonly Dictionary<int, Vector2> _tabPressPos = [];
+    private int? _draggingTabOut;
+    private Guid? _popOutPlaceId;
+    private Vector2 _popOutPlacePos;
 
     private bool IsResizingTopRight;
     private Vector2 ResizeStartMousePos;
@@ -1696,20 +1703,45 @@ public partial class ChatLog : Window, IChatWindow
             var btnMin = ImGui.GetItemRectMin();
             var btnMax = ImGui.GetItemRectMax();
 
-            // ⚠️ 2026-08-18 长按拖出（用户新想法）：原生 tab 按住 ≥600ms 松手 → 该 tab 弹出为 PopOut。
-            // 长按时不触发 tab 切换（松手只拖出）；普通点击照常切换。
+            // ⚠️ 2026-08-18 长按拖出 v2（用户要求）：按住 ≥600ms 后**移动鼠标**才开始拖出
+            //（原 v1 松手即弹突兀）。拖拽期间画 tab 幽灵跟随指针（见循环后），
+            // 松手才创建 PopOut（定位在释放点）——期间不建窗，避免指针落在新窗口
+            // 消息区上触发文本选中等干扰。
             var now = Environment.TickCount64;
+            var leftDown = ImGui.IsMouseDown(ImGuiMouseButton.Left);
+            var mousePos = ImGui.GetIO().MousePos;
             var tabDown = ImGui.IsItemActive();
             var longPressed = false;
-            if (tabDown)
-                _tabPressStart.TryAdd(tabI, now);
-            else if (_tabPressStart.TryGetValue(tabI, out var downAt))
+
+            // 按下（按住 tab 的第一帧）→ 记录时间/位置
+            if (tabDown && !_tabPressStart.ContainsKey(tabI) && _draggingTabOut == null)
             {
-                _tabPressStart.Remove(tabI);
-                if (now - downAt >= 600)
+                _tabPressStart[tabI] = now;
+                _tabPressPos[tabI] = mousePos;
+            }
+
+            // 长按达标 + 鼠标移动（拖拽手势）→ 开始拖出（幽灵跟随；松手才建窗）
+            if (_draggingTabOut == null
+                && _tabPressStart.TryGetValue(tabI, out var downAt)
+                && leftDown
+                && now - downAt >= 600
+                && (mousePos - _tabPressPos[tabI]).Length() > 10f * scale)
+            {
+                _draggingTabOut = tabI;
+                longPressed = true;
+            }
+
+            // 松开 → 清理按下记录；拖出中的 tab 松手 = 拖出完成（记录释放点，建窗定位用）
+            if (!leftDown && _tabPressStart.Remove(tabI))
+            {
+                _tabPressPos.Remove(tabI);
+                if (_draggingTabOut == tabI)
                 {
-                    tab.PopOut = true;  // AddPopOutsToDraw 下一帧创建 PopOut 窗口
-                    longPressed = true;
+                    _draggingTabOut = null;
+                    _popOutPlaceId = tab.Identifier;
+                    _popOutPlacePos = ImGui.GetIO().MousePos;
+                    tab.PopOut = true;  // AddPopOutsToDraw 下一帧创建 PopOut
+                    longPressed = true; // 拖出非点击，跳过本帧切换
                 }
             }
 
@@ -1743,12 +1775,16 @@ public partial class ChatLog : Window, IChatWindow
             var activeFont = ImGui.GetFont();
             var tabTextSize = ImGui.CalcTextSize(tab.Name);
             var fontScale = effectiveFontSize / activeFont.FontSize;
+            // ⚠️ 05:39 修复 v2：AddText pos = 文字顶（频道名 DrawChannelName 用 GetCursorScreenPos
+            // 直接当顶，用户看正常——铁证）；05:30 的 baseline 语义 + Ascent 项反而把文字压到
+            // tab 下方（用户实测"超出下边 3/5"）。直接顶语义几何居中：
+            // 文字顶 = tab 顶 + (tab高 - 字高)/2 - 2×fs（保留历史"上提 2px"视觉微调）
             var textPos = new Vector2(
                 // 水平居中后往右 5px（用户 01:26：+3 基础上再右移 2px）。
                 // ⚠️ 03:59 Bug 修复：修正量必须 × InputAreaScale——tab 随输入区缩放等比例变大后，
                 // 绝对 5px 修正占比被淡化（文字又不居中），乘缩放保持相对比例
                 btnMin.X + (btnMax.X - btnMin.X - tabTextSize.X) / 2f + 5f * scale * Plugin.Config.InputAreaScale,
-                btnMin.Y + (btnMax.Y - btnMin.Y) / 2f - activeFont.Ascent * fontScale + effectiveFontSize * 0.38f - 2f * fontScale);
+                btnMin.Y + (btnMax.Y - btnMin.Y - effectiveFontSize) / 2f - 2f * fontScale);
             // ⚠️ 必须显式指定字体：AddText(pos,col,text) 重载会用窗口开始时的字体
             drawList.AddText(activeFont, effectiveFontSize, textPos, tabTextColor, tab.Name);
 
@@ -1763,6 +1799,36 @@ public partial class ChatLog : Window, IChatWindow
             // ⚠️ 04:12 长按拖出时（longPressed）跳过切换（只拖出不切 tab）
             if (!longPressed && HandleTabClick(tabI, clicked, tab))
                 anyClicked = true;
+        }
+
+        // 安全清理：tab 被删除/索引变化或鼠标已松开时清掉拖出状态（防残留卡住）
+        if (_draggingTabOut is { } staleIdx && (staleIdx >= tabs.Count || !ImGui.IsMouseDown(ImGuiMouseButton.Left)))
+            _draggingTabOut = null;
+
+        // ⚠️ 04:17 拖出幽灵：拖拽期间在指针处画 tab 三段式跟随（半透明；松手才建窗，见 AddPopOutsToDraw）
+        if (_draggingTabOut is { } ghostIdx && ghostIdx < tabs.Count && ImGui.IsMouseDown(ImGuiMouseButton.Left))
+        {
+            var ghostTab = tabs[ghostIdx];
+            var ghostPos = ImGui.GetIO().MousePos + new Vector2(8f * scale, 8f * scale);
+            var ghostTint = ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.75f));
+            var fg = ImGui.GetForegroundDrawList();
+            if (capLeft != null)
+            {
+                fg.AddImage(capLeft.Handle, ghostPos, ghostPos + capLeftSize, Vector2.Zero, Vector2.One, ghostTint);
+                ghostPos.X += capLeftSize.X;
+            }
+            if (middle != null)
+            {
+                var ghostNameW = ImGui.CalcTextSize(ghostTab.Name).X;
+                var ghostMidSize = new Vector2(Math.Max(middleBaseSize.X, ghostNameW + tabHeight * 0.6f * 0.5f * 2), tabHeight);
+                fg.AddImage(middle.Handle, ghostPos, ghostPos + ghostMidSize, Vector2.Zero, Vector2.One, ghostTint);
+                ghostPos.X += ghostMidSize.X;
+            }
+            if (capRight != null)
+            {
+                fg.AddImage(capRight.Handle, ghostPos, ghostPos + capRightSize, Vector2.Zero, Vector2.One, ghostTint);
+                ghostPos.X += capRightSize.X;
+            }
         }
 
         // 右帽：最右侧装饰（素材 47x51）
@@ -2237,13 +2303,30 @@ public partial class ChatLog : Window, IChatWindow
             if (!tab.PopOut)
                 continue;
 
-            if (PopOutWindows.Contains(tab.Identifier))
+            if (PopOutInstances.ContainsKey(tab.Identifier))
                 continue;
 
             var window = new Popout(Plugin, tab, i);
 
+            // ⚠️ 04:17 长按拖出：窗口建在释放点（跟随指针拖出后松手定位，不突兀）。
+            // ⚠️ 04:29 修复①：PositionCondition 必须 Once——默认 0 会被 ImGui 当 Always，
+            // 每帧 SetNextWindowPos 强制回释放点 → 窗口"钉死"不可拖动（用户实测根因）。
+            // ⚠️ 04:29 修复②：释放点做视口限制——靠近屏幕边缘时窗口被裁（底部 tab 行
+            // 出屏 → tab 文字看起来"错位"），钳制到视口内保证整体可见
+            if (_popOutPlaceId == tab.Identifier)
+            {
+                var vp = ImGuiHelpers.MainViewport;
+                var winSize = new Vector2(350f, 350f) * ImGuiHelpers.GlobalScale;  // Popout 默认尺寸
+                var pos = _popOutPlacePos;
+                pos.X = Math.Clamp(pos.X, vp.Pos.X, vp.Pos.X + Math.Max(0f, vp.Size.X - winSize.X));
+                pos.Y = Math.Clamp(pos.Y, vp.Pos.Y, vp.Pos.Y + Math.Max(0f, vp.Size.Y - winSize.Y));
+                window.Position = pos;
+                window.PositionCondition = ImGuiCond.Once;
+                _popOutPlaceId = null;
+            }
+
             Plugin.WindowSystem.AddWindow(window);
-            PopOutWindows.Add(tab.Identifier);
+            PopOutInstances[tab.Identifier] = window;
         }
     }
 }

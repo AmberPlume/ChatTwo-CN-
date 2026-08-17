@@ -307,46 +307,65 @@ public class SearchWindow : Window
 
     private void DrawBottomBar()
     {
-        var spacing = 3f * ImGuiHelpers.GlobalScale;
+        var scale = ImGuiHelpers.GlobalScale;
+        var spacing = 3f * scale;
         var btnW = ImGuiUtil.CalcIconButtonSize().X;
         var avail = ImGui.GetContentRegionAvail().X;
 
-        // ⚠️ 布局模仿主窗口工具栏（纯流式，从不出错）：
+        // ⚠️ 04:29 统一主窗口输入行逻辑（用户要求）：
+        // 搜索框 = 输入框大小（InputFont + FramePadding.Y=0 → 高度 = FontSize）；
+        // 频道按钮 + 🔍👤📅× = 输入框旁边按钮逻辑（FontAwesomeSmall 高度，垂直居中于搜索框行）
+        float searchBoxHeight;
+        using (Plugin.FontManager.InputFont.Push())
+            searchBoxHeight = ImGui.GetFontSize();
+        float iconButtonHeight;
+        using (Plugin.FontManager.FontAwesomeSmall.Push())
+            iconButtonHeight = ImGui.GetFrameHeight();
+        var rowTop = ImGui.GetCursorPosY();
+        var iconTop = rowTop + (searchBoxHeight - iconButtonHeight) / 2f;
+
+        // ⚠️ 布局模仿主窗口输入行（纯流式，从不出错）：
         // 先精确计算搜索框宽度（给所有按钮预留空间），然后流式 SameLine 排布。
-        // ⚠️ 所有 IconButton 必须传 FontAwesomeSmall：CalcIconButtonSize 按 Small 字体算宽，
-        // 不传则用默认 FontAwesome（图标更大更宽）→ 预留不足 → 右排按钮被挤出（用户实测锁/× 溢出）。
         // ⚠️ 2026-08-17 用户决策：删除 tab 旁的 ChevronDown 小箭头（无意义），tab 按钮自身即可弹选择。
         var tabText = ChannelTabName.Length > 0 ? ChannelTabName : "频道";
         var tabTextW = ImGui.CalcTextSize(tabText).X + ImGui.GetStyle().FramePadding.X * 2 + 14f;
-        var tabTotalW = tabTextW; // 只有文本按钮（箭头已删）
+        var tabTotalW = tabTextW;
 
         var leftBtns = 3;  // 🔍 👤 📅
         var rightBtns = 1; // ×（锁按钮已移除，2026-08-17 用户决策）
         // 所有按钮 + 所有间隔（tab后 1 + 搜索框后 4 + 🔒后 1 = 6 个 spacing）+ 充裕余量
-        var searchW = Math.Max(40f * ImGuiHelpers.GlobalScale,
-            avail - tabTotalW - btnW * (leftBtns + rightBtns) - spacing * (leftBtns + rightBtns + 1) - 20f * ImGuiHelpers.GlobalScale);
+        var searchW = Math.Max(40f * scale,
+            avail - tabTotalW - btnW * (leftBtns + rightBtns) - spacing * (leftBtns + rightBtns + 1) - 20f * scale);
 
-        // tab（文本按钮，点击弹频道选择）
-        if (ImGui.Button(tabText, new Vector2(tabTextW, 0)))
+        // 频道 tab 按钮（高度与右侧图标按钮一致，垂直居中于搜索框行；点击弹频道选择）
+        ImGui.SetCursorPosY(iconTop);
+        if (ImGui.Button(tabText, new Vector2(tabTextW, iconButtonHeight)))
             ImGui.OpenPopup("history-tab-picker");
         if (ImGui.IsItemHovered())
             ImGuiUtil.Tooltip(Language.Search_ChannelTab);
 
-        // 搜索框
+        // 搜索框（InputFont + FramePadding.Y=0 → 与主窗口输入框同高）
         ImGui.SameLine(0, spacing);
+        ImGui.SetCursorPosY(rowTop);
         if (FocusSearchBar)
         {
             FocusSearchBar = false;
             ImGui.SetKeyboardFocusHere();
         }
-        ImGui.SetNextItemWidth(searchW);
-        var submit = ImGui.InputTextWithHint("##history-search", Language.Search_Hint, ref SearchTerm, 100,
-            ImGuiInputTextFlags.EnterReturnsTrue);
+        bool submit;
+        using (var inputFont = Plugin.FontManager.InputFont.Push())
+        using (var pad = ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(ImGui.GetStyle().FramePadding.X, 0f)))
+        {
+            ImGui.SetNextItemWidth(searchW);
+            submit = ImGui.InputTextWithHint("##history-search", Language.Search_Hint, ref SearchTerm, 100,
+                ImGuiInputTextFlags.EnterReturnsTrue);
+        }
 
         // 🔍 搜索（不清 PlayerFilter：可与玩家筛选叠加）
         // 原生图标：用户新素材 icon_34；wrap 未加载时回退 Search FontAwesome。
         // ⚠️ 无按钮音（用户排除项"搜索按钮"——回车提交搜索时 InputText 也无声音，保持一致）
         ImGui.SameLine(0, spacing);
+        ImGui.SetCursorPosY(iconTop);
         var searchClicked = ImGuiUtil.NativeIconButton(NativeIcons.SearchGo, "search-go", Language.Search_Go, FontAwesomeIcon.Search, sfx: ImGuiUtil.BtnSfx.None);
         if (searchClicked || submit)
         {
@@ -359,6 +378,7 @@ public class SearchWindow : Window
         // 👤 筛选玩家（用户新素材 icon_01；wrap 未加载时回退 User/UserCircle）
         // 音效：展开面板=打开 23，再按收起=关闭 24（2026-08-17 用户方案）
         ImGui.SameLine(0, spacing);
+        ImGui.SetCursorPosY(iconTop);
         var playersActive = Panel == SidePanel.Players;
         if (ImGuiUtil.NativeIconButton(NativeIcons.Players, "panel-players", Language.Search_Players,
                 playersActive ? FontAwesomeIcon.UserCircle : FontAwesomeIcon.User,
@@ -368,6 +388,7 @@ public class SearchWindow : Window
         // 📅 筛选日期（用户新素材 icon_01，与玩家同图——"选日期"也是一种"筛选"）
         // 音效：展开=打开 23，再按收起=关闭 24
         ImGui.SameLine(0, spacing);
+        ImGui.SetCursorPosY(iconTop);
         var calActive = Panel == SidePanel.Calendar;
         if (ImGuiUtil.NativeIconButton(NativeIcons.Funnel, "panel-calendar", Language.Search_Calendar,
                 calActive ? FontAwesomeIcon.CalendarCheck : FontAwesomeIcon.CalendarAlt,
@@ -377,6 +398,7 @@ public class SearchWindow : Window
         // × 关闭（原生图标：用户新素材 icon_24 粗X；wrap 未加载时回退 Times）
         // ⚠️ SFX 25 关闭音（2026-08-17 用户方案：关闭/重置筛选按钮统一 25）
         ImGui.SameLine(0, spacing);
+        ImGui.SetCursorPosY(iconTop);
         if (ImGuiUtil.NativeIconButton(NativeIcons.Close, "window-close", Language.Search_Close, FontAwesomeIcon.Times, sfx: ImGuiUtil.BtnSfx.Dismiss))
             IsOpen = false;
     }

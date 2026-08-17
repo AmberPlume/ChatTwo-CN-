@@ -1132,7 +1132,7 @@
     <value>锁定窗口移动</value>
   </data>
   <data name="Options_MoveLocked_Description">
-    <value>只让消息区变为不可拖动（防止选取文本时误拖动窗口），窗口其余区域仍可拖动。</value>
+    <value>消息区始终不可拖动（防止选取文本时误拖动窗口）。勾选后整个窗口完全无法移动；未勾选时可通过输入框和标签页区域拖动窗口。</value>
   </data>
   <data name="Search_Title">
     <value>聊天记录</value>
