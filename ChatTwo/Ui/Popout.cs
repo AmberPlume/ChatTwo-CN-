@@ -153,6 +153,8 @@ public class Popout : Window, IChatWindow
         if (!Plugin.ChatLog.PopOutDocked[Idx])
         {
             // 背景透明度独立（BackgroundAlpha，四透明度之一）；PopOut 统一跟随主窗口。
+            // ⚠️ 04:10 修复：BgAlpha 是可空 float?，null=不透明背景——必须显式 0（停靠时保持不透明）
+            BgAlpha = 0f;
             // 仿原生：窗口整体透明（背景只画在消息区，与主窗口一致）
 
         }
@@ -237,6 +239,10 @@ public class Popout : Window, IChatWindow
     // 底部 tab 栏高度（一行，与主窗口 tab 同尺寸基准）
     private float PopOutTabBarHeight()
     {
+        // ⚠️ 2026-08-18 原生模式：与主窗口 tab 高度一致（17px×scale×InputAreaScale）
+        if (Plugin.Config.NativeBackground)
+            return 17f * ImGuiHelpers.GlobalScale * Plugin.Config.InputAreaScale;
+
         using var tabFont = Plugin.FontManager.TabFont.Push();
         var style = ImGui.GetStyle();
         return (ImGui.GetTextLineHeight() + style.FramePadding.Y * 2) * 0.9f;
@@ -248,6 +254,13 @@ public class Popout : Window, IChatWindow
         // ⚠️ 无 Separator：用户实测分割线会让 tab 行下移被底部截断
         private void DrawPopOutTabBar()
         {
+            // ⚠️ 2026-08-18 原生模式：tab 也用左帽+中段+右帽（与主窗口一致），关闭按钮换原生图片
+            if (Plugin.Config.NativeBackground)
+            {
+                DrawPopOutTabBarNative();
+                return;
+            }
+
             using var tabFont = Plugin.FontManager.TabFont.Push();
 
             var lineHeight = ImGui.GetTextLineHeight();
@@ -267,6 +280,87 @@ public class Popout : Window, IChatWindow
                 IsOpen = false; // 触发 OnClose：Tab.PopOut=false，tab 收回主窗口
             if (ImGui.IsItemHovered())
                 ImGuiUtil.Tooltip("关闭");
+        }
+
+        /// <summary>原生模式 tab 行：左帽 + 中段(名称) + 右帽 + 原生关闭按钮
+        /// （尺寸/文字公式/hover 亮起与主窗口 DrawBottomTabBar 完全一致）。</summary>
+        private void DrawPopOutTabBarNative()
+        {
+            using var tabFont = Plugin.FontManager.TabFont.Push();
+
+            var scale = ImGuiHelpers.GlobalScale;
+            var inputScale = Plugin.Config.InputAreaScale;
+            var tabHeight = 17f * scale * inputScale;
+            var tabScale = tabHeight / 48f;  // 素材原始高 48px → 目标高度
+            var capLeftSize = new Vector2(39f, 48f) * tabScale;
+            var capRightSize = new Vector2(40f, 48f) * tabScale;
+            var middleBaseSize = new Vector2(50f, 48f) * tabScale;
+            var effectiveFontSize = tabHeight * 0.6f;  // 字号 = tab 高 3/5（与主窗口一致）
+            var oneCharW = effectiveFontSize * 0.5f;   // 左右留白 = 半字（一个字母）
+            var dl = ImGui.GetWindowDrawList();
+            var tabTextColor = ImGui.GetColorU32(new Vector4(238f / 255f, 236f / 255f, 215f / 255f, 1f));
+            // ⚠️ 完整行宽必须在画 tab 组装前取（GetContentRegionAvail 是"光标到右缘"的剩余量）
+            var availWidth = ImGui.GetContentRegionAvail().X;
+
+            // 左帽：装饰
+            var capLeft = NativeIcons.TabCapLeft;
+            if (capLeft != null)
+            {
+                var start = ImGui.GetCursorScreenPos();
+                dl.AddImage(capLeft.Handle, start, start + capLeftSize);
+                ImGui.Dummy(capLeftSize);
+                ImGui.SameLine(0, 0);
+            }
+
+            // 中段（真正的 tab：名称 + 左右各半字，下限素材基础宽）
+            var middle = NativeIcons.TabMiddle;
+            var nameWidth = ImGui.CalcTextSize(Tab.Name).X;
+            var mSize = new Vector2(Math.Max(middleBaseSize.X, nameWidth + oneCharW * 2), tabHeight);
+            var mMin = ImGui.GetCursorScreenPos();
+            if (middle != null)
+            {
+                dl.AddImage(middle.Handle, mMin, mMin + mSize);
+                ImGui.Dummy(mSize);
+                if (ImGui.IsItemHovered())
+                {
+                    Plugin.AnyInteractiveHovered = true;  // 可点击元素 → 游戏手指光标
+                    var glowMin = mMin + new Vector2(0f, 1.5f) * scale;
+                    var glowMax = mMin + mSize - new Vector2(0f, 1.5f) * scale;
+                    dl.AddRectFilled(glowMin, glowMax, ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.16f)), 3f);
+                }
+                // 文字（与主窗口同公式：AddText pos=顶，几何居中 + 右移 5px×scale×inputScale）
+                // ⚠️ 05:39 v2：去掉 baseline 的 Ascent 项（05:30 版文字被压到 tab 下方）
+                var activeFont = ImGui.GetFont();
+                var textSize = ImGui.CalcTextSize(Tab.Name);
+                var fontScale = effectiveFontSize / activeFont.FontSize;
+                var textPos = new Vector2(
+                    mMin.X + (mSize.X - textSize.X) / 2f + 5f * scale * inputScale,
+                    mMin.Y + (mSize.Y - effectiveFontSize) / 2f - 2f * fontScale);
+                dl.AddText(activeFont, effectiveFontSize, textPos, tabTextColor, Tab.Name);
+            }
+            else
+            {
+                // 素材缺失回退：纯文本
+                ImGui.TextUnformatted(Tab.Name);
+            }
+            ImGui.SameLine(0, 0);
+
+            // 右帽：装饰
+            var capRight = NativeIcons.TabCapRight;
+            if (capRight != null)
+            {
+                var end = ImGui.GetCursorScreenPos();
+                dl.AddImage(capRight.Handle, end, end + capRightSize);
+                ImGui.Dummy(capRightSize);
+                ImGui.SameLine(0, 0);
+            }
+
+            // 右侧：原生关闭按钮（收回主窗口；尺寸与主窗口图标按钮一致）
+            var btnSize = new Vector2(ImGuiUtil.CalcIconButtonSize().X, tabHeight);
+            ImGui.SetCursorPosX(availWidth - btnSize.X - ImGui.GetStyle().ItemSpacing.X);
+            if (ImGuiUtil.NativeIconButton(NativeIcons.Close, "popout-close", "关闭", FontAwesomeIcon.Times,
+                    size: btnSize, sfx: ImGuiUtil.BtnSfx.Dismiss))
+                IsOpen = false; // 触发 OnClose：Tab.PopOut=false，tab 收回主窗口
         }
 
     // 原生缩放手柄素材（常态/高亮态，与主窗口同款；wrap 缺失回退金字塔）
@@ -318,7 +412,8 @@ public class Popout : Window, IChatWindow
 
     public override void OnClose()
     {
-        Plugin.ChatLog.PopOutWindows.Remove(Tab.Identifier);
+        // ⚠️ 04:17 长按拖出 v2：HashSet → Dictionary（PopOutInstances）
+        Plugin.ChatLog.PopOutInstances.Remove(Tab.Identifier);
         Plugin.WindowSystem.RemoveWindow(this);
 
         Tab.PopOut = false;

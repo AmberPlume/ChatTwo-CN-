@@ -1130,7 +1130,7 @@ Your old database can still be recovered, please contact the plugin author for h
         <value>Lock window movement</value>
     </data>
     <data name="Options_MoveLocked_Description">
-        <value>Only the message area becomes non-draggable (prevents accidentally dragging the window while selecting text); the rest of the window can still be dragged.</value>
+        <value>The message area is always non-draggable (prevents accidentally dragging the window while selecting text). When enabled, the entire window cannot be moved; when disabled, drag the window via the input box or tab bar area.</value>
     </data>
     <data name="Search_Title">
         <value>Chat Log History</value>
