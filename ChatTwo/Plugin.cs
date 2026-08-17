@@ -20,6 +20,7 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Gui.ContextMenu;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Utility;
+using FFXIVClientStructs.FFXIV.Client.System.Input;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 
@@ -29,6 +30,72 @@ namespace ChatTwo;
 public sealed class Plugin : IDalamudPlugin
 {
     public const string PluginName = "Chat 2";
+
+    // ⚠️ 2026-08-18 精细鼠标光标（游戏原生）：NoMouseCursorChange 下 ImGui 不碰光标；
+    // 可点击元素（按钮/tab/链接）hover 时用**游戏自己的光标句柄** SetCursor（原生手指），
+    // 聊天区域恢复游戏 Arrow 句柄。句柄偏移 03:04 扫描确认：Cursor+0x18=Arrow / +0x70=Clickable
+    //（offset 结构固定；句柄值每进程变化，运行时实时读）。
+    internal static bool CursorInChatWindow;
+    internal static bool AnyInteractiveHovered;
+    private static AtkCursor.CursorType? _lastSetType;
+
+    /// <summary>标记鼠标在本聊天窗口内（三窗口共用；帧末 UpdateCursorDecision 统一决策光标）。</summary>
+    internal static void MarkCursorInChatWindow()
+    {
+        if (ImGui.IsWindowHovered(ImGuiHoveredFlags.RootAndChildWindows))
+            CursorInChatWindow = true;
+    }
+
+    /// <summary>鼠标在聊天窗口内：按钮/tab 上 → 游戏手指 Clickable；其他区域 → 游戏默认 Arrow。
+    /// ⚠️ 只在类型变化时调用——游戏 SetCursorType 会播悬停音，每帧重复设会连续响（03:09 用户反馈）。</summary>
+    internal static void UpdateCursorDecision()
+    {
+        var target = CursorInChatWindow
+            ? (AnyInteractiveHovered ? AtkCursor.CursorType.Clickable : AtkCursor.CursorType.Arrow)
+            : (AtkCursor.CursorType?)null;
+        if (target != _lastSetType)
+        {
+            _lastSetType = target;
+            if (target != null)
+                SetGameCursor(target.Value);
+        }
+        CursorInChatWindow = false;
+        AnyInteractiveHovered = false;
+    }
+
+    private static unsafe void SetGameCursor(AtkCursor.CursorType type)
+    {
+        try
+        {
+            var cursor = Cursor.Instance();
+            if (cursor == null)
+                return;
+            var basePtr = (byte*)cursor;
+            // ⚠️ 03:04 扫描确认的句柄 offset（FCS 的 CursorHandles@0x1B0 与当前游戏版本不符）：
+            // Arrow=+0x18、Resize=+0x68、Clickable=+0x70。句柄值实时读（每进程变化）。
+            var handle = type == AtkCursor.CursorType.Clickable
+                ? *(nint*)(basePtr + 0x70)
+                : *(nint*)(basePtr + 0x18);
+            if (handle != 0)
+                User32SetCursor(handle);
+
+            // 同步游戏状态（避免 AtkCursor.Type/ActiveCursorType 与显示不一致）
+            var stage = AtkStage.Instance();
+            if (stage != null)
+            {
+                stage->AtkCursor.Type = type;
+                stage->AtkCursor.SetCursorType(type, true);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[Cursor] failed: {ex.Message}");
+        }
+    }
+
+    // ⚠️ 03:05 修复：DllImport 默认入口点 = 方法名，user32 里函数叫 SetCursor → 必须 EntryPoint
+    [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "SetCursor")]
+    private static extern IntPtr User32SetCursor(IntPtr hCursor);
 
     [PluginService] public static IPluginLog Log { get; private set; } = null!;
     [PluginService] public static IDalamudPluginInterface Interface { get; private set; } = null!;
@@ -110,6 +177,16 @@ public sealed class Plugin : IDalamudPlugin
         try
         {
             GameStarted = Process.GetCurrentProcess().StartTime.ToUniversalTime();
+
+            // ⚠️ 2026-08-18 鼠标指针保持游戏原生：禁止 ImGui 修改 OS 光标。ImGui 默认在
+            // hover 窗口时把光标设成 Windows 箭头（覆盖 FFXIV 游戏指针）；SetMouseCursor(None)
+            // 方案实测指针直接消失（ImGui 的 None 会调 SetCursor(NULL) 隐藏）。NoMouseCursorChange
+            // 让 ImGui 完全不碰光标 → 游戏原生指针全程保持。
+            ImGui.GetIO().ConfigFlags |= ImGuiConfigFlags.NoMouseCursorChange;
+
+            // ⚠️ 2026-08-18 音效观察 hook（复测）
+
+            // ⚠️ 2026-08-18 观察游戏 UI 音效（定位原生按钮点击音效，替换 BtnSfx 手动试听值）
 
             Config = Interface.GetPluginConfig() as Configuration ?? new Configuration();
             // 四透明度迁移：新字段（背景/标签页/输入框透明度）首次复制消息区透明度
@@ -240,6 +317,9 @@ public sealed class Plugin : IDalamudPlugin
         DbViewer?.Dispose();
         SettingsWindow?.Dispose();
 
+
+
+
         TypingIpc?.Dispose();
         ExtraChat?.Dispose();
         Ipc?.Dispose();
@@ -271,6 +351,9 @@ public sealed class Plugin : IDalamudPlugin
         // 聊天消息/输入框等需要主字体的地方在各窗口内容里自行 Push（见 ChatLog.Draw / Popout.Draw）
         using (FontManager.SettingsFont.Push())
             WindowSystem.Draw();
+
+        // ⚠️ 2026-08-18 光标决策（窗口 Draw 里置位的标志在此统一处理）
+        UpdateCursorDecision();
 
         ChatLog.FinalizeFrame();
         TypingIpc.Update();

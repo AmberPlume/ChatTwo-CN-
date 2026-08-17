@@ -105,6 +105,7 @@ public class InputHandler
                 ? 100f
                 : Plugin.Config.InputAlpha;
             var bgAlphaF = inputBgAlpha / 100f;
+            // ⚠️ 2026-08-18 回滚：原生输入框贴图素材取消（用户素材不好）→ 恢复 FrameBg 颜色 + 描边
             using (ImRaii.PushColor(ImGuiCol.FrameBg, ImGui.GetColorU32(ImGuiCol.FrameBg, bgAlphaF), bgAlphaF < 1f))
             using (ImRaii.PushColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, bgAlphaF), bgAlphaF < 1f))
             using (ImRaii.PushColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, bgAlphaF), bgAlphaF < 1f))

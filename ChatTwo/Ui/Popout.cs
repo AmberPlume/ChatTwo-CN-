@@ -6,6 +6,7 @@ using ChatTwo.Ui.ChatLog;
 using ChatTwo.Ui.Handler;
 using ChatTwo.Util;
 using Dalamud.Interface.Style;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
@@ -132,12 +133,12 @@ public class Popout : Window, IChatWindow
 
         if (Tab.CanResize)
         {
-            // 仿原生缩放手柄 hit-test（偏移与 DrawTopRightResizeHandle 绘制一致）：
+            // 原生缩放手柄 hit-test（偏移与 DrawTopRightResizeHandle 绘制一致）：
             // 手柄上时阻止窗口移动（拖手柄 = 缩放，不拖动）
             var st = ImGui.GetStyle();
-            const float hSize = 16f;
-            var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
-            var insetY = Plugin.Config.NativeBackground ? 4f : 3f;
+            var hSize = NativeIcons.ResizeHandleSize();  // ⚠️ 2026-08-18 原生手柄素材尺寸
+            var insetX = NativeIcons.ResizeHandleInsetX(Plugin.Config.NativeBackground);
+            var insetY = NativeIcons.ResizeHandleInsetY(Plugin.Config.NativeBackground);
             var handleMin = new Vector2(
                 LastWindowPos.X + LastWindowSize.X - hSize - st.WindowPadding.X - insetX,
                 LastWindowPos.Y + st.WindowPadding.Y + insetY);
@@ -153,7 +154,7 @@ public class Popout : Window, IChatWindow
         {
             // 背景透明度独立（BackgroundAlpha，四透明度之一）；PopOut 统一跟随主窗口。
             // 仿原生：窗口整体透明（背景只画在消息区，与主窗口一致）
-            BgAlpha = Plugin.Config.NativeBackground ? 0f : Plugin.Config.BackgroundAlpha / 100f;
+
         }
 
         // ⚠️ [CtxClickPass] 菜单打开期间：PopOut 窗口也不捕获鼠标（NoMouseInputs）→
@@ -165,6 +166,9 @@ public class Popout : Window, IChatWindow
 
     public override void Draw()
     {
+        // ⚠️ 2026-08-18 鼠标在聊天窗口内 → 帧末光标决策（保持游戏指针；按钮/tab 上手指）
+        Plugin.MarkCursorInChatWindow();
+
         // 弹出的聊天窗口内容与主窗口一致：默认 Axis，选了自定义字体后改 RegularFont
         using var mainFont = (Plugin.Config.FontsEnabled ? Plugin.FontManager.RegularFont : Plugin.FontManager.Axis).Push();
         using var id = ImRaii.PushId($"popout-{Tab.Identifier}");
@@ -265,15 +269,15 @@ public class Popout : Window, IChatWindow
                 ImGuiUtil.Tooltip("关闭");
         }
 
-    // 仿原生 FFXIV 缩放手柄：金字塔形三条 NW-SE 斜线（与主窗口同款）
+    // 原生缩放手柄素材（常态/高亮态，与主窗口同款；wrap 缺失回退金字塔）
     private void DrawTopRightResizeHandle()
     {
         var windowPos = ImGui.GetWindowPos();
         var windowSize = ImGui.GetWindowSize();
         var style = ImGui.GetStyle();
-        const float hSize = 16f;
-        var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
-        var insetY = Plugin.Config.NativeBackground ? 4f : 3f;
+        var hSize = NativeIcons.ResizeHandleSize();  // ⚠️ 2026-08-18 原生手柄素材尺寸
+        var insetX = NativeIcons.ResizeHandleInsetX(Plugin.Config.NativeBackground);
+        var insetY = NativeIcons.ResizeHandleInsetY(Plugin.Config.NativeBackground);
         var localPos = new Vector2(
             windowSize.X - hSize - style.WindowPadding.X - insetX,
             style.WindowPadding.Y + insetY);
@@ -287,15 +291,7 @@ public class Popout : Window, IChatWindow
         if (hovered || IsResizingTopRight)
             ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
 
-        var drawList = ImGui.GetWindowDrawList();
-        var lineColor = hovered || IsResizingTopRight
-            ? ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.8f))
-            : ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.4f));
-        const float thickness = 2f;
-        var p = windowPos + localPos;
-        drawList.AddLine(p + new Vector2(10f, 2f), p + new Vector2(15f, 7f), lineColor, thickness);
-        drawList.AddLine(p + new Vector2(4f, 2f), p + new Vector2(15f, 13f), lineColor, thickness);
-        drawList.AddLine(p + new Vector2(-2f, 2f), p + new Vector2(15f, 19f), lineColor, thickness);
+        // ⚠️ 2026-08-18 绘制已移至 PostDraw（前台 dl 置顶）；这里只保留 hit-test（否则出现双手柄）
     }
 
     public override void PostDraw()
@@ -304,6 +300,20 @@ public class Popout : Window, IChatWindow
 
         if (Plugin.Config is { OverrideStyle: true, ChosenStyle: not null })
             StyleModel.GetConfiguredStyles()?.FirstOrDefault(style => style.Name == Plugin.Config.ChosenStyle)?.Pop();
+
+        // ⚠️ 2026-08-18 缩放手柄置顶（前台 dl；⚠️ End 后 GetWindowPos 不可靠 → 用 LastWindowPos）
+        if (Tab.CanResize)
+        {
+            var style = ImGui.GetStyle();
+            var hSize = NativeIcons.ResizeHandleSize();
+            var insetX = NativeIcons.ResizeHandleInsetX(Plugin.Config.NativeBackground);
+            var insetY = NativeIcons.ResizeHandleInsetY(Plugin.Config.NativeBackground);
+            var localPos = new Vector2(
+                LastWindowSize.X - hSize - style.WindowPadding.X - insetX,
+                style.WindowPadding.Y + insetY);
+            NativeIcons.DrawResizeHandle(ImGui.GetForegroundDrawList(), LastWindowPos + localPos,
+                new Vector2(hSize, hSize), MouseOverResizeHandle || IsResizingTopRight);
+        }
     }
 
     public override void OnClose()

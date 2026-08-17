@@ -50,7 +50,9 @@ public static class ImGuiUtil
         if (payload != null && ImGui.IsItemHovered())
         {
             Hovered = payload;
-            ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+            // ⚠️ 2026-08-18 链接 hover → 帧末切游戏原生手指（Clickable）；
+            // 原 SetMouseCursor(Hand) 被 NoMouseCursorChange 禁用（用户实测链接不变手指）
+            Plugin.AnyInteractiveHovered = true;
             handler?.Hover(payload);
         }
         else if (!ReferenceEquals(Hovered, payload))
@@ -299,11 +301,14 @@ public static class ImGuiUtil
         return ret;
     }
 
-    /// <summary>原生按钮音效类型（2026-08-17 用户实测确认）：打开=23、再按关闭=24、隐藏/关闭/重置=25。</summary>
+    /// <summary>原生按钮音效类型（2026-08-17 用户实测确认）：打开=23、再按关闭=24、隐藏/关闭/重置=25；
+    /// 2026-08-18 新增：tab/频道切换=1（游戏原生频道切换音效，用户确认）。</summary>
     public enum BtnSfx
     {
-        /// <summary>无声（排除项：频道/添加tab/搜索/关闭窗口/新人）</summary>
+        /// <summary>无声（排除项：添加tab/搜索/关闭窗口/新人）</summary>
         None = -1,
+        /// <summary>频道切换/tab 切换 SFX 1（游戏原生频道音效，2026-08-18 用户确认）</summary>
+        UiSwitch = 1,
         /// <summary>打开（设置/聊天记录入口/筛选面板展开）SFX 23</summary>
         Open = 23,
         /// <summary>再按一次关闭（筛选面板收起）SFX 24</summary>
@@ -329,7 +334,8 @@ public static class ImGuiUtil
         BtnSfx sfx = BtnSfx.Open)
     {
         // 资源未到位：用 FontAwesome 兜底，保证布局不变（FontAwesome 路径不播声音，保持原行为）
-        if (wrap == null)
+        // ⚠️ 2026-08-18 大工程：NativeBackground=false（非原生模式）→ 强制 FontAwesome 素材
+        if (wrap == null || !Plugin.Config.NativeBackground)
             return IconButton(fallbackIcon, id, tooltip, Plugin.FontManager.FontAwesomeSmall);
 
         var s = size ?? CalcIconButtonSize();
@@ -338,19 +344,15 @@ public static class ImGuiUtil
         var max = ImGui.GetItemRectMax();
         var dl = ImGui.GetWindowDrawList();
 
-        // 状态反馈仅靠图标 tint + 偏移（无方形底框）：
-        // 常态 1.0；hover 轻微拉亮（1.25，原 1.4 太亮）；按下微亮 + 下沉 1px（"按进去"感）
-        Vector4 tint = new(1f, 1f, 1f, 1f);
-        float pressOffset = 0f;
-        if (ImGui.IsItemActive())
-        {
-            tint = new Vector4(1.15f, 1.15f, 1.15f, 1f);
-            pressOffset = 1f;
-        }
-        else if (ImGui.IsItemHovered())
-        {
-            tint = new Vector4(1.25f, 1.25f, 1.25f, 1f);
-        }
+        // 状态反馈（无方形底框）：按下下沉 1px；hover/按下"亮起"用半透明白雾叠加在图标区域。
+        // ⚠️ 2026-08-18 修复：原实现 tint=1.25/1.15 + ColorConvertFloat4ToU32——ImU32 每通道仅 8bit，
+        // 1.25×255=318 被钳制回 255(=1.0) → hover/active 从未生效（用户实测"未看到任何变化"）。
+        var hovered = ImGui.IsItemHovered();
+        var active = ImGui.IsItemActive();
+        float pressOffset = active ? 1f : 0f;
+        // ⚠️ 2026-08-18 可点击元素 hover → 帧末切游戏手指光标（Plugin.UpdateCursorDecision）
+        if (hovered)
+            Plugin.AnyInteractiveHovered = true;
 
         // 图标绘制区：保持宽高比（contain）居中，不拉伸。
         // ⚠️ 2026-08-17 修复：之前直接拉伸到整个按钮 → 宽>高的符号（如放大镜 21x32）
@@ -361,7 +363,17 @@ public static class ImGuiUtil
         var drawSize = texSize * scale;
         var imgMin = min + (avail - drawSize) / 2f + new Vector2(0f, pressOffset);
         var imgMax = imgMin + drawSize;
-        dl.AddImage(wrap.Handle, imgMin, imgMax, Vector2.Zero, Vector2.One, ImGui.ColorConvertFloat4ToU32(tint));
+        dl.AddImage(wrap.Handle, imgMin, imgMax, Vector2.Zero, Vector2.One, ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 1f, 1f, 1f)));
+
+        // 白雾亮起：原生素材是圆形按钮 → 用圆形白雾贴合（方形白雾会露角）；
+        // active 比 hover 稍暗一点体现"按进去"
+        if (hovered || active)
+        {
+            var glowAlpha = active ? 0.10f : 0.16f;
+            var center = (imgMin + imgMax) / 2f;
+            var radius = Math.Min(drawSize.X, drawSize.Y) / 2f * 0.9f;  // 贴合圆按钮（略留边缘）
+            dl.AddCircleFilled(center, radius, ImGui.GetColorU32(new Vector4(1f, 1f, 1f, glowAlpha)), 24);
+        }
 
         if (clicked && sfx != BtnSfx.None && Plugin.Config.PlaySounds)
             unsafe { UIGlobals.PlaySoundEffect((uint)sfx); }

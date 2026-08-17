@@ -34,11 +34,10 @@ public sealed class ChatLogConfig : ISettingsTab
             ImGuiUtil.DragFloatVertical(Language.Options_InputAreaScale_Name, Language.Options_InputAreaScale_Description, ref Mutable.InputAreaScale, 0.05f, 0.5f, 2.0f, $"{Mutable.InputAreaScale * 100f:N0}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
 
-            // 四透明度分离：消息区（原窗口透明度，字段名 WindowAlpha 保留）/
-            // 背景 / 标签页 / 输入框。PopOut 统一跟随四项（独立透明度已移除）
+            // 四透明度分离：消息区 / 标签页 / 输入框。
+            // ⚠️ 2026-08-18 背景透明度移除：窗口背景永远透明 0（NativeBackground 改为素材开关）。
+            // PopOut 统一跟随（独立透明度已移除）
             ImGuiUtil.DragFloatVertical(Language.Options_MessageAlpha_Name, Language.Options_MessageAlpha_Description, ref Mutable.WindowAlpha, .25f, 0f, 100f, $"{Mutable.WindowAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
-            ImGui.Spacing();
-            ImGuiUtil.DragFloatVertical(Language.Options_BackgroundAlpha_Name, Language.Options_BackgroundAlpha_Description, ref Mutable.BackgroundAlpha, .25f, 0f, 100f, $"{Mutable.BackgroundAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
             ImGuiUtil.DragFloatVertical(Language.Options_TabAlpha_Name, Language.Options_TabAlpha_Description, ref Mutable.TabAlpha, .25f, 0f, 100f, $"{Mutable.TabAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
