@@ -2,8 +2,8 @@
   "Author": "Infi, Anna, 一只路过的拉拉肥",
   "Name": "Chat 2 (CN)",
   "InternalName": "ChatTwoCN",
-  "AssemblyVersion": "1.40.14.0",
-  "Description": "模仿了原生消息窗口的布局。",
+  "AssemblyVersion": "1.40.15.0",
+  "Description": "模仿了原生消息窗口的布局。内置聊天记录查询窗口，支持原生 UI 图标与界面。",
   "ApplicableVersion": "any",
   "RepoUrl": "https://github.com/Infiziert90/ChatTwo",
   "Tags": [
