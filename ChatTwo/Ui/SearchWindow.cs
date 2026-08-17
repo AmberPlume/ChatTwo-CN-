@@ -65,7 +65,16 @@ public class SearchWindow : Window
     private string ChannelTabName = "";   // 频道来源 Tab 名（右键选择，空=当前 Tab）
     private DateTime BrowseDate = DateTime.Today;
     private DateTime CalendarMonth = DateTime.Today;
-    private bool MoveLocked;
+    // ⚠️ 2026-08-17 用户决策：锁按钮移除，MoveLocked 从设置页读取（Config.MoveLocked）
+    private bool MoveLocked => Plugin.Config.MoveLocked;
+
+    // 消息区屏幕矩形（上一帧 DrawMessageLog 回调记录，本窗口自己的——不污染 ChatLog 字段）
+    private Vector2 LastMessageAreaMin = Vector2.Zero;
+    private Vector2 LastMessageAreaMax = Vector2.Zero;
+
+    // 消息区容器（##history-area child）矩形：缩放手柄锚点（2026-08-17 用户决策：手柄移到消息区右上角）
+    private Vector2 MsgAreaMin = Vector2.Zero;
+    private Vector2 MsgAreaMax = Vector2.Zero;
 
     // —— 无限滚动（默认模式）：滚动到顶自动加载上一天 ——
     private bool DateLocked;             // true=固定日期浏览；false=滚动模式（默认）
@@ -104,6 +113,14 @@ public class SearchWindow : Window
         IsOpen = false;
     }
 
+    /// <summary>鼠标是否在消息区矩形内（消息区永远不可拖，不依赖锁定开关）。矩形由 DrawMessageLog 每帧回调记录。</summary>
+    private bool IsMouseOverMessageArea()
+    {
+        var mp = ImGui.GetIO().MousePos;
+        return mp.X >= LastMessageAreaMin.X && mp.X <= LastMessageAreaMax.X
+            && mp.Y >= LastMessageAreaMin.Y && mp.Y <= LastMessageAreaMax.Y;
+    }
+
     public override void PreDraw()
     {
         // 仿原生：无标题栏；窗口自身不滚动（滚动在消息区 child 内）
@@ -112,20 +129,24 @@ public class SearchWindow : Window
               | ImGuiWindowFlags.NoResize;
         BgAlpha = Plugin.Config.NativeBackground ? 0f : Plugin.Config.BackgroundAlpha / 100f;
 
-        // 锁定时禁止移动
-        if (MoveLocked)
+        // ⚠️ 2026-08-17 用户决策（17:38 纠正）：消息区任何情况下都不可拖（不依赖锁定开关），
+        // 未锁定时其余区域可拖；锁定时整个窗口锁死。缩放手柄的 NoMove 由下方 CanResize 分支处理。
+        if (IsMouseOverMessageArea() || MoveLocked)
             Flags |= ImGuiWindowFlags.NoMove;
 
-        // 缩放手柄 hit-test（与绘制位置一致；手柄上时禁止窗口移动）
+        // 缩放手柄 hit-test（与绘制位置一致——锚点=消息区容器右上角，用上一帧 MsgArea 记录；
+        // PreDraw 在 Begin 前读 GetWindowPos 不可靠，故用 DrawMessageArea 里记录的矩形）
         if (Plugin.Config.CanResize)
         {
             var st = ImGui.GetStyle();
             const float hSize = 16f;
             var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
             var insetY = Plugin.Config.NativeBackground ? 4f : 3f;
+            var areaMin = MsgAreaMax.X > 0f ? MsgAreaMin : ImGui.GetWindowPos();
+            var areaSize = MsgAreaMax.X > 0f ? MsgAreaMax - MsgAreaMin : ImGui.GetWindowSize();
             var handleMin = new Vector2(
-                ImGui.GetWindowPos().X + ImGui.GetWindowSize().X - hSize - st.WindowPadding.X - insetX,
-                ImGui.GetWindowPos().Y + st.WindowPadding.Y + insetY);
+                areaMin.X + areaSize.X - hSize - st.WindowPadding.X - insetX,
+                areaMin.Y + st.WindowPadding.Y + insetY);
             var handleMax = handleMin + new Vector2(hSize, hSize);
             var mp = ImGui.GetIO().MousePos;
             MouseOverResizeHandle = mp.X >= handleMin.X && mp.X <= handleMax.X
@@ -152,12 +173,13 @@ public class SearchWindow : Window
 
     public override void Draw()
     {
-        DrawCornerControls();
-        ImGui.Separator();
+        // ⚠️ 2026-08-17 用户决策（布局重构）：顶栏完全移除（原 DrawCornerControls 状态行沉底
+        // 到 DrawStatusRow）；缩放手柄从窗口右上角移到消息区右上角。顶部只留消息区。
 
-        // 消息区高度 = 剩余高度 - 底部搜索栏（面板与消息区同高）
+        // 消息区高度 = 剩余高度 - 底部搜索栏 - 底部状态行
         var bottomH = ImGui.GetFrameHeight() + 6f * ImGuiHelpers.GlobalScale;
-        var msgH = ImGui.GetContentRegionAvail().Y - bottomH;
+        var statusH = ImGui.GetFrameHeight() + 6f * ImGuiHelpers.GlobalScale;
+        var msgH = ImGui.GetContentRegionAvail().Y - bottomH - statusH;
 
         // 异步加载完成 → 注入虚拟 tab 并渲染（原生，统一消息流显示）
         if (PendingApply && !IsLoading)
@@ -177,6 +199,7 @@ public class SearchWindow : Window
         }
 
         DrawBottomBar();
+        DrawStatusRow();
         DrawTabPickerPopup();
 
         if (Plugin.Config.CanResize)
@@ -205,7 +228,8 @@ public class SearchWindow : Window
 
     // ================= 右上角控制（锁 + 关闭 + 状态） =================
 
-    private void DrawCornerControls()
+    /// <summary>底部状态行（2026-08-17 布局重构：原顶栏状态整体沉底，位于底部搜索栏之下）。</summary>
+    private void DrawStatusRow()
     {
         var spacing = 3f * ImGuiHelpers.GlobalScale;
 
@@ -226,9 +250,9 @@ public class SearchWindow : Window
         else if (DateLocked)
         {
             ImGui.TextColored(ImGuiColors.DalamudGrey, BrowseDate.ToString("yyyy-MM-dd"));
-            // 重置：清除日期锁定 → 回滚动模式
+            // 重置：清除日期锁定 → 回滚动模式（原生粗X图标 icon_24；SFX 25 关闭/重置音）
             ImGui.SameLine(0, 2f * ImGuiHelpers.GlobalScale);
-            if (ImGuiUtil.IconButton(FontAwesomeIcon.Times, id: "date-clear", tooltip: Language.Search_Clear))
+            if (ImGuiUtil.NativeIconButton(NativeIcons.Close, "date-clear", Language.Search_Clear, FontAwesomeIcon.Times, sfx: ImGuiUtil.BtnSfx.Dismiss))
             {
                 DateLocked = false;
                 ShowBrowse(DateTime.Today);
@@ -240,13 +264,13 @@ public class SearchWindow : Window
             ImGui.TextColored(ImGuiColors.DalamudGrey, Language.Search_Latest);
         }
 
-        // 玩家筛选（重置按钮在右侧）
+        // 玩家筛选（重置按钮在右侧；原生粗X图标 icon_24；SFX 25 关闭/重置音）
         if (PlayerFilter.Length > 0)
         {
             ImGui.SameLine(0, spacing);
             ImGui.TextColored(ImGuiColors.DalamudOrange, $"@{PlayerFilter}");
             ImGui.SameLine(0, 2f * ImGuiHelpers.GlobalScale);
-            if (ImGuiUtil.IconButton(FontAwesomeIcon.Times, id: "player-clear", tooltip: Language.Search_Clear))
+            if (ImGuiUtil.NativeIconButton(NativeIcons.Close, "player-clear", Language.Search_Clear, FontAwesomeIcon.Times, sfx: ImGuiUtil.BtnSfx.Dismiss))
             {
                 PlayerFilter = "";
                 RequeryCurrent();
@@ -272,7 +296,7 @@ public class SearchWindow : Window
                 ShowBrowse(DateTime.Today);
         }
 
-        // 右侧留白给缩放手柄（右上角唯一元素，不再放按钮）
+        // 右侧留白（消息区右上角是缩放手柄，本行不再放按钮）
     }
 
     // ================= 底部搜索栏（频道Tab + 搜索框 + 按钮） =================
@@ -287,21 +311,19 @@ public class SearchWindow : Window
         // 先精确计算搜索框宽度（给所有按钮预留空间），然后流式 SameLine 排布。
         // ⚠️ 所有 IconButton 必须传 FontAwesomeSmall：CalcIconButtonSize 按 Small 字体算宽，
         // 不传则用默认 FontAwesome（图标更大更宽）→ 预留不足 → 右排按钮被挤出（用户实测锁/× 溢出）。
+        // ⚠️ 2026-08-17 用户决策：删除 tab 旁的 ChevronDown 小箭头（无意义），tab 按钮自身即可弹选择。
         var tabText = ChannelTabName.Length > 0 ? ChannelTabName : "频道";
         var tabTextW = ImGui.CalcTextSize(tabText).X + ImGui.GetStyle().FramePadding.X * 2 + 14f;
-        var tabTotalW = tabTextW + btnW; // 文本按钮 + 箭头图标按钮
+        var tabTotalW = tabTextW; // 只有文本按钮（箭头已删）
 
         var leftBtns = 3;  // 🔍 👤 📅
-        var rightBtns = 2; // 🔒 ×
+        var rightBtns = 1; // ×（锁按钮已移除，2026-08-17 用户决策）
         // 所有按钮 + 所有间隔（tab后 1 + 搜索框后 4 + 🔒后 1 = 6 个 spacing）+ 充裕余量
         var searchW = Math.Max(40f * ImGuiHelpers.GlobalScale,
             avail - tabTotalW - btnW * (leftBtns + rightBtns) - spacing * (leftBtns + rightBtns + 1) - 20f * ImGuiHelpers.GlobalScale);
 
-        // tab（文本 + 箭头，两个控件一组）
+        // tab（文本按钮，点击弹频道选择）
         if (ImGui.Button(tabText, new Vector2(tabTextW, 0)))
-            ImGui.OpenPopup("history-tab-picker");
-        ImGui.SameLine(0, 0);
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.ChevronDown, id: "tab-arrow", font: Plugin.FontManager.FontAwesomeSmall))
             ImGui.OpenPopup("history-tab-picker");
         if (ImGui.IsItemHovered())
             ImGuiUtil.Tooltip(Language.Search_ChannelTab);
@@ -318,8 +340,11 @@ public class SearchWindow : Window
             ImGuiInputTextFlags.EnterReturnsTrue);
 
         // 🔍 搜索（不清 PlayerFilter：可与玩家筛选叠加）
+        // 原生图标：用户新素材 icon_34；wrap 未加载时回退 Search FontAwesome。
+        // ⚠️ 无按钮音（用户排除项"搜索按钮"——回车提交搜索时 InputText 也无声音，保持一致）
         ImGui.SameLine(0, spacing);
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.Search, id: "search-go", tooltip: Language.Search_Go, font: Plugin.FontManager.FontAwesomeSmall) || submit)
+        var searchClicked = ImGuiUtil.NativeIconButton(NativeIcons.SearchGo, "search-go", Language.Search_Go, FontAwesomeIcon.Search, sfx: ImGuiUtil.BtnSfx.None);
+        if (searchClicked || submit)
         {
             if (SearchTerm.Length > 0)
                 ShowResults(SearchTerm);
@@ -327,27 +352,28 @@ public class SearchWindow : Window
                 ShowBrowse(BrowseDate, DateLocked);
         }
 
-        // 👤 玩家
+        // 👤 筛选玩家（用户新素材 icon_01；wrap 未加载时回退 User/UserCircle）
+        // 音效：展开面板=打开 23，再按收起=关闭 24（2026-08-17 用户方案）
         ImGui.SameLine(0, spacing);
         var playersActive = Panel == SidePanel.Players;
-        if (ImGuiUtil.IconButton(playersActive ? FontAwesomeIcon.UserCircle : FontAwesomeIcon.User, id: "panel-players",
-                tooltip: Language.Search_Players, font: Plugin.FontManager.FontAwesomeSmall))
+        if (ImGuiUtil.NativeIconButton(NativeIcons.Players, "panel-players", Language.Search_Players,
+                playersActive ? FontAwesomeIcon.UserCircle : FontAwesomeIcon.User,
+                sfx: playersActive ? ImGuiUtil.BtnSfx.Close : ImGuiUtil.BtnSfx.Open))
             Panel = playersActive ? SidePanel.None : SidePanel.Players;
 
-        // 📅 日历
+        // 📅 筛选日期（用户新素材 icon_01，与玩家同图——"选日期"也是一种"筛选"）
+        // 音效：展开=打开 23，再按收起=关闭 24
         ImGui.SameLine(0, spacing);
         var calActive = Panel == SidePanel.Calendar;
-        if (ImGuiUtil.IconButton(calActive ? FontAwesomeIcon.CalendarCheck : FontAwesomeIcon.CalendarAlt, id: "panel-calendar",
-                tooltip: Language.Search_Calendar, font: Plugin.FontManager.FontAwesomeSmall))
+        if (ImGuiUtil.NativeIconButton(NativeIcons.Funnel, "panel-calendar", Language.Search_Calendar,
+                calActive ? FontAwesomeIcon.CalendarCheck : FontAwesomeIcon.CalendarAlt,
+                sfx: calActive ? ImGuiUtil.BtnSfx.Close : ImGuiUtil.BtnSfx.Open))
             Panel = calActive ? SidePanel.None : SidePanel.Calendar;
 
-        // 🔒 锁定 / × 关闭（流式跟在后面，搜索框已预留空间）
+        // × 关闭（原生图标：用户新素材 icon_24 粗X；wrap 未加载时回退 Times）
+        // ⚠️ SFX 25 关闭音（2026-08-17 用户方案：关闭/重置筛选按钮统一 25）
         ImGui.SameLine(0, spacing);
-        if (ImGuiUtil.IconButton(MoveLocked ? FontAwesomeIcon.Lock : FontAwesomeIcon.Unlock, id: "toggle-lock", tooltip: MoveLocked ? "解锁窗口移动" : "锁定窗口移动", font: Plugin.FontManager.FontAwesomeSmall))
-            MoveLocked = !MoveLocked;
-
-        ImGui.SameLine(0, spacing);
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.Times, id: "window-close", tooltip: Language.Search_Close, font: Plugin.FontManager.FontAwesomeSmall))
+        if (ImGuiUtil.NativeIconButton(NativeIcons.Close, "window-close", Language.Search_Close, FontAwesomeIcon.Times, sfx: ImGuiUtil.BtnSfx.Dismiss))
             IsOpen = false;
     }
 
@@ -359,6 +385,10 @@ public class SearchWindow : Window
         using var area = ImRaii.Child("##history-area", new Vector2(-1 - rightW, height), false, ImGuiWindowFlags.NoScrollbar);
         if (!area.Success)
             return;
+
+        // 记录消息区容器矩形（缩放手柄锚点：手柄画在消息区右上角，2026-08-17 用户决策）
+        MsgAreaMin = ImGui.GetWindowPos();
+        MsgAreaMax = MsgAreaMin + ImGui.GetWindowSize();
 
         // 右键：快捷选择使用哪个 Tab 的接收频道
         if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows) && ImGui.IsMouseClicked(ImGuiMouseButton.Right))
@@ -402,7 +432,8 @@ public class SearchWindow : Window
             LoadEarlier();
 
         Plugin.ChatLog.DrawMessageLog(DisplayTab, Plugin.ChatLog.InputHandler.PayloadHandler,
-            ImGui.GetContentRegionAvail().Y, false, State, PendingScrollTo, onMessageClick: ShowContext);
+            ImGui.GetContentRegionAvail().Y, false, State, PendingScrollTo, onMessageClick: ShowContext,
+            onMessageArea: (min, max) => { LastMessageAreaMin = min; LastMessageAreaMax = max; });
         // ⚠️ 不在此清空 PendingScrollTo：首帧消息刚注入、child 滚动范围未建立，
         // SetScrollHereY 无效——若清空则永远定位不到。保留到定位成功或用户滚动/切换。
     }
@@ -713,7 +744,8 @@ public class SearchWindow : Window
         });
     }
 
-    // ================= 缩放手柄（右上角，仿 PopOut） =================
+    // ================= 缩放手柄（消息区右上角，仿 PopOut） =================
+    // ⚠️ 2026-08-17 用户决策：手柄从窗口右上角移到消息区右上角（锚点 = ##history-area 容器矩形）。
 
     private void DrawTopRightResizeHandle()
     {
@@ -722,14 +754,18 @@ public class SearchWindow : Window
         var style = ImGui.GetStyle();
         const float hSize = 16f;
 
+        // 锚点 = 消息区容器右上角（上一帧 DrawMessageArea 记录；窗口刚打开第一帧为 Zero 则退化到窗口）
+        var areaMin = MsgAreaMax.X > 0f ? MsgAreaMin : windowPos;
+        var areaSize = MsgAreaMax.X > 0f ? MsgAreaMax - MsgAreaMin : windowSize;
+
         var insetX = Plugin.Config.NativeBackground ? 8f : 3f;
         var insetY = Plugin.Config.NativeBackground ? 4f : 3f;
         var localPos = new Vector2(
-            windowSize.X - hSize - style.WindowPadding.X - insetX,
+            areaSize.X - hSize - style.WindowPadding.X - insetX,
             style.WindowPadding.Y + insetY);
 
         var mousePos = ImGui.GetIO().MousePos;
-        var handleRectMin = windowPos + localPos;
+        var handleRectMin = areaMin + localPos;
         var handleRectMax = handleRectMin + new Vector2(hSize, hSize);
         var hovered = mousePos.X >= handleRectMin.X && mousePos.X <= handleRectMax.X
                       && mousePos.Y >= handleRectMin.Y && mousePos.Y <= handleRectMax.Y;
@@ -765,7 +801,7 @@ public class SearchWindow : Window
             ? ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.8f))
             : ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.4f));
         var drawList = ImGui.GetWindowDrawList();
-        var p = windowPos + localPos;
+        var p = areaMin + localPos;
         const float thickness = 2f;
         drawList.AddLine(p + new Vector2(10f, 2f), p + new Vector2(15f, 7f), lineColor, thickness);
         drawList.AddLine(p + new Vector2(4f, 2f), p + new Vector2(15f, 13f), lineColor, thickness);

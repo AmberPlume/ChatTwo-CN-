@@ -159,6 +159,12 @@
     <data name="Options_Tabs_InputChannel">
         <value>Input channel</value>
     </data>
+    <data name="Options_Tabs_InputChannelLocked">
+        <value>Always lock input channel</value>
+    </data>
+    <data name="Options_Help_InputChannelLocked">
+        <value>When enabled, the input channel is forced every frame (manual switching is reverted). When disabled, the channel is set once when switching to this tab and can be freely changed afterwards.</value>
+    </data>
     <data name="Options_Tabs_Channels">
         <value>Channels</value>
     </data>
@@ -1120,6 +1126,12 @@ Your old database can still be recovered, please contact the plugin author for h
     <data name="Options_NativeBackground_Description">
         <value>Keep backgrounds only for the message area, input box and tab bar; the rest of the window is fully transparent (showing the game behind it).</value>
     </data>
+    <data name="Options_MoveLocked_Name">
+        <value>Lock window movement</value>
+    </data>
+    <data name="Options_MoveLocked_Description">
+        <value>Only the message area becomes non-draggable (prevents accidentally dragging the window while selecting text); the rest of the window can still be dragged.</value>
+    </data>
     <data name="Search_Title">
         <value>Chat Log History</value>
     </data>
@@ -1169,10 +1181,10 @@ Your old database can still be recovered, please contact the plugin author for h
         <value>Reset</value>
     </data>
     <data name="Search_Players">
-        <value>Players</value>
+        <value>Filter Players</value>
     </data>
     <data name="Search_Calendar">
-        <value>Calendar</value>
+        <value>Filter Date</value>
     </data>
     <data name="Search_PlayerHint">
         <value>Search players...</value>

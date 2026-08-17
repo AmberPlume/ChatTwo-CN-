@@ -161,6 +161,12 @@
   <data name="Options_Tabs_InputChannel">
     <value>输入频道</value>
   </data>
+  <data name="Options_Tabs_InputChannelLocked">
+    <value>输入频道始终锁定</value>
+  </data>
+  <data name="Options_Help_InputChannelLocked">
+    <value>勾选后输入频道每帧被强制（手动切换会被拉回）；不勾选则只在切换到本标签页时自动设置一次频道，之后可自由切换。</value>
+  </data>
   <data name="Options_Tabs_Channels">
     <value>接收频道</value>
   </data>
@@ -1122,6 +1128,12 @@
   <data name="Options_NativeBackground_Description">
     <value>只给消息区、输入框、标签页保留背景，窗口其余区域完全透明（显示游戏画面）。</value>
   </data>
+  <data name="Options_MoveLocked_Name">
+    <value>锁定窗口移动</value>
+  </data>
+  <data name="Options_MoveLocked_Description">
+    <value>只让消息区变为不可拖动（防止选取文本时误拖动窗口），窗口其余区域仍可拖动。</value>
+  </data>
   <data name="Search_Title">
     <value>聊天记录</value>
   </data>
@@ -1171,10 +1183,10 @@
     <value>重置</value>
   </data>
   <data name="Search_Players">
-    <value>玩家</value>
+    <value>筛选玩家</value>
   </data>
   <data name="Search_Calendar">
-    <value>日历</value>
+    <value>筛选日期</value>
   </data>
   <data name="Search_PlayerHint">
     <value>搜索玩家…</value>

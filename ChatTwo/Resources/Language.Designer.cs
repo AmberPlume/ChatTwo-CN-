@@ -2595,7 +2595,26 @@ namespace ChatTwo.Resources {
             get {
                 return ResourceManager.GetString("Options_NativeBackground_Name", resourceCulture);
             }
-        }
+        }
+        /// <summary>
+        ///   Looks up a localized string similar to Lock window movement.
+        /// </summary>
+        internal static string Options_MoveLocked_Name {
+            get {
+                return ResourceManager.GetString("Options_MoveLocked_Name", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Only the message area becomes non-draggable (prevents accidentally dragging the window while selecting text); the rest of the window can still be dragged..
+        /// </summary>
+        internal static string Options_MoveLocked_Description {
+            get {
+                return ResourceManager.GetString("Options_MoveLocked_Description", resourceCulture);
+            }
+        }
+        
+
         
         /// <summary>
         ///   Looks up a localized string similar to Styles.
@@ -2909,6 +2928,24 @@ namespace ChatTwo.Resources {
         internal static string Options_Tabs_InputChannel {
             get {
                 return ResourceManager.GetString("Options_Tabs_InputChannel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Always lock input channel.
+        /// </summary>
+        internal static string Options_Tabs_InputChannelLocked {
+            get {
+                return ResourceManager.GetString("Options_Tabs_InputChannelLocked", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to When enabled, the input channel is forced every frame (manual switching is reverted). When disabled, the channel is set once when switching to this tab and can be freely changed afterwards..
+        /// </summary>
+        internal static string Options_Help_InputChannelLocked {
+            get {
+                return ResourceManager.GetString("Options_Help_InputChannelLocked", resourceCulture);
             }
         }
         

@@ -188,6 +188,13 @@ public sealed class Plugin : IDalamudPlugin
 
             FontManager.BuildFonts();
 
+            // 原生 UI 图标（聊天记录窗口工具栏使用的 FFXIV 原生 PNG）。
+            // ⚠️ 2026-08-17 修复：恢复构造函数直接 Load（首次成功验证过的逻辑，16:12 日志
+            // search=True）。之前改懒加载时把这里的调用删了、又没给 NativeIcons 设 _tp，
+            // 导致 EnsureLoaded 永远不加载 → 全部回退 FontAwesome（用户实测图标消失）。
+            // 失败时按钮回退到 FontAwesome，不会阻塞插件启动。
+            NativeIcons.Load(TextureProvider);
+
             Interface.UiBuilder.DisableCutsceneUiHide = true;
             Interface.UiBuilder.DisableGposeUiHide = true;
 
@@ -240,6 +247,7 @@ public sealed class Plugin : IDalamudPlugin
         MessageManager?.DisposeAsync().AsTask().Wait();
         Functions?.Dispose();
         Commands?.Dispose();
+        NativeIcons.DisposeAll();
     }
 
     private void Draw()
@@ -298,6 +306,9 @@ public sealed class Plugin : IDalamudPlugin
     {
         if (DeferredSaveFrames >= 0 && DeferredSaveFrames-- == 0)
             SaveConfig();
+
+        // SFX 批量试听驱动（/chat2 sfxscan，调试命令，2026-08-17）
+        SettingsWindow.UpdateSfxScan();
 
         // ⚠️ 2026-08-14 07:57 实验：注释"屏幕外可见"hack，干净验证 OwnerAddon=0（bindToOwner=false 等效）是否单独有效。
         // if (GameFunctions.GameFunctions.IsNativeSubContextMenuVisible())

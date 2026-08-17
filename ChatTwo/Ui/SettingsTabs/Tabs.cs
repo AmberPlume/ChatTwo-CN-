@@ -261,6 +261,11 @@ public sealed class Tabs : ISettingsTab
                     }
                 }
 
+                // 输入频道始终锁定（2026-08-17 用户需求）：仅当选择了具体频道（非"无"）时显示。
+                // 勾选 = 每帧强制频道（手动切换被拉回）；不勾选 = 只在切换到此标签页时自动设置一次
+                if (tab.Channel != null)
+                    ImGui.Checkbox(Language.Options_Tabs_InputChannelLocked, ref tab.InputChannelLocked);
+
                 var player = Plugin.ObjectTable.LocalPlayer;
                 if (tab.Channel == InputChannel.Tell && player != null)
                 {

@@ -32,6 +32,22 @@
         </EmbeddedResource>
     </ItemGroup>
 
+    <!-- 原生 UI 图标（FFXIV circlebuttons_hr1 切出，作为插件嵌入资源分发）。 -->
+    <!-- 资源 ID = "ChatTwo.images.&lt;filename&gt;.png"（RootNamespace=ChatTwo；⚠️ 不是 ChatTwoCN）。 -->
+    <ItemGroup>
+        <EmbeddedResource Include="images\toolbar_chatsearch.png" />
+        <EmbeddedResource Include="images\toolbar_searchgo.png" />
+        <EmbeddedResource Include="images\toolbar_players.png" />
+        <EmbeddedResource Include="images\toolbar_close.png" />
+        <EmbeddedResource Include="images\toolbar_gear.png" />
+        <EmbeddedResource Include="images\toolbar_funnel.png" />
+        <EmbeddedResource Include="images\toolbar_bubble.png" />
+        <EmbeddedResource Include="images\toolbar_plus.png" />
+        <EmbeddedResource Include="images\toolbar_leaf.png" />
+        <EmbeddedResource Include="images\toolbar_lock_open.png" />
+        <EmbeddedResource Include="images\toolbar_lock_closed.png" />
+    </ItemGroup>
+
     <ItemGroup>
       <Folder Include="images\" />
     </ItemGroup>

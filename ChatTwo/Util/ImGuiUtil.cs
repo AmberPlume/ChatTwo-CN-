@@ -15,6 +15,7 @@ using Dalamud.Interface.Style;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Bindings.ImGui;
+using FFXIVClientStructs.FFXIV.Client.UI;
 
 namespace ChatTwo.Util;
 
@@ -296,6 +297,79 @@ public static class ImGuiUtil
             Tooltip(tooltip);
 
         return ret;
+    }
+
+    /// <summary>原生按钮音效类型（2026-08-17 用户实测确认）：打开=23、再按关闭=24、隐藏/关闭/重置=25。</summary>
+    public enum BtnSfx
+    {
+        /// <summary>无声（排除项：频道/添加tab/搜索/关闭窗口/新人）</summary>
+        None = -1,
+        /// <summary>打开（设置/聊天记录入口/筛选面板展开）SFX 23</summary>
+        Open = 23,
+        /// <summary>再按一次关闭（筛选面板收起）SFX 24</summary>
+        Close = 24,
+        /// <summary>隐藏/关闭/重置筛选（chat-hide/window-close/date-clear/player-clear）SFX 25</summary>
+        Dismiss = 25,
+    }
+
+    /// <summary>
+    /// 原生贴图图标按钮。
+    /// <para>
+    /// 交互反馈（2026-08-17 用户决策，替代"方形底框"）：不画 hover/active 背景矩形，
+    /// 状态只靠图标本身——hover 轻微拉亮（tint 1.25）、按下下沉 1px（模拟原生按钮 pressed）。
+    /// 点击时播放 <paramref name="sfx"/> 指定音效（默认打开音 23；排除项传 <see cref="BtnSfx.None"/>）。
+    /// </para>
+    /// </summary>
+    public static bool NativeIconButton(
+        Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap? wrap,
+        string id,
+        string? tooltip = null,
+        FontAwesomeIcon fallbackIcon = FontAwesomeIcon.Question,
+        Vector2? size = null,
+        BtnSfx sfx = BtnSfx.Open)
+    {
+        // 资源未到位：用 FontAwesome 兜底，保证布局不变（FontAwesome 路径不播声音，保持原行为）
+        if (wrap == null)
+            return IconButton(fallbackIcon, id, tooltip, Plugin.FontManager.FontAwesomeSmall);
+
+        var s = size ?? CalcIconButtonSize();
+        var clicked = ImGui.InvisibleButton($"##{id}", s);
+        var min = ImGui.GetItemRectMin();
+        var max = ImGui.GetItemRectMax();
+        var dl = ImGui.GetWindowDrawList();
+
+        // 状态反馈仅靠图标 tint + 偏移（无方形底框）：
+        // 常态 1.0；hover 轻微拉亮（1.25，原 1.4 太亮）；按下微亮 + 下沉 1px（"按进去"感）
+        Vector4 tint = new(1f, 1f, 1f, 1f);
+        float pressOffset = 0f;
+        if (ImGui.IsItemActive())
+        {
+            tint = new Vector4(1.15f, 1.15f, 1.15f, 1f);
+            pressOffset = 1f;
+        }
+        else if (ImGui.IsItemHovered())
+        {
+            tint = new Vector4(1.25f, 1.25f, 1.25f, 1f);
+        }
+
+        // 图标绘制区：保持宽高比（contain）居中，不拉伸。
+        // ⚠️ 2026-08-17 修复：之前直接拉伸到整个按钮 → 宽>高的符号（如放大镜 21x32）
+        // 被横向压扁（用户实测"图标有点扁"）。改为按 wrap 原始宽高比等比缩放居中。
+        var avail = max - min;
+        var texSize = wrap.Size;  // 原始纹理尺寸
+        var scale = Math.Min(avail.X / texSize.X, avail.Y / texSize.Y);
+        var drawSize = texSize * scale;
+        var imgMin = min + (avail - drawSize) / 2f + new Vector2(0f, pressOffset);
+        var imgMax = imgMin + drawSize;
+        dl.AddImage(wrap.Handle, imgMin, imgMax, Vector2.Zero, Vector2.One, ImGui.ColorConvertFloat4ToU32(tint));
+
+        if (clicked && sfx != BtnSfx.None && Plugin.Config.PlaySounds)
+            unsafe { UIGlobals.PlaySoundEffect((uint)sfx); }
+
+        if (!string.IsNullOrEmpty(tooltip) && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+            Tooltip(tooltip);
+
+        return clicked;
     }
 
     public static bool OptionCheckbox(ref bool value, string label, string? description = null)
