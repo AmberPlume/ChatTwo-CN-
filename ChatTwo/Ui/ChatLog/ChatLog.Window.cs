@@ -90,6 +90,23 @@ public partial class ChatLog : Window, IChatWindow
     public Vector2 LastWindowPos { get; set; } = Vector2.Zero;
     public Vector2 LastWindowSize { get; set; } = Vector2.Zero;
 
+    // —— 分辨率变化窗口重定位（2026-08-17 方案 A v3，按原生 HUD 逻辑） ——
+    // 聊天框位置是绝对客户区坐标，游戏 HUD 按分辨率重排——全屏↔窗口切换（客户区大小
+    // 变化）时聊天框不跟随 → 相对 HUD 位移（用户反馈）。
+    // 原生 HUD 逻辑：元素带锚点，元素到锚点的边距随分辨率**等比缩放**。所以：
+    // ①稳定帧记录窗口就近的边（左/右、上/下，锚点）+ 绝对像素边距
+    // ②变化帧只标记；稳定后延迟一帧按"边距 × 缩放系数"重建位置（与原生 HUD 行为一致）
+    // ③变化帧不刷新锚定（避免切换瞬间中间态/自动 clamp 污染 → 多次切换漂移超屏，v1 教训）
+    // ④目标 clamp 到可视区兜底防超屏
+    // 开销：稳定帧一次四则运算，可忽略。
+    private Vector2 _lastDisplaySize = Vector2.Zero;
+    private Vector2 _resizeFromSize = Vector2.Zero;
+    private bool _resizePending;
+    private bool _anchorLeft; // true=锚左（记录左边距），false=锚右（记录右边距）
+    private float _marginX;
+    private bool _anchorTop;  // true=锚上，false=锚下
+    private float _marginY;
+
     public readonly List<bool> PopOutDocked = [];
     public readonly HashSet<Guid> PopOutWindows = [];
 
@@ -507,6 +524,10 @@ public partial class ChatLog : Window, IChatWindow
 
         if (Plugin.Config is { OverrideStyle: true, ChosenStyle: not null })
             StyleModel.GetConfiguredStyles()?.FirstOrDefault(style => style.Name == Plugin.Config.ChosenStyle)?.Push();
+
+        // ⚠️ 分辨率重定位逻辑在 Draw() 开头（Begin 之后）执行：PreDraw 在窗口 Begin 前，
+        // GetWindowPos/GetWindowSize 读到的是错误/过期值，SetWindowPos 也不可靠（v3 实测
+        // 每次切换向同一方向漂移超屏的根因）。Draw 内位置读取与立即定位才正确。
     }
 
     public override void PostDraw()
@@ -531,6 +552,55 @@ public partial class ChatLog : Window, IChatWindow
     public override void Draw()
     {
         DrewThisFrame = true;
+
+        // 分辨率变化窗口重定位（方案 A v4，原生 HUD 逻辑）：此处已处于窗口 Begin 之后，
+        // GetWindowPos/GetWindowSize 可靠、SetWindowPos 立即生效（v3 在 PreDraw 读位置导致
+        // 锚定污染、每次切换同向漂移超屏——已修正）。
+        // 原生 HUD = 锚点 + 边距随分辨率等比缩放：稳定帧记录就近锚点与边距，
+        // 切换帧延迟一拍后按"边距 × 缩放系数"重建位置，clamp 防超屏。
+        var display = ImGui.GetIO().DisplaySize;
+        if (display.X > 1f && display.Y > 1f)
+        {
+            if (_lastDisplaySize.X <= 0f)
+            {
+                _lastDisplaySize = display;
+            }
+            else if (display != _lastDisplaySize)
+            {
+                _resizeFromSize = _lastDisplaySize;
+                _lastDisplaySize = display;
+                _resizePending = true;
+            }
+            else if (_resizePending)
+            {
+                // 尺寸已稳定的第一帧：用记录的锚定边距 × 缩放系数重建位置
+                // （此刻 pos 还是旧位置，不刷新锚定——避免污染导致累积漂移）
+                _resizePending = false;
+                var size = ImGui.GetWindowSize();
+                var sx = display.X / _resizeFromSize.X;
+                var sy = display.Y / _resizeFromSize.Y;
+                var x = _anchorLeft ? _marginX * sx : display.X - _marginX * sx - size.X;
+                var y = _anchorTop ? _marginY * sy : display.Y - _marginY * sy - size.Y;
+                x = Math.Clamp(x, 0f, Math.Max(0f, display.X - size.X));
+                y = Math.Clamp(y, 0f, Math.Max(0f, display.Y - size.Y));
+                ImGui.SetWindowPos(new Vector2(x, y));
+            }
+            else
+            {
+                // 稳定帧：记录就近边锚定 + 绝对像素边距（窗口在左半→锚左，上半→锚上…）
+                var pos = ImGui.GetWindowPos();
+                var size = ImGui.GetWindowSize();
+                var left = pos.X;
+                var right = display.X - pos.X - size.X;
+                _anchorLeft = left <= right;
+                _marginX = _anchorLeft ? left : right;
+                var top = pos.Y;
+                var bottom = display.Y - pos.Y - size.Y;
+                _anchorTop = top <= bottom;
+                _marginY = _anchorTop ? top : bottom;
+            }
+        }
+
         // 聊天内容：默认 Axis 游戏字体（原生观感）；用户选了自定义字体后改用 RegularFont
         using var mainFont = (Plugin.Config.FontsEnabled ? Plugin.FontManager.RegularFont : Plugin.FontManager.Axis).Push();
         try

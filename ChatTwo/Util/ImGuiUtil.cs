@@ -103,7 +103,8 @@ public static class ImGuiUtil
     }
 
     /// <summary>在指定位置画 8 方向 0.5px 半透明黑色文字（描边底层）。0.5px 为实用下限，再小会模糊。
-    /// 半透明灰（0x80000000）更接近 FFXIV Axis 原生观感（猜测：游戏描边是柔和灰而非纯黑）。</summary>
+    /// 半透明灰（0x80000000）更接近 FFXIV Axis 原生观感（猜测：游戏描边是柔和灰而非纯黑）。
+    /// ⚠️ 2026-08-17 试过 4 方向（上下左右）：用户实测视觉较差 → 回退 8 方向。</summary>
     private static void DrawOutline(Vector2 pos, string text)
     {
         var font = ImGui.GetFont();
