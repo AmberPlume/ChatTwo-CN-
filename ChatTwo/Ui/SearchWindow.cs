@@ -127,6 +127,7 @@ public class SearchWindow : Window
         Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar
               | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoFocusOnAppearing
               | ImGuiWindowFlags.NoResize;
+        BgAlpha = 0f; // ⚠️ 04:10 float? null=不透明，必须显式 0
 
 
         // ⚠️ 2026-08-17 用户决策（17:38 纠正）：消息区任何情况下都不可拖（不依赖锁定开关），

@@ -153,6 +153,8 @@ public class Popout : Window, IChatWindow
         if (!Plugin.ChatLog.PopOutDocked[Idx])
         {
             // 背景透明度独立（BackgroundAlpha，四透明度之一）；PopOut 统一跟随主窗口。
+            // ⚠️ 04:10 修复：BgAlpha 是可空 float?，null=不透明背景——必须显式 0（停靠时保持不透明）
+            BgAlpha = 0f;
             // 仿原生：窗口整体透明（背景只画在消息区，与主窗口一致）
 
         }

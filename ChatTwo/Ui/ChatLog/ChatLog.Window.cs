@@ -115,6 +115,9 @@ public partial class ChatLog : Window, IChatWindow
     public readonly List<bool> PopOutDocked = [];
     public readonly HashSet<Guid> PopOutWindows = [];
 
+    // ⚠️ 2026-08-18 长按拖出：tab 按下起始时间（tabI → TickCount64；松手时判断是否 ≥600ms）
+    private readonly Dictionary<int, long> _tabPressStart = [];
+
     private bool IsResizingTopRight;
     private Vector2 ResizeStartMousePos;
     private Vector2 ResizeStartWindowPos;
@@ -495,6 +498,8 @@ public partial class ChatLog : Window, IChatWindow
             Flags |= ImGuiWindowFlags.NoMove;
 
         if (LastViewport == ImGuiHelpers.MainViewport.Handle && !WasDocked)
+            // ⚠️ 04:10 修复：BgAlpha 是可空 float?，null=不透明背景！必须显式 0（基类默认不透明，删了背景就回来）
+            BgAlpha = 0f;
 
 
         LastViewport = ImGui.GetWindowViewport().Handle;
@@ -1691,6 +1696,23 @@ public partial class ChatLog : Window, IChatWindow
             var btnMin = ImGui.GetItemRectMin();
             var btnMax = ImGui.GetItemRectMax();
 
+            // ⚠️ 2026-08-18 长按拖出（用户新想法）：原生 tab 按住 ≥600ms 松手 → 该 tab 弹出为 PopOut。
+            // 长按时不触发 tab 切换（松手只拖出）；普通点击照常切换。
+            var now = Environment.TickCount64;
+            var tabDown = ImGui.IsItemActive();
+            var longPressed = false;
+            if (tabDown)
+                _tabPressStart.TryAdd(tabI, now);
+            else if (_tabPressStart.TryGetValue(tabI, out var downAt))
+            {
+                _tabPressStart.Remove(tabI);
+                if (now - downAt >= 600)
+                {
+                    tab.PopOut = true;  // AddPopOutsToDraw 下一帧创建 PopOut 窗口
+                    longPressed = true;
+                }
+            }
+
             if (middle != null)
             {
                 drawList.AddImage(middle.Handle, btnMin, btnMax);
@@ -1737,8 +1759,9 @@ public partial class ChatLog : Window, IChatWindow
             // 分割线在每个中段后（含最后一个——中段N与右帽之间也要；+ 前（右帽后）无）
             DrawDivider();
 
-            // ⚠️ 04:06 重构：点击切换逻辑抽公共 HandleTabClick（原生/非原生共用）
-            if (HandleTabClick(tabI, clicked, tab))
+            // ⚠️ 04:06 重构：点击切换逻辑抽公共 HandleTabClick（原生/非原生共用）；
+            // ⚠️ 04:12 长按拖出时（longPressed）跳过切换（只拖出不切 tab）
+            if (!longPressed && HandleTabClick(tabI, clicked, tab))
                 anyClicked = true;
         }
 
