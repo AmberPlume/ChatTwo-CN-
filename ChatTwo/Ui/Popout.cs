@@ -119,7 +119,7 @@ public class Popout : Window, IChatWindow
         if (!Plugin.Config.ShowPopOutTitleBar)
             Flags |= ImGuiWindowFlags.NoTitleBar;
 
-        // !!! 决策（纠正）：消息区任何情况下都不可拖（不依赖锁定开关），
+        // !!! 消息区任何情况下都不可拖（不依赖锁定开关），
         // NoMove 只禁窗口拖动、不影响文本选取；未锁定时其余区域可拖；
         // 打开"锁定窗口移动"后整个窗口锁死。
         // !!! 矩形用 PopOut 自己的（不能读 Plugin.ChatLog 的——共享 DrawMessageLog，
@@ -249,7 +249,7 @@ public class Popout : Window, IChatWindow
     }
 
         // 底部行：左下角 tab 名（像 tab 标签）+ 右侧 关闭 按钮。
-        // 锁定按钮已移除（决策：锁定改到设置页，且只锁消息区）。
+        // 锁定按钮已移除（锁定改到设置页，且只锁消息区）。
         // 关闭是窗口级按钮，放这里两种模式（有无输入区）都可见。
         // !!! 无 Separator：实测分割线会让 tab 行下移被底部截断
         private void DrawPopOutTabBar()

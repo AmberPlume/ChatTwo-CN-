@@ -35,34 +35,44 @@ public sealed class Display : ISettingsTab
         ImGuiUtil.OptionCheckbox(ref Mutable.HideInLoadingScreens, Language.Options_HideInLoadingScreens_Name, string.Format(Language.Options_HideInLoadingScreens_Description, Plugin.PluginName));
         ImGui.Spacing();
 
-        // "在战斗中隐藏" / "非活动时隐藏"已删除：保持关闭（要求）
+        // "在战斗中隐藏" / "非活动时隐藏"已删除：保持关闭
 
         ImGui.Separator();
         ImGui.Spacing();
 
         // ═══════════════ 窗口 ═══════════════
-        // 以下项从"窗口调整"页挪入（要求：基础设置统一管窗口行为）
-        // 显示时间戳：已移至"消息设置"页的时间戳菜单（v1.40.17+，要求）
-        // 仿原生窗口：已移至"窗口调整"页（v1.40.17+，要求改名"仿原生窗口"）
+        // 以下项从"窗口调整"页挪入（基础设置统一管窗口行为）
+        // 显示时间戳：已移至"消息设置"页的时间戳菜单（v1.40.17+）
+        // 仿原生窗口：已移至"窗口调整"页（v1.40.17+，改名"仿原生窗口"）
 
         // 锁定窗口移动（锁按钮从工具栏移除，改回设置项；
         // 开启后只有消息区不可拖动（选字防误拖），窗口其他区域仍可拖）
         ImGuiUtil.OptionCheckbox(ref Mutable.MoveLocked, Language.Options_MoveLocked_Name, Language.Options_MoveLocked_Description);
         ImGui.Spacing();
 
-        using (var tabCombo = ImGuiUtil.BeginComboVertical(Language.Options_TabPosition_Name, Mutable.TabPosition.Name()))
+        // 标签页位置：仿原生窗口（NativeBackground）下固定底部（三段式贴图只支持底部），选项置灰。
+        // !!! Disabled 必须限制在块级作用域——用 using var 会延到方法末尾，把下面所有设置项一起置灰
+        using (ImRaii.Disabled(Mutable.NativeBackground))
         {
-            if (tabCombo.Success)
+            using (var tabCombo = ImGuiUtil.BeginComboVertical(Language.Options_TabPosition_Name, Mutable.TabPosition.Name()))
             {
-                foreach (var tabPos in Enum.GetValues<TabPosition>())
-                    if (ImGui.Selectable(tabPos.Name(), Mutable.TabPosition == tabPos))
-                        Mutable.TabPosition = tabPos;
+                if (tabCombo.Success)
+                {
+                    // 顶部选项已移除（窗口背景完全透明后顶部标签页无原生布局支撑）
+                    foreach (var tabPos in Enum.GetValues<TabPosition>())
+                    {
+                        if (tabPos == TabPosition.Top)
+                            continue;
+                        if (ImGui.Selectable(tabPos.Name(), Mutable.TabPosition == tabPos))
+                            Mutable.TabPosition = tabPos;
+                    }
+                }
             }
+            ImGuiUtil.TooltipOnLastItem(Language.Options_TabPosition_Description);   // 悬浮下拉框即出说明
         }
-        ImGuiUtil.TooltipOnLastItem(Language.Options_TabPosition_Description);   // 悬浮下拉框即出说明
         ImGui.Spacing();
 
-        // 未读消息提示方式（要求放在基础设置）：高亮/呼吸/无
+        // 未读消息提示方式（放在基础设置）：高亮/呼吸/无
         var currentUnread = Mutable.UnreadNotifyMode;
         using (var combo = ImRaii.Combo(Language.Options_UnreadNotifyMode_Name, currentUnread.Name()))
         {
@@ -78,7 +88,7 @@ public sealed class Display : ISettingsTab
         ImGui.Separator();
         ImGui.Spacing();
 
-        // 保持输入焦点（与显示时间戳互换位置，要求）
+        // 保持输入焦点（与显示时间戳互换位置）
         ImGuiUtil.OptionCheckbox(ref Mutable.KeepInputFocus, Language.Options_KeepInputFocus_Name, Language.Options_KeepInputFocus_Description);
         ImGui.Spacing();
 
@@ -86,14 +96,14 @@ public sealed class Display : ISettingsTab
         ImGuiUtil.OptionCheckbox(ref Mutable.SortAutoTranslate, Language.Options_SortAutoTranslate_Name, Language.Options_SortAutoTranslate_Description);
         ImGui.Spacing();
 
-        // "现代化布局/更紧凑的现代布局/隐藏重复的时间戳"已删除：保持传统时间戳样式（要求）
-        // "折叠重复消息"及其子选项已删除（要求）
+        // "现代化布局/更紧凑的现代布局/隐藏重复的时间戳"已删除：保持传统时间戳样式
+        // "折叠重复消息"及其子选项已删除
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
-        // 字体相关设置已拆分到独立"字体设置"页（v1.40.11+，要求）
+        // 字体相关设置已拆分到独立"字体设置"页（v1.40.11+）
 
         ImGui.Spacing();
 

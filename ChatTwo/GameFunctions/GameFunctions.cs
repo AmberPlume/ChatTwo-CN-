@@ -197,7 +197,7 @@ public unsafe class GameFunctions : IDisposable
 
         // Skips early return
         atkStage->TooltipManager.TooltipType |= 2;
-        // !!! 决策：放弃提示框"原生跟手"实验（机制上不存在"打开时游戏定位"，
+        // !!! 放弃提示框"原生跟手"实验（机制上不存在"打开时游戏定位"，
         // agent Show 也不定位，实测停旧位置）→ 还原为原版 addon->Show(false, 15)。
         // 提示框位置恢复由 ChatLog.Tooltip 的 SetPosDetour/MoveTooltip（智能放置：避开聊天框）控制。
         addon->Show(false, 15);

@@ -136,7 +136,7 @@ public partial class ChatLog : Window, IChatWindow
     // 消息区交互状态（主窗口实例；PopOut 各自持有独立实例）
     public readonly MessageLogState MsgState = new();
 
-    // 底部标签页栏末尾"+"新建标签页的命名输入（要求：点 + 弹窗命名后创建）
+    // 底部标签页栏末尾"+"新建标签页的命名输入（点 + 弹窗命名后创建）
     private string NewTabName = string.Empty;
 
     // Tracks the tab index rendered in the previous frame, used to detect
@@ -496,7 +496,7 @@ public partial class ChatLog : Window, IChatWindow
         MouseOverResizeHandle = mp.X >= handleMin.X && mp.X <= handleMax.X
                               && mp.Y >= handleMin.Y && mp.Y <= handleMax.Y;
 
-        // !!! 决策（纠正）：消息区任何情况下都不可拖（不依赖锁定开关），
+        // !!! 消息区任何情况下都不可拖（不依赖锁定开关），
         // NoMove 只禁窗口拖动、不影响插件自身文本选取；未锁定时其余区域（tab/输入框/空白）
         // 仍可拖动窗口；打开"锁定窗口移动"后剩余区域也不可拖（整个窗口锁死）。
         // 缩放中/手柄上照旧禁止拖动。
@@ -858,8 +858,10 @@ public partial class ChatLog : Window, IChatWindow
         LastViewport = ImGui.GetWindowViewport().Handle;
         WasDocked = ImGui.IsWindowDocked();
 
-        var bottomTabs = Plugin.Config.TabPosition is TabPosition.Bottom;
-        var sideTabs = Plugin.Config.TabPosition is TabPosition.Side;
+        // 仿原生界面（NativeBackground）下标签页固定底部（三段式贴图只支持底部），位置选项失效。
+        // 顶部选项已移除（窗口背景完全透明后无布局支撑）→ Top 旧配置也归为底部
+        var bottomTabs = Plugin.Config.NativeBackground || Plugin.Config.TabPosition is not TabPosition.Side;
+        var sideTabs = !Plugin.Config.NativeBackground && Plugin.Config.TabPosition is TabPosition.Side;
 
         if (sideTabs)
         {
@@ -950,7 +952,7 @@ public partial class ChatLog : Window, IChatWindow
         var btnSpacing = Plugin.Config.NativeBackground
             ? 2f * ImGuiHelpers.GlobalScale
             : ImGui.GetStyle().ItemSpacing.X;
-        // Cog + 搜索恒显示；隐藏/新人按钮按配置（锁按钮已移除，决策）
+        // Cog + 搜索恒显示；隐藏/新人按钮按配置（锁按钮已移除）
         var buttonsRight = 1 + 1 + (showNovice ? 1 : 0) + (Plugin.Config.ShowHideButton ? 1 : 0);
         var inputWidth = ImGui.GetContentRegionAvail().X - buttonWidth * buttonsRight - btnSpacing * buttonsRight;
         InputHandler.DrawInputArea(activeTab, inputWidth, ref TellSpecial);
@@ -1167,11 +1169,30 @@ public partial class ChatLog : Window, IChatWindow
     // !!! alpha 必须乘 WindowBg 的 alpha 分量：ImGui 渲染窗口背景时最终 alpha =
     // BgAlpha × WindowBg.alpha（相乘）——只取 WindowAlpha/100 会丢掉样式 alpha，
     // 在 WindowBg.alpha<1 时消息区比默认界面更不透明（更深），实测过
-    private Vector4 MessageLogBgColor()
+    /// <summary>消息区/侧面板背景色：默认 = WindowBg 的 RGB 向白色混合 25%（明显变淡，纯黑不再死黑）；
+    /// 玩家可自定义 RGB（CustomMessageLogBg）。透明度统一由 WindowAlpha（消息区透明度）控制。
+    /// SearchWindow 侧面板共用此方法（勿重复实现）。</summary>
+    internal static Vector4 ChatBackgroundColor()
     {
-        var winBg = ImGui.GetStyle().Colors[(int)ImGuiCol.WindowBg];
-        return new Vector4(winBg.X, winBg.Y, winBg.Z, winBg.W * (Plugin.Config.WindowAlpha / 100f));
+        Vector3 rgb;
+        if (Plugin.Config.CustomMessageLogBg)
+        {
+            rgb = ColourUtil.RgbaToVector3(Plugin.Config.MessageLogBgColor);
+        }
+        else
+        {
+            var winBg = ImGui.GetStyle().Colors[(int)ImGuiCol.WindowBg];
+            var fade = 0.25f;
+            rgb = new Vector3(
+                winBg.X + (1f - winBg.X) * fade,
+                winBg.Y + (1f - winBg.Y) * fade,
+                winBg.Z + (1f - winBg.Z) * fade);
+        }
+        var alpha = ImGui.GetStyle().Colors[(int)ImGuiCol.WindowBg].W * (Plugin.Config.WindowAlpha / 100f);
+        return new Vector4(rgb.X, rgb.Y, rgb.Z, alpha);
     }
+
+    private Vector4 MessageLogBgColor() => ChatBackgroundColor();
 
     public void DrawMessageLog(Tab tab, PayloadHandler handler, float childHeight, bool switchedTab, MessageLogState state, Guid? scrollToMessageId = null, Action<Message>? onMessageClick = null, Action<Vector2, Vector2>? onMessageArea = null)
     {
@@ -1201,7 +1222,7 @@ public partial class ChatLog : Window, IChatWindow
         if (!child.Success)
             return;
 
-        // 记录消息区屏幕矩形（供各窗口"消息区永远不可拖"hit-test，决策）。
+        // 记录消息区屏幕矩形（供各窗口"消息区永远不可拖"hit-test）。
         // !!! 共享 DrawMessageLog 的窗口（PopOut/SearchWindow）必须传 onMessageArea 写各自的
         // 矩形——否则共用 ChatLog 字段会被最后 Draw 的窗口覆盖（主窗口/PopOut 互相污染）。
         var areaMin = ImGui.GetWindowPos();
@@ -1238,7 +1259,7 @@ public partial class ChatLog : Window, IChatWindow
         var scrollY = ImGui.GetScrollY();
         selection.CurrentScrollY = scrollY;
 
-        // 左缩进留出左侧滚动条空间（要求贴近滚动条，从 14 减到 10）
+        // 左缩进留出左侧滚动条空间（贴近滚动条，从 14 减到 10）
         ImGui.Indent(10f);
 
         // !!! v1.40.17 清理：原作者"现代化布局"（DrawLogTableStyle 2 列表格渲染）已移除，
@@ -1402,6 +1423,10 @@ public partial class ChatLog : Window, IChatWindow
                     message.IsVisible[tab.Identifier] = nowVisible;
                 }
 
+                // 时间戳单独成列：时间戳占左侧固定列，正文整体缩进——ImGui.Indent 修改
+                // DC.Indent，ItemSize 结尾光标 X 重置到 Indent.x（TextEx/正文换行自动保持缩进，
+                // 不会绕回时间戳下方）。PushIndent 自动恢复；时间戳本身仍注册选字
+                IDisposable? tsIndent = null;
                 if (tab.DisplayTimestamp && Plugin.Config.ShowTimestamp)
                 {
                     var localTime = message.Date.ToLocalTime();
@@ -1409,11 +1434,23 @@ public partial class ChatLog : Window, IChatWindow
                     var timestamp = Plugin.Config.Use24HourClock
                         ? $"{localTime.Hour}:{localTime.Minute:00}"
                         : localTime.ToString("t", null);
-                    // 时间戳用主字体渲染（与聊天框文字大小一致，要求）。
+                    // 时间戳用主字体渲染（与聊天框文字大小一致）。
                     // !!! v1.40.17 清理：旧"现代化布局"表格分支已移除，统一 DrawTimestampInline 行内渲染
                     //（支持 去括号/紧凑排布/时间戳字间距）
-                    DrawTimestampInline(timestamp);
-                    ImGui.SameLine();
+                    if (Plugin.Config.TimestampOwnColumn)
+                    {
+                        var tsW = DrawTimestampInline(timestamp);
+                        // 列宽 = 时间戳文本宽 + 时间戳与正文间距（可调，默认 8px×scale）。
+                        // !!! scaled:false 必须——tsW 已是像素宽，PushIndent 默认 scaled=true 会再乘
+                        // GlobalScale（1.5）→ 缩进 1.5 倍 → 时间戳与正文巨大空白（实测）
+                        var colGap = Plugin.Config.TimestampColumnGap * ImGuiHelpers.GlobalScale;
+                        tsIndent = ImRaii.PushIndent(tsW + colGap, scaled: false);
+                    }
+                    else
+                    {
+                        DrawTimestampInline(timestamp);
+                        ImGui.SameLine();
+                    }
                 }
 
                 var lineWidth = ImGui.GetContentRegionAvail().X;
@@ -1429,13 +1466,15 @@ public partial class ChatLog : Window, IChatWindow
                 else
                     InputHandler.ChunkHandler.DrawChunks(message.Content, true, handler, lineWidth);
 
+                tsIndent?.Dispose();
+
                 message.IsVisible[tab.Identifier] = ImGui.IsItemVisible();
 
                 // 消息点击回调（聊天记录窗口用：点击消息定位上下文）
                 if (onMessageClick != null && ImGui.IsItemClicked(ImGuiMouseButton.Left))
                     onMessageClick(message);
 
-                // 段落间距（v1.40.17+ 要求）：消息行之间的额外垂直间距。
+                // 段落间距（v1.40.17+）：消息行之间的额外垂直间距。
                 // 放在消息内容之后 → 下一行的高度测量（GetCursorPosY - lastPosY）自然包含该间距，
                 // 隐藏消息的 Dummy 占位（height 缓存）也一致。
                 // 负值 = 收紧行距（利用字体行高余量，如 CJK 行高≈1.4×字号；过负会文字重叠）：
@@ -1463,11 +1502,12 @@ public partial class ChatLog : Window, IChatWindow
     }
 
     /// <summary>
-    /// 绘制行内时间戳（v1.40.17+ 要求，替代旧"现代化布局"表格逻辑的 DrawChunk 方式）：
+    /// 绘制行内时间戳（v1.40.17+，替代旧"现代化布局"表格逻辑的 DrawChunk 方式）：
     /// 逐字符 AddText 实现 字间距自由调整；配合 去括号 / 紧凑排布 两个独立子选项。
     /// 用 Dummy 锚定光标（SameLine / GetContentRegionAvail 依赖上一个 item 的矩形）。
+    /// 返回时间戳文本渲染宽度（不含 tailGap；单独成列模式用其做正文缩进量）。
     /// </summary>
-    private static void DrawTimestampInline(string timestamp)
+    private static float DrawTimestampInline(string timestamp)
     {
         var cfg = Plugin.Config;
         var text = cfg.RemoveTimestampBrackets ? timestamp : $"[{timestamp}]";
@@ -1523,6 +1563,8 @@ public partial class ChatLog : Window, IChatWindow
             charX[text.Length] = totalW;
             ImGuiUtil.CurrentSelection.AddChunk(startPos, startPos + new Vector2(totalW + tailGap, lineHeight), text, charX);
         }
+
+        return totalW;
     }
 
     private void DrawBottomTabLog()
@@ -1587,7 +1629,7 @@ public partial class ChatLog : Window, IChatWindow
         using var sbGrabActive = ImRaii.PushColor(ImGuiCol.ScrollbarGrabActive, 0u);
         using var sbBg = ImRaii.PushColor(ImGuiCol.ScrollbarBg, 0u);
         using var sbSize = ImRaii.PushStyle(ImGuiStyleVar.ScrollbarSize, 0f);
-        // !!! 消息区顶部下移 2px（要求；childHeight 基于剩余空间自动适配）
+        // !!! 消息区顶部下移 2px（childHeight 基于剩余空间自动适配）
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 2f);
         using var child = ImRaii.Child("##chat2-bottom-log", new Vector2(-1, childHeight), false, ImGuiWindowFlags.NoScrollWithMouse | (Plugin.ContextMenuActive || Plugin.ChatTwoMenuSession ? ImGuiWindowFlags.NoMouseInputs : ImGuiWindowFlags.None));
         if (!child.Success)
@@ -1699,7 +1741,7 @@ public partial class ChatLog : Window, IChatWindow
             var hasUnread = !active && tab.UnreadMode != UnreadMode.None && tab.Unread > 0
                 && Plugin.Config.UnreadNotifyMode != UnreadNotifyMode.None;
 
-            // 中段 = 真正的 tab：宽度 = 文字 + 左右各留一个字空间（要求缩短中段）；
+            // 中段 = 真正的 tab：宽度 = 文字 + 左右各留一个字空间（缩短中段）；
             // Button 只负责命中
             // !!! 字号 = tab 高 3/5（提前定义，中段宽计算也要用）
             var effectiveFontSize = tabHeight * 0.6f;
@@ -1712,7 +1754,7 @@ public partial class ChatLog : Window, IChatWindow
             var btnMin = ImGui.GetItemRectMin();
             var btnMax = ImGui.GetItemRectMax();
 
-            // !!! 长按拖出 v2（要求）：按住 ≥600ms 后**移动鼠标**才开始拖出
+            // !!! 长按拖出 v2：按住 ≥600ms 后**移动鼠标**才开始拖出
             //（原 v1 松手即弹突兀）。拖拽期间画 tab 幽灵跟随指针（见循环后），
             // 松手才创建 PopOut（定位在释放点）——期间不建窗，避免指针落在新窗口
             // 消息区上触发文本选中等干扰。
@@ -1850,8 +1892,8 @@ public partial class ChatLog : Window, IChatWindow
         }
 
         // 末尾"+"：原生加号图标（新素材 icon_11）；高度对齐原生 tab（51px×scale）。
-        // 无按钮音（排除项"添加tab"）。
-        if (ImGuiUtil.NativeIconButton(NativeIcons.Plus, "new-tab-bottom", null, FontAwesomeIcon.Plus,
+        // 无按钮音（排除项"添加tab"）。可被"隐藏添加标签页按钮"选项隐藏
+        if (!Plugin.Config.HideNewTabButton && ImGuiUtil.NativeIconButton(NativeIcons.Plus, "new-tab-bottom", null, FontAwesomeIcon.Plus,
                 size: new Vector2(ImGuiUtil.CalcIconButtonSize().X, tabHeight), sfx: ImGuiUtil.BtnSfx.None))
         {
             NewTabName = string.Empty;
@@ -2010,9 +2052,10 @@ public partial class ChatLog : Window, IChatWindow
             }
 
             // 末尾"+"：用 IconButton（无边框图标按钮，与输入框右侧齿轮/新人频道一致），
-            // 字号 FontAwesomeTab（随"标签页缩放"字体重建，v1.40.17+ 与输入区图标拆分）
+            // 字号 FontAwesomeTab（随"标签页缩放"字体重建，v1.40.17+ 与输入区图标拆分）。
+            // 可被"隐藏添加标签页按钮"选项隐藏
             ImGui.SameLine(0, 0);
-            if (ImGuiUtil.IconButton(FontAwesomeIcon.Plus, "new-tab-bottom", font: Plugin.FontManager.FontAwesomeTab))
+            if (!Plugin.Config.HideNewTabButton && ImGuiUtil.IconButton(FontAwesomeIcon.Plus, "new-tab-bottom", font: Plugin.FontManager.FontAwesomeTab))
             {
                 NewTabName = string.Empty;
                 ImGui.OpenPopup("chat2-new-tab-name");
@@ -2229,7 +2272,7 @@ public partial class ChatLog : Window, IChatWindow
 
     /// <summary>
     /// 未读标签页文字颜色：荧光绿 + 缓慢呼吸灯闪烁（亮度 0.5~1.0，周期约 1.3 秒）。
-    /// 要求"荧光绿 + 呼吸灯"。
+    /// 荧光绿 + 呼吸灯。
     /// </summary>
     private static Vector4 UnreadGreen()
     {

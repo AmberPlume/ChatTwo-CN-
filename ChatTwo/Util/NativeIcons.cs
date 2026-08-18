@@ -59,7 +59,7 @@ internal static class NativeIcons
     /// <summary>[设置] 设置（齿轮）— 新素材 icon_00</summary>
     public static IDalamudTextureWrap? Gear => EnsureLoaded(_gear);
 
-    /// <summary>[筛选] 筛选日期（漏斗）— 新素材 icon_01（与玩家同图，决策）</summary>
+    /// <summary>[筛选] 筛选日期（漏斗）— 新素材 icon_01（与玩家同图）</summary>
     public static IDalamudTextureWrap? Funnel => EnsureLoaded(_funnel);
 
     /// <summary>[频道] 频道切换（聊天气泡）— 新素材 icon_05</summary>
@@ -186,8 +186,8 @@ internal static class NativeIcons
         // 同步加载路径：ImageSharp 解码 PNG → Rgba32 原始像素 → CreateFromRaw。
         // !!! 不要用 CreateFromImageAsync + .Wait()：其 continuation 需回到主线程，
         // 在插件构造函数（主线程）里同步等待会死锁，图标永远加载不出来。
-        // !!! 决策：保持原生 UI 原样，不做颜色处理（之前转白是为了
-        // 在深色 ImGui 背景上可见，但要求"既然用原生图标就保持原生原样"）。
+        // !!! 保持原生 UI 原样，不做颜色处理（之前转白是为了
+        // 在深色 ImGui 背景上可见；原生图标保持原生原样。
         using var image = Image.Load<Rgba32>(bytes);
         var raw = image.ImageToRaw();
         return _tp!.CreateFromRaw(RawImageSpecification.Rgba32(image.Width, image.Height), raw, resName);

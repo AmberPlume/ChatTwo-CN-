@@ -79,7 +79,7 @@
         <value>Tab Bar Position</value>
     </data>
     <data name="Options_TabPosition_Description">
-        <value>Choose whether tabs appear at the top or bottom of the chat window.</value>
+        <value>Choose whether tabs appear at the top or bottom of the chat window. Locked to the bottom when the native-style window is enabled.</value>
     </data>
     <data name="Options_ShowTimestamp_Name">
         <value>Show timestamps</value>
@@ -110,6 +110,30 @@
     </data>
     <data name="Options_Timestamp_LetterSpacing_Description">
         <value>Freely adjust the spacing between timestamp characters (negative values tighten, positive values loosen). Independent of the message letter spacing.</value>
+    </data>
+    <data name="Options_Timestamp_OwnColumn_Name">
+        <value>Timestamp in its own column</value>
+    </data>
+    <data name="Options_Timestamp_OwnColumn_Description">
+        <value>Keep the timestamp in its own column on the left and indent the message body, so wrapped lines never return below the timestamp; messages stand out more clearly.</value>
+    </data>
+    <data name="Options_Timestamp_ColumnGap_Name">
+        <value>Timestamp to body spacing</value>
+    </data>
+    <data name="Options_Timestamp_ColumnGap_Description">
+        <value>Horizontal gap between the timestamp column and the message body (px), used when the timestamp is in its own column.</value>
+    </data>
+    <data name="Options_HideNewTabButton_Name">
+        <value>Hide add-tab button</value>
+    </data>
+    <data name="Options_HideNewTabButton_Description">
+        <value>Hide the "+" button at the end of the tab bar (new tabs can still be added via shortcuts or the right-click menu).</value>
+    </data>
+    <data name="Options_CustomMessageLogBg_Name">
+        <value>Custom message area background color</value>
+    </data>
+    <data name="Options_CustomMessageLogBg_Description">
+        <value>Customize the message area background color; when off it follows the theme (slightly lightened automatically). Opacity is always controlled by the "message area opacity" setting.</value>
     </data>
     <data name="Options_MessageSpacing_Name">
         <value>Message spacing</value>
