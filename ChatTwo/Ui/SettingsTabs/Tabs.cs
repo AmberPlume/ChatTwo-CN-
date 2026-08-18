@@ -242,8 +242,8 @@ public sealed class Tabs : ISettingsTab
         ImGuiUtil.DragFloatVertical(Language.Options_LetterSpacing_Name, Language.Options_LetterSpacing_Description, ref Mutable.MessageLetterSpacing, 0.1f, -3f, 6f, $"{Mutable.MessageLetterSpacing:0.0}px", ImGuiSliderFlags.AlwaysClamp);
         ImGui.Spacing();
 
-        // 段落间距独立于时间戳开关（消息行距，与时间戳无关）
-        ImGuiUtil.DragFloatVertical(Language.Options_MessageSpacing_Name, Language.Options_MessageSpacing_Description, ref Mutable.MessageLineSpacing, 0.5f, 0f, 20f, $"{Mutable.MessageLineSpacing:0.0}px", ImGuiSliderFlags.AlwaysClamp);
+        // 段落间距独立于时间戳开关（消息行距；负值在字体行高余量内收紧，过负会文字重叠）
+        ImGuiUtil.DragFloatVertical(Language.Options_MessageSpacing_Name, Language.Options_MessageSpacing_Description, ref Mutable.MessageLineSpacing, 0.5f, -8f, 20f, $"{Mutable.MessageLineSpacing:0.0}px", ImGuiSliderFlags.AlwaysClamp);
         ImGui.Spacing();
 
         ImGui.Spacing();

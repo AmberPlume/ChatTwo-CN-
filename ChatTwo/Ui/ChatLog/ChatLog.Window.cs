@@ -1376,7 +1376,9 @@ public partial class ChatLog : Window, IChatWindow
                     if (prevHeight == null || (prevMessage.IsVisible.TryGetValue(tab.Identifier, out var prevVisible) && prevVisible))
                     {
                         var newHeight = ImGui.GetCursorPosY() - lastPosY;
-                        if (newHeight != 0)
+                        // !!! 只缓存正值高度：负值段落间距收紧行距时 newHeight 可能 ≤0，
+                        // 负高度会污染可见性占位（Dummy 负高度不受支持）
+                        if (newHeight > 0)
                             prevMessage.Height[tab.Identifier] = newHeight;
                     }
                 }
@@ -1436,8 +1438,17 @@ public partial class ChatLog : Window, IChatWindow
                 // 段落间距（v1.40.17+ 要求）：消息行之间的额外垂直间距。
                 // 放在消息内容之后 → 下一行的高度测量（GetCursorPosY - lastPosY）自然包含该间距，
                 // 隐藏消息的 Dummy 占位（height 缓存）也一致。
-                if (Plugin.Config.MessageLineSpacing > 0f && i < messages.Count - 1)
-                    ImGui.Dummy(new Vector2(0f, Plugin.Config.MessageLineSpacing * ImGuiHelpers.GlobalScale));
+                // 负值 = 收紧行距（利用字体行高余量，如 CJK 行高≈1.4×字号；过负会文字重叠）：
+                // 用光标上移实现而非负高度 Dummy（ImGui Dummy 负高度不受支持）
+                var lineSpacing = Plugin.Config.MessageLineSpacing;
+                if (lineSpacing != 0f && i < messages.Count - 1)
+                {
+                    var spacingPx = lineSpacing * ImGuiHelpers.GlobalScale;
+                    if (spacingPx > 0f)
+                        ImGui.Dummy(new Vector2(0f, spacingPx));
+                    else
+                        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + spacingPx);
+                }
             }
         }
         catch (ApplicationException)

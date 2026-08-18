@@ -115,7 +115,7 @@
     <value>段落间距</value>
   </data>
   <data name="Options_MessageSpacing_Description">
-    <value>消息行之间的额外垂直间距（0 = 不额外留白）。</value>
+    <value>消息行之间的额外垂直间距（0 = 不额外留白；负值可在字体行高余量内收紧行距，过负会文字重叠）。</value>
   </data>
   <data name="Options_FontSize_Name">
     <value>字体大小</value>

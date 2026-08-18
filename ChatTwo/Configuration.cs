@@ -95,7 +95,10 @@ public class Configuration : IPluginConfiguration
     /// 只作用于消息正文，不影响时间戳/发送者名（v1.40.17+ 要求）。
     /// </summary>
     public float MessageLetterSpacing = 0f;
-    /// <summary>段落间距（px）：消息行之间的额外垂直间距（0 = 不额外留白，已是最小）。</summary>
+    /// <summary>
+    /// 段落间距（px）：消息行之间的额外垂直间距。0 = 不额外留白；负值 = 在字体行高余量内
+    /// 收紧行距（CJK 字体行高≈1.4×字号，负值可压缩到更贴；过负会文字重叠）。
+    /// </summary>
     public float MessageLineSpacing = 0f;
 
     // 自定义字体开关（内部标志，无 UI）：false=用 Axis 游戏字体（默认原生观感）；true=用 GlobalFontV2 选的字体

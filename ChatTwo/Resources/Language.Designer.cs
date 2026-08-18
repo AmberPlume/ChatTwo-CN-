@@ -2779,7 +2779,7 @@ namespace ChatTwo.Resources {
         }
 
         /// <summary>
-        /// Looks up a localized string similar to Extra vertical spacing between message lines (0 = no extra spacing)..
+        /// Looks up a localized string similar to Extra vertical spacing between message lines (0 = no extra spacing; negative values tighten the line spacing within the font line-height slack, too negative overlaps text)..
         /// </summary>
         internal static string Options_MessageSpacing_Description {
             get {

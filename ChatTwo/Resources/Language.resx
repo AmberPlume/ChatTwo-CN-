@@ -115,7 +115,7 @@
         <value>Message spacing</value>
     </data>
     <data name="Options_MessageSpacing_Description">
-        <value>Extra vertical spacing between message lines (0 = no extra spacing).</value>
+        <value>Extra vertical spacing between message lines (0 = no extra spacing; negative values tighten the line spacing within the font line-height slack, too negative overlaps text).</value>
     </data>
     <data name="Options_FontSize_Name">
         <value>Font size</value>
