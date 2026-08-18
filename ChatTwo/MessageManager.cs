@@ -112,7 +112,7 @@ public class MessageManager : IAsyncDisposable
 
     public static string DatabasePath()
     {
-        // 用户可在设置中自定义存储文件夹；空则用默认的 ConfigDirectory
+        // 可在设置中自定义存储文件夹；空则用默认的 ConfigDirectory
         var custom = Plugin.Config.DatabasePath;
         if (!string.IsNullOrWhiteSpace(custom))
             return Path.Join(custom, "chat-sqlite.db");
@@ -293,7 +293,7 @@ public class MessageManager : IAsyncDisposable
 
         var currentMatches = Plugin.CurrentTab.Matches(message);
         // 消息属于"当前正在看的 tab" → 立即标记 Seen（必须在遍历前！否则 tab 列表前面的
-        // 匹配 tab 会先计数——用户实测"位于 B 时 A 闪烁"就是 A 排在前面先计数了）
+        // 匹配 tab 会先计数——实测"位于 B 时 A 闪烁"就是 A 排在前面先计数了）
         if (currentMatches && Plugin.CurrentTab.UnreadMode == UnreadMode.Unseen)
             message.Seen = true;
 

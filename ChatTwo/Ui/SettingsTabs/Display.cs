@@ -35,23 +35,17 @@ public sealed class Display : ISettingsTab
         ImGuiUtil.OptionCheckbox(ref Mutable.HideInLoadingScreens, Language.Options_HideInLoadingScreens_Name, string.Format(Language.Options_HideInLoadingScreens_Description, Plugin.PluginName));
         ImGui.Spacing();
 
-        // "在战斗中隐藏" / "非活动时隐藏"已删除：保持关闭（用户要求）
+        // "在战斗中隐藏" / "非活动时隐藏"已删除：保持关闭（要求）
 
         ImGui.Separator();
         ImGui.Spacing();
 
         // ═══════════════ 窗口 ═══════════════
-        // 以下项从"窗口调整"页挪入（用户要求：基础设置统一管窗口行为）
-        // 显示时间戳：全局开关（各 tab 另有独立时间戳开关，两者叠加）
-        ImGuiUtil.OptionCheckbox(ref Mutable.ShowTimestamp, Language.Options_ShowTimestamp_Name, Language.Options_ShowTimestamp_Description);
-        ImGui.Spacing();
+        // 以下项从"窗口调整"页挪入（要求：基础设置统一管窗口行为）
+        // 显示时间戳：已移至"消息设置"页的时间戳菜单（v1.40.17+，要求）
+        // 仿原生窗口：已移至"窗口调整"页（v1.40.17+，要求改名"仿原生窗口"）
 
-        // 仿原生界面背景（用户要求：放在标签页位置上面）
-        // 仿原生界面（用户要求：去掉"背景"两字，观感更简洁）
-        ImGuiUtil.OptionCheckbox(ref Mutable.NativeBackground, Language.Options_NativeBackground_Name, Language.Options_NativeBackground_Description);
-        ImGui.Spacing();
-
-        // 锁定窗口移动（用户 2026-08-17：锁按钮从工具栏移除，改回设置项；
+        // 锁定窗口移动（锁按钮从工具栏移除，改回设置项；
         // 开启后只有消息区不可拖动（选字防误拖），窗口其他区域仍可拖）
         ImGuiUtil.OptionCheckbox(ref Mutable.MoveLocked, Language.Options_MoveLocked_Name, Language.Options_MoveLocked_Description);
         ImGui.Spacing();
@@ -65,10 +59,10 @@ public sealed class Display : ISettingsTab
                         Mutable.TabPosition = tabPos;
             }
         }
-        ImGuiUtil.HelpText(Language.Options_TabPosition_Description);
+        ImGuiUtil.TooltipOnLastItem(Language.Options_TabPosition_Description);   // 悬浮下拉框即出说明
         ImGui.Spacing();
 
-        // 未读消息提示方式（用户要求放在基础设置）：高亮/呼吸/无
+        // 未读消息提示方式（要求放在基础设置）：高亮/呼吸/无
         var currentUnread = Mutable.UnreadNotifyMode;
         using (var combo = ImRaii.Combo(Language.Options_UnreadNotifyMode_Name, currentUnread.Name()))
         {
@@ -84,7 +78,7 @@ public sealed class Display : ISettingsTab
         ImGui.Separator();
         ImGui.Spacing();
 
-        // 保持输入焦点（与显示时间戳互换位置，用户要求）
+        // 保持输入焦点（与显示时间戳互换位置，要求）
         ImGuiUtil.OptionCheckbox(ref Mutable.KeepInputFocus, Language.Options_KeepInputFocus_Name, Language.Options_KeepInputFocus_Description);
         ImGui.Spacing();
 
@@ -92,14 +86,14 @@ public sealed class Display : ISettingsTab
         ImGuiUtil.OptionCheckbox(ref Mutable.SortAutoTranslate, Language.Options_SortAutoTranslate_Name, Language.Options_SortAutoTranslate_Description);
         ImGui.Spacing();
 
-        // "现代化布局/更紧凑的现代布局/隐藏重复的时间戳"已删除：保持传统时间戳样式（用户要求）
-        // "折叠重复消息"及其子选项已删除（用户要求）
+        // "现代化布局/更紧凑的现代布局/隐藏重复的时间戳"已删除：保持传统时间戳样式（要求）
+        // "折叠重复消息"及其子选项已删除（要求）
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
-        // 字体相关设置已拆分到独立"字体设置"页（v1.40.11+，用户要求）
+        // 字体相关设置已拆分到独立"字体设置"页（v1.40.11+，要求）
 
         ImGui.Spacing();
 
@@ -107,7 +101,7 @@ public sealed class Display : ISettingsTab
         ImGui.Separator();
         ImGui.Spacing();
         ImGui.TextUnformatted("从原版 Chat Two 迁移");
-        ImGuiUtil.HelpText("复制原版 Chat Two（InternalName=ChatTwo）的设置与聊天历史到本插件。复制后需要重启游戏生效。");
+        ImGuiUtil.TooltipOnLastItem("复制原版 Chat Two（InternalName=ChatTwo）的设置与聊天历史到本插件。复制后需要重启游戏生效。");
         DrawMigrationSection();
         ImGui.Spacing();
     }

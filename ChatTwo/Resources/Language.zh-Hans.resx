@@ -87,6 +87,36 @@
   <data name="Options_ShowTimestamp_Description">
     <value>在每条消息前显示时间戳。各标签页另有独立的时间戳开关，需两者都开启才显示。</value>
   </data>
+  <data name="Options_Timestamp_RemoveBrackets_Name">
+    <value>去除括号</value>
+  </data>
+  <data name="Options_Timestamp_RemoveBrackets_Description">
+    <value>隐藏时间戳的方括号，例如 [12:34] 变为 12:34，更短更简洁。</value>
+  </data>
+  <data name="Options_Timestamp_Compact_Name">
+    <value>紧凑排布</value>
+  </data>
+  <data name="Options_Timestamp_Compact_Description">
+    <value>压缩时间戳字符间距，让时间戳占位最短。</value>
+  </data>
+  <data name="Options_LetterSpacing_Name">
+    <value>字间距</value>
+  </data>
+  <data name="Options_LetterSpacing_Description">
+    <value>自由调整消息正文（内容）的字符间距（负值更紧凑，正值更疏松）。不影响时间戳和发送者名。</value>
+  </data>
+  <data name="Options_Timestamp_LetterSpacing_Name">
+    <value>时间戳字间距</value>
+  </data>
+  <data name="Options_Timestamp_LetterSpacing_Description">
+    <value>自由调整时间戳字符间距（负值更紧凑，正值更疏松）。与正文字间距相互独立。</value>
+  </data>
+  <data name="Options_MessageSpacing_Name">
+    <value>段落间距</value>
+  </data>
+  <data name="Options_MessageSpacing_Description">
+    <value>消息行之间的额外垂直间距（0 = 不额外留白）。</value>
+  </data>
   <data name="Options_FontSize_Name">
     <value>字体大小</value>
   </data>
@@ -123,6 +153,15 @@
   </data>
   <data name="Options_Tabs_Add">
     <value>添加</value>
+  </data>
+  <data name="Options_Tabs_EditTitle">
+    <value>编辑标签页</value>
+  </data>
+  <data name="Options_Tabs_EditTooltip">
+    <value>点击编辑此标签页</value>
+  </data>
+  <data name="Options_Tabs_EditDone">
+    <value>完成</value>
   </data>
   <data name="Options_Tabs_Import_Name">
     <value>导入标签页配置</value>
@@ -1096,7 +1135,37 @@
     <value>输入区缩放</value>
   </data>
   <data name="Options_InputAreaScale_Description">
-    <value>调整输入框、左右图标、tab 文字和末尾 + 按钮的大小（50% - 200%）。</value>
+    <value>调整输入框、左右图标和频道名行的大小（50% - 200%）。标签页由独立的"标签页缩放"控制。</value>
+  </data>
+  <data name="Options_TabScale_Name">
+    <value>标签页缩放</value>
+  </data>
+  <data name="Options_TabScale_Description">
+    <value>调整标签页文字、标签栏和末尾 + 按钮的大小（50% - 200%），与输入区缩放相互独立。</value>
+  </data>
+  <data name="Options_UnreadSettings_Title">
+    <value>未读消息设置</value>
+  </data>
+  <data name="Options_UnreadSettings_Description">
+    <value>选择哪些频道和哪些标签页的新消息会作为未读消息提醒，作用于整个聊天窗口。</value>
+  </data>
+  <data name="Options_UnreadSettings_Channels">
+    <value>计入未读的频道</value>
+  </data>
+  <data name="Options_UnreadSettings_Channels_Description">
+    <value>全部未选 = 所有频道的新消息都计入未读；勾选后仅选中频道计入。ExtraChat 频道消息仅在未设置频道过滤时计入。</value>
+  </data>
+  <data name="Options_UnreadSettings_Tabs">
+    <value>计入未读的标签页</value>
+  </data>
+  <data name="Options_UnreadSettings_Tabs_SelectAll">
+    <value>全选标签页</value>
+  </data>
+  <data name="Options_UnreadSettings_Tabs_SelectNone">
+    <value>清空标签页</value>
+  </data>
+  <data name="Options_UnreadSettings_Tabs_Description">
+    <value>只有勾选的标签页才会累积未读数量，默认全部勾选。</value>
   </data>
   <data name="Options_MessageAlpha_Name">
     <value>消息区透明度</value>
@@ -1123,7 +1192,7 @@
     <value>输入框背景的透明度。</value>
   </data>
   <data name="Options_NativeBackground_Name">
-    <value>仿原生界面</value>
+    <value>仿原生窗口</value>
   </data>
   <data name="Options_NativeBackground_Description">
     <value>使用 FFXIV 原生 UI 贴图素材（工具栏图标 / 底部标签页）。关闭时回退为 FontAwesome 图标与纯色标签页；窗口背景始终透明。</value>

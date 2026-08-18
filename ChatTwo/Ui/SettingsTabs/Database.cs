@@ -38,7 +38,7 @@ public sealed class Database : ISettingsTab
             ShowAdvanced = ImGui.GetIO().KeyShift;
 
         ImGuiUtil.OptionCheckbox(ref Mutable.DatabaseBattleMessages, Language.Options_DatabaseBattleMessages_Name, Language.Options_DatabaseBattleMessages_Description);
-        // 采集/制作消息入库已按用户要求移除设置项并强制关闭（见 Plugin.cs 构造函数）
+        // 采集/制作消息入库已按要求移除设置项并强制关闭（见 Plugin.cs 构造函数）
         ImGui.Spacing();
 
         if (ImGuiUtil.OptionCheckbox(ref Mutable.LoadPreviousSession, Language.Options_LoadPreviousSession_Name, Language.Options_LoadPreviousSession_Description))
@@ -95,6 +95,7 @@ public sealed class Database : ISettingsTab
 
             ImGui.SetNextItemWidth(-60);
             ImGui.InputText("##dbpath", ref dbFolder, 512, ImGuiInputTextFlags.ReadOnly);
+            ImGuiUtil.TooltipOnLastItem(Language.Options_Database_Path_Description);   // 悬浮路径框即出说明（浏览按钮有自己的提示，不冲突）
             ImGui.SameLine();
             if (ImGuiUtil.IconButton(FontAwesomeIcon.FolderOpen, "dbpath", tooltip: Language.Options_Database_Path_Browse))
                 Plugin.FileDialogManager.OpenFolderDialog(Language.Options_Database_Path_Browse_Title, (b, s) =>
@@ -105,7 +106,6 @@ public sealed class Database : ISettingsTab
                         WrapperUtil.AddNotification(Language.Options_Database_Path_Restart, NotificationType.Info);
                     }
                 }, string.IsNullOrEmpty(Mutable.DatabasePath) ? null : Mutable.DatabasePath, true);
-            ImGuiUtil.HelpText(Language.Options_Database_Path_Description);
         }
         ImGui.Spacing();
         ImGui.Separator();

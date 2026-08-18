@@ -129,10 +129,10 @@ public unsafe class KeybindManager : IDisposable {
         VirtualKey.NEXT,
         // VirtualKey.END,
         // VirtualKey.HOME,
-        // VirtualKey.LEFT,  // handled by imgui
-        // VirtualKey.UP,    // handled by ChatLogWindow
+        // VirtualKey.LEFT, // handled by imgui
+        // VirtualKey.UP, // handled by ChatLogWindow
         // VirtualKey.RIGHT, // handled by imgui
-        // VirtualKey.DOWN,  // handled by ChatLogWindow
+        // VirtualKey.DOWN, // handled by ChatLogWindow
         // VirtualKey.SELECT,
         VirtualKey.PRINT,
         VirtualKey.EXECUTE,
@@ -406,7 +406,7 @@ public unsafe class KeybindManager : IDisposable {
 
         // Ctrl+C: copy selected text from ChatLog if any, eat the key.
         // Must be checked FIRST so it takes priority over any game hotkey bound to C.
-        // ⚠️ 选字状态已移入 MessageLogState（2026-08-15 22:58，按窗口隔离）：
+        // !!! 选字状态已移入 MessageLogState（，按窗口隔离）：
         // 主窗口选字在 ChatLog.MsgState.Selection，PopOut 选字在各自 MsgState。
         // Ctrl+C 复制主窗口选区（主窗口是最常见的复制场景）。
         if (ComboPressed(source, VirtualKey.C, ModifierFlag.Ctrl, modifierState: modifierState))

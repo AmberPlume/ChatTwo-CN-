@@ -17,8 +17,8 @@ namespace ChatTwo.Util;
 ///
 /// 资源命名：EmbeddedResource 按 <c>RootNamespace.相对路径</c> 嵌入——本项目 RootNamespace=ChatTwo
 /// （AssemblyName=ChatTwoCN），实际资源名是 <c>ChatTwo.images.toolbar_*.png</c>。
-/// ⚠️ 不能硬编码 ChatTwoCN 前缀：GetManifestResourceStream 找不到 → 返回 null → 按钮悄悄回退 FontAwesome
-/// （用户实测"没看到变化"的根因）。这里按文件名后缀动态匹配，杜绝该问题。
+/// !!! 不能硬编码 ChatTwoCN 前缀：GetManifestResourceStream 找不到 → 返回 null → 按钮悄悄回退 FontAwesome
+/// （实测"没看到变化"的根因）。这里按文件名后缀动态匹配，杜绝该问题。
 /// </summary>
 internal static class NativeIcons
 {
@@ -44,38 +44,38 @@ internal static class NativeIcons
     private static IDalamudTextureWrap? _resizeHandleNormal;
     private static IDalamudTextureWrap? _resizeHandleHighlighted;
 
-    /// <summary>🔍 打开聊天记录（放大镜）— 用户新素材 icon_09</summary>
+    /// <summary>[搜索] 打开聊天记录（放大镜）— 新素材 icon_09</summary>
     public static IDalamudTextureWrap? ChatSearch => EnsureLoaded(_chatSearch);
 
-    /// <summary>🔍 聊天记录窗口"搜索"按钮 — 用户新素材 icon_34</summary>
+    /// <summary>[搜索] 聊天记录窗口"搜索"按钮 — 新素材 icon_34</summary>
     public static IDalamudTextureWrap? SearchGo => EnsureLoaded(_searchGo);
 
-    /// <summary>👤 玩家筛选（人形头像）— 用户新素材 icon_01</summary>
+    /// <summary>[玩家] 玩家筛选（人形头像）— 新素材 icon_01</summary>
     public static IDalamudTextureWrap? Players => EnsureLoaded(_players);
 
-    /// <summary>× 关闭/隐藏/重置筛选（粗X）— 用户新素材 icon_24</summary>
+    /// <summary>× 关闭/隐藏/重置筛选（粗X）— 新素材 icon_24</summary>
     public static IDalamudTextureWrap? Close => EnsureLoaded(_close);
 
-    /// <summary>⚙️ 设置（齿轮）— 用户新素材 icon_00</summary>
+    /// <summary>[设置] 设置（齿轮）— 新素材 icon_00</summary>
     public static IDalamudTextureWrap? Gear => EnsureLoaded(_gear);
 
-    /// <summary>🔻 筛选日期（漏斗）— 用户新素材 icon_01（与玩家同图，用户决策）</summary>
+    /// <summary>[筛选] 筛选日期（漏斗）— 新素材 icon_01（与玩家同图，决策）</summary>
     public static IDalamudTextureWrap? Funnel => EnsureLoaded(_funnel);
 
-    /// <summary>💬 频道切换（聊天气泡）— 用户新素材 icon_05</summary>
+    /// <summary>[频道] 频道切换（聊天气泡）— 新素材 icon_05</summary>
     public static IDalamudTextureWrap? Bubble => EnsureLoaded(_bubble);
 
-    /// <summary>➕ 添加 Tab（加号）— 用户新素材 icon_11</summary>
+    /// <summary>[加号] 添加 Tab（加号）— 新素材 icon_11</summary>
     public static IDalamudTextureWrap? Plus => EnsureLoaded(_plus);
 
-    /// <summary>🌱 新人频道（双叶嫩芽）— 用户新素材 icon_14</summary>
+    /// <summary>[新人] 新人频道（双叶嫩芽）— 新素材 icon_14</summary>
     public static IDalamudTextureWrap? Leaf => EnsureLoaded(_leaf);
 
-    /// <summary>🔓 开锁（锁梁断开）— actionbar_hr1 r3c3（用户提供素材）</summary>
+    /// <summary>[解锁] 开锁（锁梁断开）— actionbar_hr1 r3c3（提供素材）</summary>
 
-    /// <summary>🔒 上锁（实心锁体+钥匙孔）— actionbar_hr1 r3c4（用户提供素材）</summary>
+    /// <summary>[锁定] 上锁（实心锁体+钥匙孔）— actionbar_hr1 r3c4（提供素材）</summary>
 
-    // ============ 底部 tab 栏三段式（2026-08-18 用户提供 chatlog_extracted） ============
+    // ============ 底部 tab 栏三段式（提供 chatlog_extracted） ============
     /// <summary>tab 栏最左侧装饰左帽（可拖动聊天框）43x50</summary>
     public static IDalamudTextureWrap? TabCapLeft => EnsureLoaded(_tabCapLeft);
     /// <summary>tab 栏中间真正的 tab（写名称）56x51，每加一个 tab 拼一个</summary>
@@ -93,7 +93,7 @@ internal static class NativeIcons
     public static IDalamudTextureWrap? ResizeHandleHighlighted => EnsureLoaded(_resizeHandleHighlighted);
 
     /// <summary>绘制缩放手柄：常态/高亮两图按"图形内容"统一尺寸（UV 裁剪内容 bbox），
-    /// 否则高亮图 42x42 拉伸后内容比常态小（2026-08-18 用户实测"常态比亮起大太多"根因）。</summary>
+    /// 否则高亮图 42x42 拉伸后内容比常态小（实测"常态比亮起大太多"根因）。</summary>
     public static void DrawResizeHandle(ImDrawListPtr dl, Vector2 pos, Vector2 size, bool highlighted)
     {
         var wrap = highlighted ? ResizeHandleHighlighted : ResizeHandleNormal;
@@ -105,7 +105,7 @@ internal static class NativeIcons
         dl.AddImage(wrap.Handle, pos, pos + size, uv0, uv1);
     }
 
-    // ⚠️ 2026-08-18 缩放手柄几何统一（三窗口 × 绘制/hit-test/置顶共 9 处之前各写魔法数字，
+    // !!! 缩放手柄几何统一（三窗口 × 绘制/hit-test/置顶共 9 处之前各写魔法数字，
     // 改过 4 次尺寸/位置——抽成统一方法防漏改）。
     /// <summary>缩放手柄尺寸（10px × UI scale）</summary>
     public static float ResizeHandleSize() => 10f * ImGuiHelpers.GlobalScale;
@@ -113,12 +113,12 @@ internal static class NativeIcons
     /// <summary>缩放手柄 X 内缩：默认 3px / 仿原生 8px（落在消息区背景内）</summary>
     public static float ResizeHandleInsetX(bool nativeBg) => nativeBg ? 8f : 3f;
 
-    /// <summary>缩放手柄 Y 内缩：默认 3px / 仿原生 4px + 下移 5px（用户实测校准）</summary>
+    /// <summary>缩放手柄 Y 内缩：默认 3px / 仿原生 4px + 下移 5px（实测校准）</summary>
     public static float ResizeHandleInsetY(bool nativeBg) => (nativeBg ? 4f : 3f) + 5f;
 
     private static T? EnsureLoaded<T>(T? value) where T : class
     {
-        // ⚠️ 2026-08-17 修复：懒加载曾因 _tp 永远为 null 从未触发（Load 只在构造函数调用，
+        // !!! 修复：懒加载曾因 _tp 永远为 null 从未触发（Load 只在构造函数调用，
         // 但懒加载改版时把构造函数调用删了）→ wrap 全 null → 按钮全部回退 FontAwesome。
         // 这里兜底：未加载且未失败时，直接从 Plugin.TextureProvider 取一次。
         if (!_loaded && !_loadFailed && _tp == null)
@@ -184,10 +184,10 @@ internal static class NativeIcons
         s.CopyTo(ms);
         var bytes = ms.ToArray();
         // 同步加载路径：ImageSharp 解码 PNG → Rgba32 原始像素 → CreateFromRaw。
-        // ⚠️ 不要用 CreateFromImageAsync + .Wait()：其 continuation 需回到主线程，
+        // !!! 不要用 CreateFromImageAsync + .Wait()：其 continuation 需回到主线程，
         // 在插件构造函数（主线程）里同步等待会死锁，图标永远加载不出来。
-        // ⚠️ 2026-08-17 用户决策：保持原生 UI 原样，不做颜色处理（之前转白是为了
-        // 在深色 ImGui 背景上可见，但用户要求"既然用原生图标就保持原生原样"）。
+        // !!! 决策：保持原生 UI 原样，不做颜色处理（之前转白是为了
+        // 在深色 ImGui 背景上可见，但要求"既然用原生图标就保持原生原样"）。
         using var image = Image.Load<Rgba32>(bytes);
         var raw = image.ImageToRaw();
         return _tp!.CreateFromRaw(RawImageSpecification.Rgba32(image.Width, image.Height), raw, resName);

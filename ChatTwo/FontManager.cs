@@ -28,8 +28,11 @@ public class FontManager
     /// <summary>设置界面字体，大小由"设置界面字体大小"控制（独立于聊天主字体）。</summary>
     public IFontHandle SettingsFont = null!;
 
-    /// <summary>标签页字体：固定大小（12pt），不随"字体大小"设置变化。</summary>
+    /// <summary>标签页字体：固定大小（12pt × TabScale），不随"字体大小"设置变化。</summary>
     public IFontHandle TabFont = null!;
+
+    /// <summary>标签页栏图标字体（末尾 + 按钮等，12px × TabScale）：随"标签页缩放"独立缩放。</summary>
+    public IFontHandle FontAwesomeTab = null!;
 
     public IFontHandle FontAwesome = null!;
 
@@ -124,15 +127,17 @@ public class FontManager
     {
         SetUpRanges();
 
-        // 字体体系（用户要求）：
+        // 字体体系（要求）：
         // - 主字体由"自定义字体"（GlobalFontV2）选择，日文补充字体用 JapaneseFontV2
         // - 字号统一由"字体大小"(FontSizeV2) 控制（忽略 GlobalFontV2.SizePt），符号字体并入主字体
         var mainFontId = Plugin.Config.GlobalFontV2.FontId;
         var jpFontId = Plugin.Config.JapaneseFontV2.FontId;
         var baseSizePt = Plugin.Config.FontSizeV2;
-        // 输入区缩放（用户要求与卫月全局字体比例同逻辑：重建字体时字号乘比例，
+        // 输入区缩放（要求与卫月全局字体比例同逻辑：重建字体时字号乘比例，
         // 这样 drawList 手动渲染的文字（tab 文字）也自然缩放）
+        // !!! v1.40.17+ 拆分：输入区缩放只管输入区（图标/频道名），标签页独立用 TabScale
         var inputScale = Plugin.Config.InputAreaScale;
+        var tabScale = Plugin.Config.TabScale;
 
         Axis = Plugin.Interface.UiBuilder.FontAtlas.NewGameFontHandle(new GameFontStyle(GameFontFamily.Axis, SizeInPx(baseSizePt)));
         AxisItalic = Plugin.Interface.UiBuilder.FontAtlas.NewGameFontHandle(new GameFontStyle(GameFontFamily.Axis, SizeInPx(baseSizePt))
@@ -231,8 +236,8 @@ public class FontManager
                 }
             ));
 
-        // 标签页字体：固定 12pt（不随"字体大小"变化）
-        var tabFontSizePt = 12f * inputScale;
+        // 标签页字体：固定 12pt × TabScale（不随"字体大小"变化；v1.40.17+ 由"标签页缩放"独立控制）
+        var tabFontSizePt = 12f * tabScale;
         TabFont = Plugin.Interface.UiBuilder.FontAtlas.NewDelegateFontHandle(
             e => e.OnPreBuild(
                 tk =>
@@ -249,6 +254,13 @@ public class FontManager
                     tk.Font = config.MergeFont;
                 }
             ));
+
+        // 标签页栏图标字体（末尾 + 按钮）：12px × TabScale × 0.9，与 TabFont 同源缩放
+        FontAwesomeTab = Plugin.Interface.UiBuilder.FontAtlas.NewDelegateFontHandle(e =>
+        {
+            e.OnPreBuild(tk => tk.AddFontAwesomeIconFont(new SafeFontConfig { SizePx = 12f * tabScale * 0.9f }));
+            e.OnPostBuild(tk => tk.FitRatio(tk.Font));
+        });
     }
 
     public static float SizeInPt(float px) => (float) (px * 3.0 / 4.0);

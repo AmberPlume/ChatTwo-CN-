@@ -5,16 +5,29 @@
     "Punchline": "对原版 Chat 2 进行了一些改动",
     "Description": "基于 ChatTwo 进行了一定程度的修改，对原生消息栏进行了模仿式重制。中文化界面、右键菜单复刻（一级原生菜单 + 屏蔽机能子菜单）、聊天文字描边、未读消息提示模式、原生菜单跟手与挖洞、聊天记录查询等。",
     "InternalName": "ChatTwoCN",
-    "AssemblyVersion": "1.40.16.0",
-    "TestingAssemblyVersion": "1.40.16.0",
+    "AssemblyVersion": "1.40.17.0",
+    "TestingAssemblyVersion": "1.40.17.0",
     "DalamudApiLevel": 15,
     "TestingDalamudApiLevel": 15,
     "ApplicableVersion": "any",
-    "DownloadLinkInstall": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.40.16.0/ChatTwo-CN-v1.40.16.zip",
-    "DownloadLinkTesting": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.40.16.0/ChatTwo-CN-v1.40.16.zip",
-    "DownloadLinkUpdate": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.40.16.0/ChatTwo-CN-v1.40.16.zip",
+    "DownloadLinkInstall": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.40.17.0/ChatTwo-CN-v1.40.17.zip",
+    "DownloadLinkTesting": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.40.17.0/ChatTwo-CN-v1.40.17.zip",
+    "DownloadLinkUpdate": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.40.17.0/ChatTwo-CN-v1.40.17.zip",
     "IconUrl": "",
-    "Changelog": "v1.40.16\n【新增】\n- 新增：底部标签页长按拖出为独立窗口（PopOut）——按住标签页 600ms 后拖动，标签页幽灵跟随指针，松手在释放位置创建窗口\n- 新增：PopOut 窗口底部标签页原生化（左帽+中段+右帽素材）+ 原生关闭按钮\n【优化】\n- 聊天记录窗口搜索栏统一主窗口输入行逻辑：搜索框与主窗口输入框同大小，频道按钮与右侧四个按钮按主窗口按钮逻辑居中\n- 修正\"锁定窗口移动\"说明文字（消息区始终不可拖动；勾选后整窗锁定，未勾选可通过输入框和标签页区域拖动）\n【修复】\n- 修复：长按拖出创建的 PopOut 无法拖动（窗口位置每帧被强制拉回释放点）——改为仅定位一次\n- 修复：标签页文字在游戏界面缩放（如 150%）下超出标签页上下边界——改为按字形几何居中\n- 修复：拖出释放点靠近屏幕边缘时窗口被裁掉（自动钳制到屏幕内）",
+    "Changelog": "v1.40.17
+【新增】
+- 新增：\"标签页缩放\"设置——标签页文字/标签栏/末尾 + 按钮与输入区缩放拆分，可独立调整
+- 新增：未读消息设置（消息设置页顶部）——可选择哪些频道、哪些标签页的新消息计入未读提醒
+- 新增：时间戳子选项（勾选\"显示时间戳\"后出现）——去除括号 / 紧凑排布 / 时间戳字间距
+- 新增：正文字间距（作用于消息内容，不影响时间戳与发送者名）与段落间距（消息行距）
+- 新增：设置项说明改为悬浮提示（鼠标移到选项上即显示，设置页更干净）
+【优化】
+- 消息设置页重构：标签页列表精简为操作按钮+名称，点击名称弹出独立编辑窗口（非模态，可拖动）
+- \"仿原生界面\"改名\"仿原生窗口\"并移至窗口调整页；仿原生下隐藏无效的\"标签页透明度\"
+- 仿原生界面下输入框右侧按钮间距更紧凑
+- 清理原版\"现代化布局\"（时间戳表格渲染）废弃代码与更新日志式注释
+【修复】
+- 修复：仿原生界面下\"标签页透明度\"设置无效（三段式贴图透明度由素材决定，现已隐藏）",
     "Tags": [
       "Social",
       "UI",

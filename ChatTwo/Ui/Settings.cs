@@ -39,7 +39,7 @@ public sealed class SettingsWindow : Window
             new ChatColours(Plugin, Mutable),
             new Tabs(Plugin, Mutable),
             new Database(Plugin, Mutable),
-            new Experimental(Mutable),   // ⚠️ 2026-08-15 18:05 实验功能设置页（菜单跟随鼠标开关等）
+            new Experimental(Mutable),   // !!! 实验功能设置页（菜单跟随鼠标开关等）
             // 偏好页已删除：语言/命令帮助方向/热键模式选项已移除（频道切换策略固定"灵活"，见 Plugin.cs）
             // 字体页已合并到显示页
         ];
@@ -158,6 +158,7 @@ public sealed class SettingsWindow : Window
                           || Math.Abs(Mutable.InputFontSize - Plugin.Config.InputFontSize) > 0.001
                           || Math.Abs(Mutable.SettingsFontSize - Plugin.Config.SettingsFontSize) > 0.001
                           || Math.Abs(Mutable.InputAreaScale - Plugin.Config.InputAreaScale) > 0.001
+                          || Math.Abs(Mutable.TabScale - Plugin.Config.TabScale) > 0.001
                           // 自定义字体：字体族变化也要重建（字号统一由 FontSizeV2 控制，不比较 SizePt）
                           || Mutable.GlobalFontV2.FontId.EnglishName != Plugin.Config.GlobalFontV2.FontId.EnglishName
                           || Mutable.JapaneseFontV2.FontId.EnglishName != Plugin.Config.JapaneseFontV2.FontId.EnglishName

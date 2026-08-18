@@ -48,10 +48,9 @@ public class Configuration : IPluginConfiguration
     public HashSet<Guid> InactivityHideExtraChatChannels = [];
     public bool ShowHideButton = true;
     public bool NativeItemTooltips = true;
-    public bool PrettierTimestamps = true;
-    public bool MoreCompactPretty;
-    public bool HideSameTimestamps;
-    public bool ShowNoviceNetwork = true; // 用户要求：锁定开启（不再显示在设置中）
+    // !!! v1.40.17 清理：原作者"现代化布局"（PrettierTimestamps 表格渲染 / MoreCompactPretty /
+    // HideSameTimestamps）已移除，时间戳统一走 DrawTimestampInline 行内渲染
+    public bool ShowNoviceNetwork = true; // 要求：锁定开启（不再显示在设置中）
     public TabPosition TabPosition = TabPosition.Bottom;
     public bool PrintChangelog = true;
     public CommandHelpSide CommandHelpSide = CommandHelpSide.None;
@@ -59,14 +58,14 @@ public class Configuration : IPluginConfiguration
     public LanguageOverride LanguageOverride = LanguageOverride.None;
     public bool CanResize = true;
     public bool ShowTitleBar;
-    public bool ShowPopOutTitleBar; // 用户要求：关闭（不再显示在设置中）
+    public bool ShowPopOutTitleBar; // 要求：关闭（不再显示在设置中）
     /// <summary>
     /// 对话历史数据库存放的文件夹路径。空 = 默认（ConfigDirectory）。
     /// </summary>
     public string DatabasePath = string.Empty;
 
     /// <summary>
-    /// 历史记录导出文件夹路径。空 = 默认（空，用户首次导出时选择）。
+    /// 历史记录导出文件夹路径。空 = 默认（空，首次导出时选择）。
     /// </summary>
     public string ExportDirectory = string.Empty;
 
@@ -81,6 +80,23 @@ public class Configuration : IPluginConfiguration
     public bool Use24HourClock;
     // 全局"显示时间戳"开关（v1.40.11+，与各 tab 的 DisplayTimestamp 叠加）
     public bool ShowTimestamp = true;
+    // ═══ 时间戳子选项（v1.40.17+ 要求，替代旧"现代化布局"表格逻辑，见 DrawTimestampInline）═══
+    /// <summary>去除时间戳方括号：[12:34] → 12:34（更短）。</summary>
+    public bool RemoveTimestampBrackets;
+    /// <summary>紧凑排布：压缩时间戳字符间距，让时间戳最短。</summary>
+    public bool CompactTimestampSpacing;
+    /// <summary>
+    /// 时间戳字间距自由调整（px，负值更紧凑，正值更疏松）。只作用于时间戳，
+    /// 与正文字间距（MessageLetterSpacing）相互独立（v1.40.17+ 要求）。
+    /// </summary>
+    public float TimestampLetterSpacing = 0f;
+    /// <summary>
+    /// 正文（消息内容）字间距自由调整（px，负值更紧凑，正值更疏松）。
+    /// 只作用于消息正文，不影响时间戳/发送者名（v1.40.17+ 要求）。
+    /// </summary>
+    public float MessageLetterSpacing = 0f;
+    /// <summary>段落间距（px）：消息行之间的额外垂直间距（0 = 不额外留白，已是最小）。</summary>
+    public float MessageLineSpacing = 0f;
 
     // 自定义字体开关（内部标志，无 UI）：false=用 Axis 游戏字体（默认原生观感）；true=用 GlobalFontV2 选的字体
     public bool FontsEnabled = false;
@@ -98,10 +114,20 @@ public class Configuration : IPluginConfiguration
     public float FontSizeV2 = 14f;
 
     /// <summary>
-    /// 输入区缩放（1.0 = 100%）。影响输入框、输入框左右图标、tab 文字、tab 末尾 + 按钮的视觉大小。
-    /// 与主聊天字体（FontSizeV2）独立。
+    /// 输入区缩放（1.0 = 100%）。只影响输入区：输入框、输入框左右图标按钮、频道名行。
+    /// tab 区由 TabScale 独立控制（v1.40.17+ 拆分，要求）。
     /// </summary>
     public float InputAreaScale = 1.0f;
+    /// <summary>
+    /// 标签页缩放（1.0 = 100%）。影响标签页文字、标签栏高度、末尾 + 按钮（v1.40.17+ 新增）。
+    /// 与输入区缩放（InputAreaScale）相互独立。
+    /// </summary>
+    public float TabScale = 1.0f;
+    /// <summary>
+    /// 未读消息的频道过滤（v1.40.17+）：为空 = 全部频道的新消息都计入未读；
+    /// 非空 = 仅选中频道（含来源/目标细分）计入未读。
+    /// </summary>
+    public Dictionary<ChatType, (ChatSource Source, ChatSource Target)> UnreadChannels = [];
     // 是否已从原版 ChatTwo 迁移过配置（迁移按钮防重复用）
     public bool MigratedFromChatTwo;
     public float SymbolsFontSizeV2 = 12.75f;
@@ -144,7 +170,7 @@ public class Configuration : IPluginConfiguration
     // Migration safety
     public MigrationStatus MigrationStatus = MigrationStatus.NotStarted;
 
-    // ⚠️ 2026-08-15 18:05 实验功能设置页：菜单位置模式开关。
+    // !!! 实验功能设置页：菜单位置模式开关。
     // true（默认）= 菜单跟随鼠标（游戏原生跟手，当前方案）；false = 聊天框右侧固定（旧逻辑备份）。
     // 实验性功能：跟随鼠标时菜单可能压在聊天框内，挖洞预算不足时可能出现文字进入菜单/圆角降级/边缘字符消失。
     public bool ExperimentalMenuFollowMouse = true;
@@ -169,9 +195,6 @@ public class Configuration : IPluginConfiguration
         InactivityHideExtraChatChannels = other.InactivityHideExtraChatChannels.ToHashSet();
         ShowHideButton = other.ShowHideButton;
         NativeItemTooltips = other.NativeItemTooltips;
-        PrettierTimestamps = other.PrettierTimestamps;
-        MoreCompactPretty = other.MoreCompactPretty;
-        HideSameTimestamps = other.HideSameTimestamps;
         ShowNoviceNetwork = other.ShowNoviceNetwork;
         TabPosition = other.TabPosition;
         PrintChangelog = other.PrintChangelog;
@@ -193,12 +216,19 @@ public class Configuration : IPluginConfiguration
         MaxLinesToRender = other.MaxLinesToRender;
         Use24HourClock = other.Use24HourClock;
         ShowTimestamp = other.ShowTimestamp;
+        RemoveTimestampBrackets = other.RemoveTimestampBrackets;
+        CompactTimestampSpacing = other.CompactTimestampSpacing;
+        TimestampLetterSpacing = other.TimestampLetterSpacing;
+        MessageLetterSpacing = other.MessageLetterSpacing;
+        MessageLineSpacing = other.MessageLineSpacing;
         FontsEnabled = other.FontsEnabled;
         InputFontSize = other.InputFontSize;
         SettingsFontSize = other.SettingsFontSize;
         ExtraGlyphRanges = other.ExtraGlyphRanges;
         FontSizeV2 = other.FontSizeV2;
         InputAreaScale = other.InputAreaScale;
+        TabScale = other.TabScale;
+        UnreadChannels = other.UnreadChannels.ToDictionary(pair => pair.Key, pair => pair.Value);
         MigratedFromChatTwo = other.MigratedFromChatTwo;
         GlobalFontV2 = other.GlobalFontV2;
         JapaneseFontV2 = other.JapaneseFontV2;
@@ -258,7 +288,7 @@ public static class UnreadModeExt
     };
 }
 
-/// <summary>未读消息的显示提示方式（全局设置）。默认高亮（用户在设置中要求）。</summary>
+/// <summary>未读消息的显示提示方式（全局设置）。默认高亮（在设置中要求）。</summary>
 [Serializable]
 public enum UnreadNotifyMode
 {
@@ -294,10 +324,15 @@ public class Tab
     public HashSet<Guid> ExtraChatChannels = [];
 
     public UnreadMode UnreadMode = UnreadMode.Unseen;
+    /// <summary>
+    /// 该标签页的新消息是否计入未读（v1.40.17+ 全局"未读消息设置"控制，默认 true）。
+    /// false = 本标签页收到匹配消息也不累积未读数（也不计入跨 tab 未读同步）。
+    /// </summary>
+    public bool UnreadEnabled = true;
     public bool UnhideOnActivity;
     public bool DisplayTimestamp = true;
     public InputChannel? Channel;
-    /// <summary>输入频道始终锁定（2026-08-17 用户需求）：勾选后每帧强制频道（原默认行为）；
+    /// <summary>输入频道始终锁定（需求）：勾选后每帧强制频道（原默认行为）；
     /// 不勾选则只在切换到本标签页时自动设置一次频道，之后可自由切换。</summary>
     public bool InputChannelLocked;
     public bool PopOut;
@@ -370,6 +405,15 @@ public class Tab
         if (!unread)
             return;
 
+        // !!! v1.40.17+ 未读消息设置（全局过滤，见"消息设置"页顶部"未读消息设置"区）：
+        // ① 标签页维度：本标签页被取消勾选 → 不计未读
+        // ② 频道维度：UnreadChannels 为空 = 全部频道；非空 = 仅选中频道（含来源/目标细分）
+        if (!UnreadEnabled)
+            return;
+        var cfg = Plugin.Config;
+        if (cfg.UnreadChannels.Count > 0 && !message.Matches(cfg.UnreadChannels, false, []))
+            return;
+
         Unread += 1;
         if (message.Matches(Plugin.Config.InactivityHideChannelsV2, Plugin.Config.InactivityHideExtraChatAll, Plugin.Config.InactivityHideExtraChatChannels))
             LastActivity = Environment.TickCount64;
@@ -387,6 +431,7 @@ public class Tab
             ExtraChatAll = ExtraChatAll,
             ExtraChatChannels = ExtraChatChannels.ToHashSet(),
             UnreadMode = UnreadMode,
+            UnreadEnabled = UnreadEnabled,
             UnhideOnActivity = UnhideOnActivity,
             Unread = Unread,
             LastActivity = LastActivity,
