@@ -47,17 +47,27 @@ public static class ImGuiUtil
     public static void PostPayload(Chunk chunk, PayloadHandler? handler)
     {
         var payload = chunk.Link;
-        if (payload != null && ImGui.IsItemHovered())
+        if (payload != null)
         {
-            Hovered = payload;
-            // !!! 链接 hover → 帧末切游戏原生手指（Clickable）；
-            // 原 SetMouseCursor(Hand) 被 NoMouseCursorChange 禁用（实测链接不变手指）
-            Plugin.AnyInteractiveHovered = true;
-            handler?.Hover(payload);
-        }
-        else if (!ReferenceEquals(Hovered, payload))
-        {
-            Hovered = null;
+            // !!! 链接 hover 用手动矩形检测（GetItemRectMin/Max + 鼠标坐标）——
+            // ImGui 文本 item（TextUnformatted）不设置 HoveredId，IsItemHovered() 恒 false，
+            // 导致链接高亮 + 手指光标从未触发；矩形检测后两者都恢复。
+            var mp = ImGui.GetIO().MousePos;
+            var rMin = ImGui.GetItemRectMin();
+            var rMax = ImGui.GetItemRectMax();
+            var hovered = mp.X >= rMin.X && mp.X <= rMax.X && mp.Y >= rMin.Y && mp.Y <= rMax.Y;
+            if (hovered)
+            {
+                Hovered = payload;
+                // 链接 hover → 帧末切游戏原生手指（Clickable）；
+                // 原 SetMouseCursor(Hand) 被 NoMouseCursorChange 禁用（实测链接不变手指）
+                Plugin.AnyInteractiveHovered = true;
+                handler?.Hover(payload);
+            }
+            else if (!ReferenceEquals(Hovered, payload))
+            {
+                Hovered = null;
+            }
         }
 
         if (handler == null)
