@@ -32,70 +32,103 @@ public sealed class Plugin : IDalamudPlugin
     public const string PluginName = "Chat 2";
 
     // !!! 精细鼠标光标（游戏原生）：NoMouseCursorChange 下 ImGui 不碰光标；
-    // 可点击元素（按钮/tab/链接）hover 时用**游戏自己的光标句柄** SetCursor（原生手指），
-    // 聊天区域恢复游戏 Arrow 句柄。句柄偏移 扫描确认：Cursor+0x18=Arrow / +0x70=Clickable
-    //（offset 结构固定；句柄值每进程变化，运行时实时读）。
+    // 可点击元素（按钮/tab/链接）hover 时显示**游戏自己的光标句柄**（原生手指）。
+    // 方案：hook user32 SetCursor（游戏设光标必经）——detour 里鼠标在聊天窗口可点击
+    // 元素上时把句柄换成游戏手指（Cursor+0x70）再放行：完全同步、无闪烁、无音效。
+    // 句柄偏移扫描确认：Arrow=+0x18 / Clickable=+0x70（结构固定，句柄值每进程变）。
     internal static bool CursorInChatWindow;
     internal static bool AnyInteractiveHovered;
-    private static AtkCursor.CursorType? _lastSetType;
+    // !!! detour 专用缓存（主线程帧末更新；volatile 保证游戏线程可见）：
+    // 工作 flag 帧末清空，游戏线程的 SetCursor 常发生在清空之后 → 直接读工作 flag 永远 false
+    private static volatile bool _detourInChat;
+    private static volatile bool _detourClickable;
 
-    /// <summary>标记鼠标在本聊天窗口内（三窗口共用；帧末 UpdateCursorDecision 统一决策光标）。</summary>
+
+    /// <summary>标记鼠标在本聊天窗口内（三窗口共用；帧末 UpdateCursorDecision 统一决策光标）。
+    /// !!! 用鼠标位置 vs 窗口矩形判定（不用 IsWindowHovered——按下瞬间它返回 false，
+    /// 会导致点击时手指消失）；与 hover/焦点/弹窗无关。</summary>
     internal static void MarkCursorInChatWindow()
     {
-        if (ImGui.IsWindowHovered(ImGuiHoveredFlags.RootAndChildWindows))
+        var mp = ImGui.GetIO().MousePos;
+        var wMin = ImGui.GetWindowPos();
+        var wMax = wMin + ImGui.GetWindowSize();
+        if (mp.X >= wMin.X && mp.X <= wMax.X && mp.Y >= wMin.Y && mp.Y <= wMax.Y)
             CursorInChatWindow = true;
     }
 
-    /// <summary>鼠标在聊天窗口内：按钮/tab 上 → 游戏手指 Clickable；其他区域 → 游戏默认 Arrow。
-    /// !!! 只在类型变化时调用——游戏 SetCursorType 会播悬停音，每帧重复设会连续响（反馈）。</summary>
+    /// <summary>帧末：把本帧 ImGui 计算的 hover 状态缓存给 detour（下一帧持续有效），并清工作 flag。</summary>
     internal static void UpdateCursorDecision()
     {
-        var target = CursorInChatWindow
-            ? (AnyInteractiveHovered ? AtkCursor.CursorType.Clickable : AtkCursor.CursorType.Arrow)
-            : (AtkCursor.CursorType?)null;
-        if (target != _lastSetType)
-        {
-            _lastSetType = target;
-            if (target != null)
-                SetGameCursor(target.Value);
-        }
+        var prevClickable = _detourInChat && _detourClickable;
+        _detourInChat = CursorInChatWindow;
+        _detourClickable = AnyInteractiveHovered;
+        // 手指状态 false→true（进入可点击元素）时播一次游戏原生悬停音（SetCursorType 触发）；
+        // 只在进入时调一次——hook 拦截显示层不受影响，也不会连续响
+        if (!prevClickable && _detourInChat && _detourClickable)
+            PlayHoverSfx();
         CursorInChatWindow = false;
         AnyInteractiveHovered = false;
     }
 
-    private static unsafe void SetGameCursor(AtkCursor.CursorType type)
+    /// <summary>游戏原生悬停音：调 SetCursorType 让游戏播"进入可点击区域"的音效（原生行为）。
+    /// 仅显示层 hook 控制光标，此调用只播音效/同步内部状态，不影响手指显示。</summary>
+    private static unsafe void PlayHoverSfx()
     {
         try
         {
-            var cursor = Cursor.Instance();
-            if (cursor == null)
-                return;
-            var basePtr = (byte*)cursor;
-            // !!! 扫描确认的句柄 offset（FCS 的 CursorHandles@0x1B0 与当前游戏版本不符）：
-            // Arrow=+0x18、Resize=+0x68、Clickable=+0x70。句柄值实时读（每进程变化）。
-            var handle = type == AtkCursor.CursorType.Clickable
-                ? *(nint*)(basePtr + 0x70)
-                : *(nint*)(basePtr + 0x18);
-            if (handle != 0)
-                User32SetCursor(handle);
-
-            // 同步游戏状态（避免 AtkCursor.Type/ActiveCursorType 与显示不一致）
             var stage = AtkStage.Instance();
             if (stage != null)
-            {
-                stage->AtkCursor.Type = type;
-                stage->AtkCursor.SetCursorType(type, true);
-            }
+                stage->AtkCursor.SetCursorType(AtkCursor.CursorType.Clickable, true);
         }
         catch (Exception ex)
         {
-            Log.Error($"[Cursor] failed: {ex.Message}");
+            Log.Error($"[Cursor] hover sfx failed: {ex.Message}");
         }
     }
 
-    // !!! 修复：DllImport 默认入口点 = 方法名，user32 里函数叫 SetCursor → 必须 EntryPoint
-    [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "SetCursor")]
-    private static extern IntPtr User32SetCursor(IntPtr hCursor);
+    // !!! hook user32 SetCursor：游戏设光标必经此处，detour 按缓存状态换句柄
+    //（观察版 hook 曾验证此路径有效；用 GetProcAddress 拿导出地址，非游戏模块内偏移）
+    private static Hook<SetCursorDelegate>? _setCursorHook;
+    private delegate nint SetCursorDelegate(nint hCursor);
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Ansi)]
+    private static extern nint GetModuleHandle(string moduleName);
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Ansi)]
+    private static extern nint GetProcAddress(nint module, string procName);
+
+    private void InitCursorHook()
+    {
+        try
+        {
+            var user32 = GetModuleHandle("user32.dll");
+            var addr = GetProcAddress(user32, "SetCursor");
+            if (addr == 0)
+                return;
+            _setCursorHook = GameInteropProvider.HookFromAddress<SetCursorDelegate>(addr, SetCursorDetour);
+            _setCursorHook.Enable();
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[CursorHook] init failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>鼠标在聊天窗口内且 hover 可点击元素 → 游戏手指句柄；否则原样透传。
+    /// !!! detour 必须极简（任意线程可能调用）：无分配、只读 volatile bool + 一次内存读取。</summary>
+    private static unsafe nint SetCursorDetour(nint hCursor)
+    {
+        if (_detourInChat && _detourClickable)
+        {
+            var cursor = Cursor.Instance();
+            if (cursor != null)
+            {
+                var clickable = *(nint*)((byte*)cursor + 0x70);  // 扫描确认：Clickable=+0x70
+                if (clickable != 0)
+                    return _setCursorHook!.Original(clickable);
+            }
+        }
+        return _setCursorHook!.Original(hCursor);
+    }
+
 
     [PluginService] public static IPluginLog Log { get; private set; } = null!;
     [PluginService] public static IDalamudPluginInterface Interface { get; private set; } = null!;
@@ -183,6 +216,9 @@ public sealed class Plugin : IDalamudPlugin
             // 方案实测指针直接消失（ImGui 的 None 会调 SetCursor(NULL) 隐藏）。NoMouseCursorChange
             // 让 ImGui 完全不碰光标 → 游戏原生指针全程保持。
             ImGui.GetIO().ConfigFlags |= ImGuiConfigFlags.NoMouseCursorChange;
+
+            // !!! hook user32 SetCursor：游戏设光标必经，detour 换手指句柄实现稳定原生手指
+            InitCursorHook();
 
             // !!! 音效观察 hook（复测）
 
@@ -310,6 +346,9 @@ public sealed class Plugin : IDalamudPlugin
         Interface.UiBuilder.Draw -= Draw;
         Framework.Update -= FrameworkUpdate;
         GameFunctions.GameFunctions.SetChatInteractable(true);
+
+        _setCursorHook?.Dispose();
+        _setCursorHook = null;
 
         WindowSystem?.RemoveAllWindows();
         ChatLog?.Dispose();
