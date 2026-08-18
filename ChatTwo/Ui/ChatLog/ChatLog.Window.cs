@@ -1479,7 +1479,8 @@ public partial class ChatLog : Window, IChatWindow
         var size = ImGui.GetFontSize();
         var col = ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 1f));
         var dl = ImGui.GetWindowDrawList();
-        var pos = ImGui.GetCursorScreenPos();
+        var startPos = ImGui.GetCursorScreenPos();
+        var pos = startPos;
         var totalW = 0f;
         foreach (var ch in text)
         {
@@ -1493,6 +1494,35 @@ public partial class ChatLog : Window, IChatWindow
         // 与发送者名之间的间隔（原实现是 chunk 尾随空格；紧凑排布用小间隔）
         var tailGap = compact ? 2f * ImGuiHelpers.GlobalScale : ImGui.CalcTextSize(" ").X;
         ImGui.Dummy(new Vector2(totalW + tailGap, 0f));
+
+        // !!! 必须手动注册进选字系统：旧实现经 DrawChunk→WrapText 会自动 AddChunk，
+        // 自绘后若不注册，PointToChar 在时间戳区域映射不到字符 → 自由选取选不到时间戳
+        //（v1.40.17 回归修复）。矩形用行高（非 0 高 Dummy），charX 含间距
+        if (ImGuiUtil.CurrentSelection != null && text.Length > 0)
+        {
+            var lineHeight = ImGui.GetTextLineHeight();
+            var charX = new float[text.Length + 1];
+            charX[0] = 0f;
+            for (var ci = 0; ci < text.Length; ci++)
+            {
+                var ch = text[ci];
+                if (char.IsHighSurrogate(ch) && ci + 1 < text.Length && char.IsLowSurrogate(text[ci + 1]))
+                {
+                    var pair = ch.ToString() + text[ci + 1];
+                    var sz = ImGui.CalcTextSize(pair).X;
+                    charX[ci + 1] = charX[ci] + sz + spacing;
+                    charX[ci + 2] = charX[ci + 1]; // same boundary for low surrogate
+                    ci++; // skip the low surrogate
+                }
+                else
+                {
+                    var sz = ImGui.CalcTextSize(char.ToString(ch)).X;
+                    charX[ci + 1] = charX[ci] + sz + spacing;
+                }
+            }
+            charX[text.Length] = totalW;
+            ImGuiUtil.CurrentSelection.AddChunk(startPos, startPos + new Vector2(totalW + tailGap, lineHeight), text, charX);
+        }
     }
 
     private void DrawBottomTabLog()
