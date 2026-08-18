@@ -50,8 +50,8 @@ public static class ImGuiUtil
         if (payload != null && ImGui.IsItemHovered())
         {
             Hovered = payload;
-            // ⚠️ 2026-08-18 链接 hover → 帧末切游戏原生手指（Clickable）；
-            // 原 SetMouseCursor(Hand) 被 NoMouseCursorChange 禁用（用户实测链接不变手指）
+            // !!! 链接 hover → 帧末切游戏原生手指（Clickable）；
+            // 原 SetMouseCursor(Hand) 被 NoMouseCursorChange 禁用（实测链接不变手指）
             Plugin.AnyInteractiveHovered = true;
             handler?.Hover(payload);
         }
@@ -107,7 +107,7 @@ public static class ImGuiUtil
 
     /// <summary>在指定位置画 8 方向 0.5px 半透明黑色文字（描边底层）。0.5px 为实用下限，再小会模糊。
     /// 半透明灰（0x80000000）更接近 FFXIV Axis 原生观感（猜测：游戏描边是柔和灰而非纯黑）。
-    /// ⚠️ 2026-08-17 试过 4 方向（上下左右）：用户实测视觉较差 → 回退 8 方向。</summary>
+    /// !!! 试过 4 方向（上下左右）：实测视觉较差 → 回退 8 方向。</summary>
     private static void DrawOutline(Vector2 pos, string text)
     {
         var font = ImGui.GetFont();
@@ -125,8 +125,16 @@ public static class ImGuiUtil
         }
     }
 
-    public static unsafe void WrapText(string csText, Chunk chunk, PayloadHandler? handler, Vector4 defaultText, float lineWidth)
+    public static unsafe void WrapText(string csText, Chunk chunk, PayloadHandler? handler, Vector4 defaultText, float lineWidth, float letterSpacing = 0f)
     {
+        // !!! v1.40.17+ 正文字间距（要求）：非零且是消息内容时走自绘逐字符路径。
+        // 换行/描边/点击命中/选字全部按间距补偿；时间戳与发送者名不受影响（调用方只给 Content 传间距）。
+        if (letterSpacing != 0f && chunk.Source == ChunkSource.Content)
+        {
+            WrapTextSpaced(csText, chunk, handler, defaultText, lineWidth, letterSpacing);
+            return;
+        }
+
         void Text(byte* text, byte* textEnd)
         {
             var oldPos = ImGui.GetCursorScreenPos();
@@ -215,10 +223,10 @@ public static class ImGuiUtil
                     continue;
 
                 var firstSpace = FindFirstSpace(text, textEnd);
-                // ⚠️ 2026-08-15 22:58 修复：无空格文本（纯 CJK/连续字符）视为"按字符断行"。
+                // !!! 修复：无空格文本（纯 CJK/连续字符）视为"按字符断行"。
                 // 原版 firstSpace == textEnd（整个文本是一个"词"）时，若文本 ≤ 整行宽度但 > 当前
                 // 剩余宽度（如 Sender 占宽后画 Content），会误判"词放不下整行 → 空一行再画"，
-                // 导致"第一行空、全部内容挤到第二行"（用户实测）。中文没有空格分词，应直接按
+                // 导致"第一行空、全部内容挤到第二行"（实测）。中文没有空格分词，应直接按
                 // 字符断行（properBreak=true → 正常 Text + while 推进），不触发空行分支。
                 var properBreak = firstSpace <= endPrevLine || firstSpace == textEnd;
                 if (properBreak)
@@ -285,6 +293,184 @@ public static class ImGuiUtil
         return textEnd;
     }
 
+    // ═══════════ v1.40.17+ 正文字间距（自绘逐字符路径，仅 Content chunk 且间距非零时启用） ═══════════
+
+    /// <summary>UTF-8 字符的字节长度（按首字节判断，1~4 字节；防越界截断）。</summary>
+    private static unsafe int Utf8CharLen(byte* p, byte* end)
+    {
+        var b = *p;
+        if (b < 0x80) return 1;
+        if ((b & 0xE0) == 0xC0) return Math.Min(2, (int)(end - p));
+        if ((b & 0xF0) == 0xE0) return Math.Min(3, (int)(end - p));
+        if ((b & 0xF8) == 0xF0) return Math.Min(4, (int)(end - p));
+        return 1;
+    }
+
+    private static unsafe string Utf8CharString(byte* p, int len)
+        => Encoding.UTF8.GetString(p, len);
+
+    /// <summary>
+    /// 带字间距的换行绘制（正文专用）：逐字符 AddText + 描边，按 (字宽 + 间距) 推进；
+    /// 用 Dummy 注册 item（payload 点击/选字矩形/换行推进）。换行语义与原 WrapText 一致：
+    /// 词内断在最后一个可容纳的空格后；无空格（纯 CJK）按字符断行；行首跳过空格。
+    /// </summary>
+    private static unsafe void WrapTextSpaced(string csText, Chunk chunk, PayloadHandler? handler, Vector4 defaultText, float lineWidth, float spacing)
+    {
+        foreach (var part in csText.Split(["\r\n", "\r", "\n"], StringSplitOptions.None))
+        {
+            var bytes = Encoding.UTF8.GetBytes(part);
+            fixed (byte* rawText = bytes)
+            {
+                var text = rawText;
+                var textEnd = text + bytes.Length;
+
+                // 空行（按 \n 切分后）：与原实现一致，输出一个空 item
+                if (text == textEnd)
+                {
+                    ImGui.TextUnformatted("");
+                    continue;
+                }
+
+                var widthLeft = ImGui.GetContentRegionAvail().X;
+                while (text < textEnd)
+                {
+                    // 行首跳过空格（词断行的尾随空格不占下一行）
+                    if (*text == (byte)' ')
+                        ++text;
+                    if (text >= textEnd)
+                        break;
+
+                    var end = FindBreakSpaced(text, textEnd, widthLeft, spacing);
+                    DrawLineSpaced(text, end, chunk, handler, defaultText, spacing);
+                    text = end;
+
+                    widthLeft = ImGui.GetContentRegionAvail().X;
+                }
+            }
+        }
+    }
+
+    /// <summary>按 (字宽+间距) 累计找断行点：优先断在最后一个可容纳的空格后；否则按字符断行（至少推进 1 字符）。</summary>
+    private static unsafe byte* FindBreakSpaced(byte* text, byte* textEnd, float maxWidth, float spacing)
+    {
+        var p = text;
+        var w = 0f;
+        byte* lastSpace = null;   // 位置 = 最后一个可容纳的空格之后（含尾随空格在行尾）
+        while (p < textEnd)
+        {
+            var chLen = Utf8CharLen(p, textEnd);
+            var chStr = Utf8CharString(p, chLen);
+            var cw = ImGui.CalcTextSize(chStr).X;
+            if (w + cw > maxWidth)
+                break;
+            w += cw + spacing;
+            p += chLen;
+            if (chStr == " ")
+                lastSpace = p;
+        }
+
+        if (lastSpace != null && lastSpace < textEnd)
+            return lastSpace;
+
+        // 无空格（纯 CJK/超长单字符）：按字符断行；保证至少推进一个字符
+        if (p == text)
+            p = text + Utf8CharLen(text, textEnd);
+        return p;
+    }
+
+    /// <summary>逐字符绘制一行（8 方向描边 + 正文，间距推进），Dummy 注册 item，随后处理 payload 点击/选字/hover 高亮。</summary>
+    private static unsafe void DrawLineSpaced(byte* text, byte* textEnd, Chunk chunk, PayloadHandler? handler, Vector4 defaultText, float spacing)
+    {
+        var font = ImGui.GetFont();
+        var fontSize = ImGui.GetFontSize();
+        var col = ImGui.GetColorU32(ImGuiCol.Text);   // DrawChunk 已 PushColor（chunk 颜色）→ 直接取当前
+        var dl = ImGui.GetWindowDrawList();
+        var startPos = ImGui.GetCursorScreenPos();
+        var pos = startPos;
+        var lineWidth = 0f;
+
+        var p = text;
+        while (p < textEnd)
+        {
+            var chLen = Utf8CharLen(p, textEnd);
+            var chStr = Utf8CharString(p, chLen);
+            var cw = ImGui.CalcTextSize(chStr).X;
+
+            if (TextOutlineEnabled)
+            {
+                const float o = 0.5f;
+                for (var dx = -o; dx <= o; dx += o)
+                    for (var dy = -o; dy <= o; dy += o)
+                    {
+                        if (dx == 0 && dy == 0)
+                            continue;
+                        dl.AddText(font, fontSize, pos + new Vector2(dx, dy), 0x80000000u, chStr);
+                    }
+            }
+            dl.AddText(font, fontSize, pos, col, chStr);
+
+            pos.X += cw + spacing;
+            lineWidth += cw + spacing;
+            p += chLen;
+        }
+
+        // 注册 item：payload 点击区域 + 选字矩形 + 换行推进（高度 = 行高，与原 TextUnformatted 一致）
+        var lineHeight = ImGui.GetTextLineHeight();
+        ImGui.Dummy(new Vector2(lineWidth, lineHeight));
+        PostPayload(chunk, handler);
+
+        // 选字：逐字符 X 位置（含间距；代理对按一个单位）
+        if (CurrentSelection != null)
+        {
+            var line = Encoding.UTF8.GetString(text, (int)(textEnd - text));
+            if (!string.IsNullOrEmpty(line))
+            {
+                var itemSize = new Vector2(lineWidth, lineHeight);
+                var charX = new float[line.Length + 1];
+                charX[0] = 0f;
+                for (var ci = 0; ci < line.Length; ci++)
+                {
+                    var ch = line[ci];
+                    if (char.IsHighSurrogate(ch) && ci + 1 < line.Length && char.IsLowSurrogate(line[ci + 1]))
+                    {
+                        var pair = char.ToString(ch) + line[ci + 1];
+                        var sz = ImGui.CalcTextSize(pair).X;
+                        charX[ci + 1] = charX[ci] + sz + spacing;
+                        charX[ci + 2] = charX[ci + 1]; // same boundary for low surrogate
+                        ci++; // skip the low surrogate
+                    }
+                    else
+                    {
+                        var sz = ImGui.CalcTextSize(char.ToString(ch)).X;
+                        charX[ci + 1] = charX[ci] + sz + spacing;
+                    }
+                }
+                charX[line.Length] = lineWidth; // 对齐实际行宽（含末字间距）
+                CurrentSelection.AddChunk(startPos, startPos + itemSize, line, charX);
+            }
+        }
+
+        // hover 高亮（链接底色），与原 Text() 路径一致
+        if (!ReferenceEquals(LastLink, chunk.Link))
+            PayloadBounds.Clear();
+        LastLink = chunk.Link;
+
+        if (Hovered != null && ReferenceEquals(Hovered, chunk.Link))
+        {
+            defaultText.W = 0.25f;
+            var actualCol = ColourUtil.Vector4ToAbgr(defaultText);
+            dl.AddRectFilled(startPos, startPos + new Vector2(lineWidth, lineHeight), actualCol);
+
+            foreach (var (start, size) in PayloadBounds)
+                dl.AddRectFilled(start, start + size, actualCol);
+
+            PayloadBounds.Clear();
+        }
+
+        if (Hovered == null && chunk.Link != null)
+            PayloadBounds.Add((startPos, new Vector2(lineWidth, lineHeight)));
+    }
+
     public static bool IconButton(FontAwesomeIcon icon, string? id = null, string? tooltip = null, Dalamud.Interface.ManagedFontAtlas.IFontHandle? font = null)
     {
         var label = icon.ToIconString();
@@ -301,13 +487,13 @@ public static class ImGuiUtil
         return ret;
     }
 
-    /// <summary>原生按钮音效类型（2026-08-17 用户实测确认）：打开=23、再按关闭=24、隐藏/关闭/重置=25；
-    /// 2026-08-18 新增：tab/频道切换=1（游戏原生频道切换音效，用户确认）。</summary>
+    /// <summary>原生按钮音效类型（实测确认）：打开=23、再按关闭=24、隐藏/关闭/重置=25；
+    /// 新增：tab/频道切换=1（游戏原生频道切换音效，确认）。</summary>
     public enum BtnSfx
     {
         /// <summary>无声（排除项：添加tab/搜索/关闭窗口/新人）</summary>
         None = -1,
-        /// <summary>频道切换/tab 切换 SFX 1（游戏原生频道音效，2026-08-18 用户确认）</summary>
+        /// <summary>频道切换/tab 切换 SFX 1（游戏原生频道音效，确认）</summary>
         UiSwitch = 1,
         /// <summary>打开（设置/聊天记录入口/筛选面板展开）SFX 23</summary>
         Open = 23,
@@ -320,7 +506,7 @@ public static class ImGuiUtil
     /// <summary>
     /// 原生贴图图标按钮。
     /// <para>
-    /// 交互反馈（2026-08-17 用户决策，替代"方形底框"）：不画 hover/active 背景矩形，
+    /// 交互反馈（决策，替代"方形底框"）：不画 hover/active 背景矩形，
     /// 状态只靠图标本身——hover 轻微拉亮（tint 1.25）、按下下沉 1px（模拟原生按钮 pressed）。
     /// 点击时播放 <paramref name="sfx"/> 指定音效（默认打开音 23；排除项传 <see cref="BtnSfx.None"/>）。
     /// </para>
@@ -334,7 +520,7 @@ public static class ImGuiUtil
         BtnSfx sfx = BtnSfx.Open)
     {
         // 资源未到位：用 FontAwesome 兜底，保证布局不变（FontAwesome 路径不播声音，保持原行为）
-        // ⚠️ 2026-08-18 大工程：NativeBackground=false（非原生模式）→ 强制 FontAwesome 素材
+        // !!! 大工程：NativeBackground=false（非原生模式）→ 强制 FontAwesome 素材
         if (wrap == null || !Plugin.Config.NativeBackground)
             return IconButton(fallbackIcon, id, tooltip, Plugin.FontManager.FontAwesomeSmall);
 
@@ -345,18 +531,18 @@ public static class ImGuiUtil
         var dl = ImGui.GetWindowDrawList();
 
         // 状态反馈（无方形底框）：按下下沉 1px；hover/按下"亮起"用半透明白雾叠加在图标区域。
-        // ⚠️ 2026-08-18 修复：原实现 tint=1.25/1.15 + ColorConvertFloat4ToU32——ImU32 每通道仅 8bit，
-        // 1.25×255=318 被钳制回 255(=1.0) → hover/active 从未生效（用户实测"未看到任何变化"）。
+        // !!! 修复：原实现 tint=1.25/1.15 + ColorConvertFloat4ToU32——ImU32 每通道仅 8bit，
+        // 1.25×255=318 被钳制回 255(=1.0) → hover/active 从未生效（实测"未看到任何变化"）。
         var hovered = ImGui.IsItemHovered();
         var active = ImGui.IsItemActive();
         float pressOffset = active ? 1f : 0f;
-        // ⚠️ 2026-08-18 可点击元素 hover → 帧末切游戏手指光标（Plugin.UpdateCursorDecision）
+        // !!! 可点击元素 hover → 帧末切游戏手指光标（Plugin.UpdateCursorDecision）
         if (hovered)
             Plugin.AnyInteractiveHovered = true;
 
         // 图标绘制区：保持宽高比（contain）居中，不拉伸。
-        // ⚠️ 2026-08-17 修复：之前直接拉伸到整个按钮 → 宽>高的符号（如放大镜 21x32）
-        // 被横向压扁（用户实测"图标有点扁"）。改为按 wrap 原始宽高比等比缩放居中。
+        // !!! 修复：之前直接拉伸到整个按钮 → 宽>高的符号（如放大镜 21x32）
+        // 被横向压扁（实测"图标有点扁"）。改为按 wrap 原始宽高比等比缩放居中。
         var avail = max - min;
         var texSize = wrap.Size;  // 原始纹理尺寸
         var scale = Math.Min(avail.X / texSize.X, avail.Y / texSize.Y);
@@ -387,10 +573,23 @@ public static class ImGuiUtil
     public static bool OptionCheckbox(ref bool value, string label, string? description = null)
     {
         var ret = ImGui.Checkbox(label, ref value);
-        if (!string.IsNullOrEmpty(description))
-            HelpText(description);
+        // !!! v1.40.17+ 要求：说明悬浮在选项本身上（勾选框/文字），无独立 ? 标记
+        if (!string.IsNullOrEmpty(description) && ImGui.IsItemHovered())
+            Tooltip(description);
 
         return ret;
+    }
+
+    /// <summary>
+    /// 把说明悬浮到上一个控件/文本上（无独立 ? 标记，v1.40.17+ 要求：悬浮选项即出说明）。
+    /// 必须在目标 item 绘制后立即调用（IsItemHovered 指向上一个 item）。
+    /// </summary>
+    public static void TooltipOnLastItem(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return;
+        if (ImGui.IsItemHovered())
+            Tooltip(text);
     }
 
     public static void HelpText(string text)
@@ -427,9 +626,12 @@ public static class ImGuiUtil
     public static bool DragFloatVertical(string label, string description, ref float value, float vSpeed = 1.0f, float vMin = float.MinValue, float vMax = float.MaxValue, string? format = null, ImGuiSliderFlags flags = ImGuiSliderFlags.None)
     {
         ImGui.TextUnformatted(label);
+        if (!string.IsNullOrEmpty(description) && ImGui.IsItemHovered())
+            Tooltip(description);   // 悬浮标签名
         ImGui.SetNextItemWidth(-1);
         var r = ImGui.DragFloat($"##{label}", ref value, vSpeed, vMin, vMax, format, flags);
-        HelpText(description);
+        if (!string.IsNullOrEmpty(description) && ImGui.IsItemHovered())
+            Tooltip(description);   // 悬浮滑条本身
 
         return r;
     }
@@ -437,9 +639,12 @@ public static class ImGuiUtil
     public static bool InputIntVertical(string label, string description, ref int value, int step = 1, int stepFast = 100, ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
     {
         ImGui.TextUnformatted(label);
+        if (!string.IsNullOrEmpty(description) && ImGui.IsItemHovered())
+            Tooltip(description);   // 悬浮标签名
         ImGui.SetNextItemWidth(-1);
         var r = ImGui.InputInt($"##{label}", ref value, step, stepFast, flags: flags);
-        HelpText(description);
+        if (!string.IsNullOrEmpty(description) && ImGui.IsItemHovered())
+            Tooltip(description);   // 悬浮输入框本身
 
         return r;
     }
@@ -673,13 +878,17 @@ public static class ImGuiUtil
         return result != 0 || key == VirtualKey.NO_KEY;
     }
 
-    public static void ChannelSelector(string headerText, Dictionary<ChatType, (ChatSource Source, ChatSource Target)> chatCodes)
+    public static void ChannelSelector(string headerText, Dictionary<ChatType, (ChatSource Source, ChatSource Target)> chatCodes, string? tooltip = null)
     {
         var spacing = 3.0f * ImGuiHelpers.GlobalScale;
 
         using var channelNode = ImRaii.TreeNode(headerText);
         if (!channelNode.Success)
             return;
+
+        // !!! v1.40.17+ 说明悬浮在标题上（如"计入未读的频道"），hover 标题即显示，不占版面
+        if (tooltip != null && ImGui.IsItemHovered())
+            Tooltip(tooltip);
 
         foreach (var (header, types) in ChatTypeExt.SortOrder)
         {

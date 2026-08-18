@@ -163,7 +163,7 @@ public sealed partial class ContextMenuHandler : IDisposable
     {
         // 已由 PayloadHandler 加原生项（含复制名）→ 跳过 C 前缀项，避免重复。
         // 复制名走原生动作（0x10005）：PayloadHandler 已把道具上下文 [self+0x9c0] 写为当前道具 ID，
-        // 动作可正常读（2026-08-14 根因修复）。
+        // 动作可正常读（根因修复）。
         if (NativeItemMenuAdded)
             return;
 
@@ -285,7 +285,7 @@ public sealed partial class ContextMenuHandler : IDisposable
                 cId = CurrentContentId;
 
             // 好友：屏蔽机能只有"记录屏蔽词"；陌生人：完整三项（黑名单/屏蔽名单/屏蔽词）。
-            // 复用 GetFriends 按 ContentId 匹配（用户实测确认：好友仅记录屏蔽词）。
+            // 复用 GetFriends 按 ContentId 匹配（实测确认：好友仅记录屏蔽词）。
             var isFriend = cId != 0
                 && GameFunctions.GetFriends().Any(f => f.ContentId == cId);
 
@@ -319,7 +319,7 @@ public sealed partial class ContextMenuHandler : IDisposable
                 });
             }
 
-            // ⚠️ 2026-08-15 17:32 用户决策：删除"← 返回"子项（不必要的按钮，徒增代码复杂度）。
+            // !!! 决策：删除"← 返回"子项（不必要的按钮，徒增代码复杂度）。
             // 二级菜单通过点击菜单项/点击菜单外（游戏原生）关闭。
 
             if (blockItems.Count > 0)

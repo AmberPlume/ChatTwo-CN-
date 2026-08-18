@@ -103,7 +103,11 @@ public class ChunkHandler
 
         if (wrap)
         {
-            ImGuiUtil.WrapText(content, chunk, handler, Plugin.DefaultText, lineWidth);
+            // !!! v1.40.17+ 正文字间距：只给消息内容（Content）传间距，时间戳/发送者名保持原样（要求）
+            var letterSpacing = chunk.Source == ChunkSource.Content
+                ? Plugin.Config.MessageLetterSpacing * ImGuiHelpers.GlobalScale
+                : 0f;
+            ImGuiUtil.WrapText(content, chunk, handler, Plugin.DefaultText, lineWidth, letterSpacing);
         }
         else
         {

@@ -14,7 +14,7 @@ public partial class ChatLog
             PreviousChannel = currentChannel;
         }
 
-        // 输入框左侧的当前频道名用小号字体（用户要求）
+        // 输入框左侧的当前频道名用小号字体（要求）
         using var smallFont = Plugin.FontManager.SmallFont.Push();
         // 仿原生 FFXIV：手动渲染实现"裹一层"光晕——荧光白偏黄粗描边 + 亮白主文字
         var text = string.Concat(currentChannel.Select(c => c is TextChunk t ? t.Content : string.Empty));

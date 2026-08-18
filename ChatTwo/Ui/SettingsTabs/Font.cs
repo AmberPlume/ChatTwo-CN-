@@ -24,6 +24,7 @@ public sealed class Font : ISettingsTab
 
         // 自定义字体：字体族下拉（无字号/样式列——字号统一由下面的"字体大小"控制）
         ImGui.TextUnformatted(Language.Options_Font_Name);
+        ImGuiUtil.TooltipOnLastItem(Language.Options_Font_Description);   // 悬浮"自定义字体"标题即出说明
         FontFamilyChooser(Language.Options_Font_Name, Mutable.GlobalFontV2);
         ImGui.SameLine();
         if (ImGui.Button("Reset##global-font"))
@@ -31,22 +32,21 @@ public sealed class Font : ISettingsTab
             Mutable.GlobalFontV2 = new SingleFontSpec { FontId = new DalamudAssetFontAndFamilyId(DalamudAsset.NotoSansCjkRegular), SizePt = Mutable.FontSizeV2 };
             Mutable.FontsEnabled = false;  // Reset → 回到 Axis 游戏字体
         }
-        ImGuiUtil.HelpText(Language.Options_Font_Description);
         ImGui.Spacing();
 
         // 主字体大小
         ImGuiUtil.FontSizeCombo(Language.Options_FontSize_Name, ref Mutable.FontSizeV2);
-        ImGuiUtil.HelpText(string.Format(Language.Options_Font_Description, Plugin.PluginName));
+        ImGuiUtil.TooltipOnLastItem(string.Format(Language.Options_Font_Description, Plugin.PluginName));   // 悬浮下拉框即出说明
         ImGui.Spacing();
 
         // 输入框字体大小（输入框高度随之自适应）
         ImGuiUtil.FontSizeCombo(Language.Options_InputFontSize_Name, ref Mutable.InputFontSize);
-        ImGuiUtil.HelpText(Language.Options_InputFontSize_Description);
+        ImGuiUtil.TooltipOnLastItem(Language.Options_InputFontSize_Description);
         ImGui.Spacing();
 
         // 设置界面字体大小（独立于聊天主字体）
         ImGuiUtil.FontSizeCombo(Language.Options_SettingsFontSize_Name, ref Mutable.SettingsFontSize);
-        ImGuiUtil.HelpText(Language.Options_SettingsFontSize_Description);
+        ImGuiUtil.TooltipOnLastItem(Language.Options_SettingsFontSize_Description);
     }
 
     // 字体族下拉（替代内置 SingleFontChooserDialog——它自带字号/样式列无法隐藏，字号由"字体大小"统一控制）

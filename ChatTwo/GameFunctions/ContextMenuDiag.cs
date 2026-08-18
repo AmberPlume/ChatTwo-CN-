@@ -6,17 +6,17 @@
 // 启用方法：csproj 的 <DefineConstants> 加 ENABLE_CTX_DIAG（或 Debug 构建自动启用）。
 // 平时 Release 构建不包含本文件任何代码（零开销、零日志噪音）。
 //
-// 为什么保留而不是删除（2026-08-14 决定）：
-//   游戏版本更新后，以下逆向结论需要重新验证，这些 hook/dump 就是现成工具：
-//   1. handler 身份是否仍 = AgentChatLog.Instance()（HandlerID 诊断）
-//   2. AddMenuItem 调用参数（AMDI hook）——生成层是否变化
-//   3. eventId/hParam 语义（MenuDump）——玩家/道具菜单项是否变化
-//   4. AgentContext 关键字段（B2Diag/CtxDiag）——0x1418/0x1430/0x12D0 偏移是否变化
-//   5. 二级菜单 addon 名（AllAddonDiag）——AddonContextSub 是否仍是容器
+// 为什么保留而不是删除（决定）：
+// 游戏版本更新后，以下逆向结论需要重新验证，这些 hook/dump 就是现成工具：
+// 1. handler 身份是否仍 = AgentChatLog.Instance()（HandlerID 诊断）
+// 2. AddMenuItem 调用参数（AMDI hook）——生成层是否变化
+// 3. eventId/hParam 语义（MenuDump）——玩家/道具菜单项是否变化
+// 4. AgentContext 关键字段（B2Diag/CtxDiag）——0x1418/0x1430/0x12D0 偏移是否变化
+// 5. 二级菜单 addon 名（AllAddonDiag）——AddonContextSub 是否仍是容器
 //
-// ⚠️ 已知崩溃源（勿重新启用）：
-//   GenHook（0xed6060）：delegate 已补第 5 栈参数但 Original 后仍崩（04:01 实测），
-//   禁用。需要抓生成器时用 [AMDI]（AddMenuItem hook）代替。
+// !!! 已知崩溃源（勿重新启用）：
+// GenHook（0xed6060）：delegate 已补第 5 栈参数但 Original 后仍崩（实测），
+// 禁用。需要抓生成器时用 [AMDI]（AddMenuItem hook）代替。
 // ═══════════════════════════════════════════════════════════════════════
 #if ENABLE_CTX_DIAG
 using System;
@@ -49,7 +49,7 @@ public sealed partial class ContextMenuHandler
     [Signature("40 57 48 83 EC 40 48 8B 51 18 48 8B F9 48 85 D2 0F 84 83 03 00 00 48 8D 4A 40", DetourName = nameof(MenuGenDetour))]
     private Hook<MenuGenDelegate>? MenuGenHook = null!;
     // 0x4b0e70 = 统一 handler 的 ReceiveEvent（交接文档事实 5，反汇编复核）。
-    // ⚠️ 2026-08-15 07:30 修正：delegate 补全为完整 AtkEventInterface.ReceiveEvent 签名
+    // !!! 修正：delegate 补全为完整 AtkEventInterface.ReceiveEvent 签名
     //（此前 1 参数 self 是错的，Original 缺参调用有崩溃风险，已禁用）。签名参考
     // OmenTools AgentExtension.SendEvent：ReceiveEvent(ret, atkValues, count, eventKind)。
     private unsafe delegate AtkValue* MenuGenDelegate(FFXIVClientStructs.FFXIV.Component.GUI.AtkModuleInterface.AtkEventInterface* self, AtkValue* returnValue, AtkValue* values, uint valueCount, ulong eventKind);
@@ -62,10 +62,10 @@ public sealed partial class ContextMenuHandler
     private delegate void AddMenuItemDelegate(nint thisPtr, nint text, nint handler, long handlerParam, byte disabled, byte submenu);
 
 
-    // ⚠️ GenHook（0xed6060）= 崩溃源，禁用。留注释记录签名与坑。
+    // !!! GenHook（0xed6060）= 崩溃源，禁用。留注释记录签名与坑。
     // [Signature("48 89 5C 24 20 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 30 FA FF FF 48 81 EC D0 06 00 00", DetourName = nameof(GenDetour))]
     // private Hook<GenDelegate>? GenHook = null!;
-    // // ⚠️ 必须有第 5 参数（栈参数，入口读 [rbp+0x630]）！只声明 4 参数 → Original 丢栈参 → 崩溃（03:56 实测）
+    // // !!! 必须有第 5 参数（栈参数，入口读 [rbp+0x630]）！只声明 4 参数 → Original 丢栈参 → 崩溃（实测）
     // private delegate void GenDelegate(nint self, nint a2, nint a3, nint a4, nint a5);
 
     // ────────────────────────────────────────────────────────────────────
@@ -119,7 +119,7 @@ public sealed partial class ContextMenuHandler
     {
         try
         {
-            // ⚠️ 仅菜单会话时输出（防止每帧刷屏）
+            // !!! 仅菜单会话时输出（防止每帧刷屏）
             if (Plugin.ContextMenuActive && values != null)
             {
                 var sb = new System.Text.StringBuilder();
@@ -143,7 +143,7 @@ public sealed partial class ContextMenuHandler
     {
         try
         {
-            // ⚠️ 仅菜单会话时输出（2026-08-15 07:20：AgentContext.ReceiveEvent 每帧被调多次，
+            // !!! 仅菜单会话时输出（AgentContext.ReceiveEvent 每帧被调多次，
             // 无条件输出会刷屏；只有菜单打开期间的事件才与右键菜单相关）
             if (!Plugin.ContextMenuActive)
                 return CtxReceiveEventHook!.Original(self, returnValue, values, valueCount, eventKind);
@@ -185,7 +185,7 @@ public sealed partial class ContextMenuHandler
     }
 
 
-    // ⚠️ 崩溃源，勿启用（见文件头注释）。保留签名备查。
+    // !!! 崩溃源，勿启用（见文件头注释）。保留签名备查。
     // private void GenDetour(nint self, nint a2, nint a3, nint a4, nint a5) { ... }
 
     private static unsafe string HexBytes(byte* p, int n)
@@ -200,8 +200,8 @@ public sealed partial class ContextMenuHandler
     // OnMenuOpened 诊断 dump（OnMenuOpened 开头调用）
     // ────────────────────────────────────────────────────────────────────
 
-    // ⚠️ 2026-08-15 07:36：不再每次打开菜单自动 dump（用户反馈日志刷屏）。
-    // 手动触发开关（DumpNextMenu）随 /ct2poc 命令一并移除（08:30 清理）。
+    // !!! ：不再每次打开菜单自动 dump（反馈日志刷屏）。
+    // 手动触发开关（DumpNextMenu）随 /ct2poc 命令一并移除（清理）。
     // 需要完整 dump 时：临时把此方法改为无条件调用即可。
     public void DumpOnMenuOpened(IMenuOpenedArgs args)
     {
@@ -258,10 +258,10 @@ public sealed partial class ContextMenuHandler
             var curTarget = *(nint*)(b + 0x120);
             Plugin.Log.Error($"[CtxDiag] addon={args.AddonName} ours={IsChatTwoTriggered} ContentId={cid} HomeWorld={hw} AccountId={aid} ObjId={oid} Sex={sex} MountSeats={mount} Owner={owner} CurTargetPtr=0x{curTarget:X}");
 
-            // [BP+ItemID] 2026-08-15 专项：AddonName 机制验证
-            //  Dalamud OnMenuOpened 的 AddonName = GetAddonById(ContextMenu->BlockedParentId)，
-            //  我们 OpenContextMenu 前设 BlockedParentId=ChatLog，实测它是否被游戏覆盖；
-            //  AgentChatLog.ContextItemId 是 DR HandleChatLog 的读取源，确认触发时是否有效。
+            // [BP+ItemID] 专项：AddonName 机制验证
+            // Dalamud OnMenuOpened 的 AddonName = GetAddonById(ContextMenu->BlockedParentId)，
+            // 我们 OpenContextMenu 前设 BlockedParentId=ChatLog，实测它是否被游戏覆盖；
+            // AgentChatLog.ContextItemId 是 DR HandleChatLog 的读取源，确认触发时是否有效。
             unsafe
             {
                 try
@@ -319,7 +319,7 @@ public sealed partial class ContextMenuHandler
         }
     }
 
-    /// <summary>[HandlerID] 对比菜单 handler 与常驻对象指针（2026-08-14 已证实 = AgentChatLog）。</summary>
+    /// <summary>[HandlerID] 对比菜单 handler 与常驻对象指针（已证实 = AgentChatLog）。</summary>
     private static unsafe void DumpHandlerId(IMenuOpenedArgs args)
     {
         try

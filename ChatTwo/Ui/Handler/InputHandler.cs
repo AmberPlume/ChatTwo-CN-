@@ -105,7 +105,7 @@ public class InputHandler
                 ? 100f
                 : Plugin.Config.InputAlpha;
             var bgAlphaF = inputBgAlpha / 100f;
-            // ⚠️ 2026-08-18 回滚：原生输入框贴图素材取消（用户素材不好）→ 恢复 FrameBg 颜色 + 描边
+            // !!! 回滚：原生输入框贴图素材取消（素材不好）→ 恢复 FrameBg 颜色 + 描边
             using (ImRaii.PushColor(ImGuiCol.FrameBg, ImGui.GetColorU32(ImGuiCol.FrameBg, bgAlphaF), bgAlphaF < 1f))
             using (ImRaii.PushColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, bgAlphaF), bgAlphaF < 1f))
             using (ImRaii.PushColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, bgAlphaF), bgAlphaF < 1f))
@@ -125,7 +125,7 @@ public class InputHandler
             var inputActive = ImGui.IsItemActive();
             InputFocused = isChatEnabled && inputActive;
 
-            // 输入框轮廓描边（用户要求默认界面也描边，不再限于仿原生）：外圈 1px 黑线
+            // 输入框轮廓描边（要求默认界面也描边，不再限于仿原生）：外圈 1px 黑线
             //（与背景交融）+ 内圈 1px 灰白线（可见边界），四角磨圆
             {
                 var rMin = ImGui.GetItemRectMin();
@@ -217,13 +217,13 @@ public class InputHandler
         }
 
         CursorPos = data.CursorPos;
-        // ⚠️ [InputScrollFix] 2026-08-17 中文长文本输入框不自动滚动修复（v2，v1 no-op 无效）：
+        // !!! [InputScrollFix] 中文长文本输入框不自动滚动修复（v2，v1 no-op 无效）：
         // ImGui 源码 imgui_widgets.cpp L4806：Callback 返回后仅当
-        //   callback_data.CursorPos != utf8_cursor_pos  时 state->CursorFollow = true
+        // callback_data.CursorPos != utf8_cursor_pos 时 state->CursorFollow = true
         // （v1 的 no-op 赋值值相同 → 不触发 → 无效）；滚动执行在 L4975
-        //   if (render_cursor && state->CursorFollow) { 算 scroll_x; state->CursorFollow = false; }
+        // if (render_cursor && state->CursorFollow) { 算 scroll_x; state->CursorFollow = false; }
         // 即滚动是"事件驱动"的：IME/TSF 上屏不走 ImGui 字符输入路径 → 永不置位 → 不滚动；
-        // Backspace 走按键路径 → 置位 → 恢复（用户实测"删一字即恢复"）。
+        // Backspace 走按键路径 → 置位 → 恢复（实测"删一字即恢复"）。
         // 修复：文本长度变化 + 光标在末尾时，做"退1字符→下帧回末尾"两步移动（值确实变化 → 触发
         // 滚动跟随）；只在文本变化时触发（不变化不触发 → 打字期间不会每帧闪烁）。
         if (data.EventFlag == ImGuiInputTextFlags.CallbackAlways && data.BufTextLen > 0)
@@ -239,7 +239,7 @@ public class InputHandler
                 _lastScrollFixLen = data.BufTextLen; // 文本变化（输入/删除）
                 if (data.CursorPos >= data.BufTextLen)
                 {
-                    // 光标在末尾 → 退 1 个 UTF-8 字符（⚠️ 不能 -1 字节：可能落在多字节字符中间）
+                    // 光标在末尾 → 退 1 个 UTF-8 字符（!!! 不能 -1 字节：可能落在多字节字符中间）
                     var curText = MemoryHelper.ReadString((nint)data.Buf, data.BufTextLen);
                     var lastLen = 1;
                     if (curText.Length > 0)

@@ -87,6 +87,36 @@
     <data name="Options_ShowTimestamp_Description">
         <value>Show a timestamp before each message. Each tab has its own timestamp toggle; both must be enabled to display.</value>
     </data>
+    <data name="Options_Timestamp_RemoveBrackets_Name">
+        <value>Remove brackets</value>
+    </data>
+    <data name="Options_Timestamp_RemoveBrackets_Description">
+        <value>Hide the square brackets around the timestamp, e.g. [12:34] becomes 12:34 — shorter and cleaner.</value>
+    </data>
+    <data name="Options_Timestamp_Compact_Name">
+        <value>Compact spacing</value>
+    </data>
+    <data name="Options_Timestamp_Compact_Description">
+        <value>Tighten the letter spacing of the timestamp so it takes up the least space.</value>
+    </data>
+    <data name="Options_LetterSpacing_Name">
+        <value>Letter spacing</value>
+    </data>
+    <data name="Options_LetterSpacing_Description">
+        <value>Adjust the letter spacing of the message content (negative tightens, positive loosens). Does not affect the timestamp or sender name.</value>
+    </data>
+    <data name="Options_Timestamp_LetterSpacing_Name">
+        <value>Timestamp letter spacing</value>
+    </data>
+    <data name="Options_Timestamp_LetterSpacing_Description">
+        <value>Freely adjust the spacing between timestamp characters (negative values tighten, positive values loosen). Independent of the message letter spacing.</value>
+    </data>
+    <data name="Options_MessageSpacing_Name">
+        <value>Message spacing</value>
+    </data>
+    <data name="Options_MessageSpacing_Description">
+        <value>Extra vertical spacing between message lines (0 = no extra spacing; negative values tighten the line spacing within the font line-height slack, too negative overlaps text).</value>
+    </data>
     <data name="Options_FontSize_Name">
         <value>Font size</value>
     </data>
@@ -122,6 +152,15 @@
     </data>
     <data name="Options_Tabs_Add">
         <value>Add</value>
+    </data>
+    <data name="Options_Tabs_EditTitle">
+        <value>Edit tab</value>
+    </data>
+    <data name="Options_Tabs_EditTooltip">
+        <value>Click to edit this tab</value>
+    </data>
+    <data name="Options_Tabs_EditDone">
+        <value>Done</value>
     </data>
     <data name="Options_Tabs_Import_Name">
         <value>Import tabs config</value>
@@ -1094,7 +1133,37 @@ Your old database can still be recovered, please contact the plugin author for h
         <value>Input area scale</value>
     </data>
     <data name="Options_InputAreaScale_Description">
-        <value>Scale of the input box, side icons, tab text and trailing + button (50% - 200%).</value>
+        <value>Scale of the input box, side icons and channel name line (50% - 200%). The channel name scales at a reduced rate (+100% input area = +25% channel name) while the buttons scale fully. The tab bar is controlled by the separate "Tab scale" setting.</value>
+    </data>
+    <data name="Options_TabScale_Name">
+        <value>Tab scale</value>
+    </data>
+    <data name="Options_TabScale_Description">
+        <value>Scale of the tab text and tab bar, including the trailing + button (50% - 200%). Independent of the input area scale.</value>
+    </data>
+    <data name="Options_UnreadSettings_Title">
+        <value>Unread message settings</value>
+    </data>
+    <data name="Options_UnreadSettings_Description">
+        <value>Choose which channels and which tabs count new messages as unread. Applies to the whole chat window.</value>
+    </data>
+    <data name="Options_UnreadSettings_Channels">
+        <value>Channels that count as unread</value>
+    </data>
+    <data name="Options_UnreadSettings_Channels_Description">
+        <value>When no channel is selected, messages of every channel count as unread. ExtraChat channel messages only count when no channel filter is set.</value>
+    </data>
+    <data name="Options_UnreadSettings_Tabs">
+        <value>Tabs that count as unread</value>
+    </data>
+    <data name="Options_UnreadSettings_Tabs_SelectAll">
+        <value>Select all tabs</value>
+    </data>
+    <data name="Options_UnreadSettings_Tabs_SelectNone">
+        <value>Clear all tabs</value>
+    </data>
+    <data name="Options_UnreadSettings_Tabs_Description">
+        <value>Only checked tabs accumulate unread counts. All tabs are checked by default.</value>
     </data>
     <data name="Options_MessageAlpha_Name">
         <value>Message area opacity</value>
@@ -1121,7 +1190,7 @@ Your old database can still be recovered, please contact the plugin author for h
         <value>Opacity of the input box background.</value>
     </data>
     <data name="Options_NativeBackground_Name">
-        <value>Native-style interface</value>
+        <value>Native-style window</value>
     </data>
     <data name="Options_NativeBackground_Description">
         <value>Use FFXIV native UI textures (toolbar icons / bottom tabs). When off, falls back to FontAwesome icons and flat tabs; the window background is always transparent.</value>
