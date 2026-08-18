@@ -1135,7 +1135,7 @@
     <value>输入区缩放</value>
   </data>
   <data name="Options_InputAreaScale_Description">
-    <value>调整输入框、左右图标和频道名行的大小（50% - 200%）。标签页由独立的"标签页缩放"控制。</value>
+    <value>调整输入框、左右图标和频道名行的大小（50% - 200%）。频道名按较小比例缩放（输入区 +100% 时频道名仅 +25%），按钮全量跟随。标签页由独立的"标签页缩放"控制。</value>
   </data>
   <data name="Options_TabScale_Name">
     <value>标签页缩放</value>

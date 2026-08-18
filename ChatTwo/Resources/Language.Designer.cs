@@ -2472,7 +2472,7 @@ namespace ChatTwo.Resources {
         }
 
         /// <summary>
-        /// Looks up a localized string similar to Scale of the input box, side icons and channel name line (50% - 200%). Tab bar is controlled by the separate &quot;Tab scale&quot; setting..
+        /// Looks up a localized string similar to Scale of the input box, side icons and channel name line (50% - 200%). The channel name scales at a reduced rate (+100% input area = +25% channel name) while the buttons scale fully. The tab bar is controlled by the separate &quot;Tab scale&quot; setting..
         /// </summary>
         internal static string Options_InputAreaScale_Description {
             get {

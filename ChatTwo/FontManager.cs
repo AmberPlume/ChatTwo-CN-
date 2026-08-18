@@ -181,7 +181,9 @@ public class FontManager
         ItalicFont = null;
 
         // 小号字体：固定 12pt（输入框频道名等 UI 元素，不随主字体设置变化）
-        var smallFontSizePt = 12f * inputScale * 0.9f;  // 频道名（输入框附近），×0.9 缩小
+        // !!! 频道名缩放比率降低（要求）：按钮/图标全量跟随输入区缩放（+100% 就 +100%），
+        // 频道名只按 25% 比率缓变（输入区缩放 2.0 时频道名仅 +25%），避免频道名过度放大
+        var smallFontSizePt = 12f * (1f + (inputScale - 1f) * 0.25f) * 0.9f;  // 频道名（输入框附近），×0.9 缩小
         SmallFont = Plugin.Interface.UiBuilder.FontAtlas.NewDelegateFontHandle(
             e => e.OnPreBuild(
                 tk =>

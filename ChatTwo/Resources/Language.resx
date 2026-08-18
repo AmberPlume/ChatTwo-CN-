@@ -1133,7 +1133,7 @@ Your old database can still be recovered, please contact the plugin author for h
         <value>Input area scale</value>
     </data>
     <data name="Options_InputAreaScale_Description">
-        <value>Scale of the input box, side icons and channel name line (50% - 200%). Tab bar is controlled by the separate "Tab scale" setting.</value>
+        <value>Scale of the input box, side icons and channel name line (50% - 200%). The channel name scales at a reduced rate (+100% input area = +25% channel name) while the buttons scale fully. The tab bar is controlled by the separate "Tab scale" setting.</value>
     </data>
     <data name="Options_TabScale_Name">
         <value>Tab scale</value>
