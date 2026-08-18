@@ -182,7 +182,7 @@ public sealed class Tabs : ISettingsTab
 
         var toRemove = -1;
 
-        // ═══════════════ 未读消息设置（v1.40.17+，要求：放在编辑标签页上方） ═══════════════
+        // ═══════════════ 未读消息设置（v1.40.17+，：放在编辑标签页上方） ═══════════════
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
@@ -194,7 +194,7 @@ public sealed class Tabs : ISettingsTab
         ImGuiUtil.ChannelSelector(Language.Options_UnreadSettings_Channels, Mutable.UnreadChannels, Language.Options_UnreadSettings_Channels_Description);
         ImGui.Spacing();
 
-        // 计入未读的标签页：可折叠节点（要求），全选/清空 + 逐个勾选（对应 tab.UnreadEnabled）
+        // 计入未读的标签页：可折叠节点，全选/清空 + 逐个勾选（对应 tab.UnreadEnabled）
         using (var tabsNode = ImRaii.TreeNode(Language.Options_UnreadSettings_Tabs))
         {
             if (tabsNode.Success)
@@ -232,13 +232,19 @@ public sealed class Tabs : ISettingsTab
                 ImGui.Spacing();
                 ImGuiUtil.OptionCheckbox(ref Mutable.CompactTimestampSpacing, Language.Options_Timestamp_Compact_Name, Language.Options_Timestamp_Compact_Description);
                 ImGui.Spacing();
+                // 时间戳单独成列：正文整体缩进，换行不回到时间戳下方
+                ImGuiUtil.OptionCheckbox(ref Mutable.TimestampOwnColumn, Language.Options_Timestamp_OwnColumn_Name, Language.Options_Timestamp_OwnColumn_Description);
+                ImGui.Spacing();
                 // 时间戳字间距（只作用时间戳；正文有独立的"字间距"）
                 ImGuiUtil.DragFloatVertical(Language.Options_Timestamp_LetterSpacing_Name, Language.Options_Timestamp_LetterSpacing_Description, ref Mutable.TimestampLetterSpacing, 0.1f, -3f, 6f, $"{Mutable.TimestampLetterSpacing:0.0}px", ImGuiSliderFlags.AlwaysClamp);
+                ImGui.Spacing();
+                // 时间戳与正文间距（单独成列时生效；0 表示贴紧时间戳右缘）
+                ImGuiUtil.DragFloatVertical(Language.Options_Timestamp_ColumnGap_Name, Language.Options_Timestamp_ColumnGap_Description, ref Mutable.TimestampColumnGap, 0.5f, 0f, 40f, $"{Mutable.TimestampColumnGap:0.0}px", ImGuiSliderFlags.AlwaysClamp);
                 ImGui.Spacing();
             }
         }
 
-        // 正文字间距（v1.40.17+ 要求：作用于消息正文，不影响时间戳/发送者名；与段落间距同级）
+        // 正文字间距（v1.40.17+ ：作用于消息正文，不影响时间戳/发送者名；与段落间距同级）
         ImGuiUtil.DragFloatVertical(Language.Options_LetterSpacing_Name, Language.Options_LetterSpacing_Description, ref Mutable.MessageLetterSpacing, 0.1f, -3f, 6f, $"{Mutable.MessageLetterSpacing:0.0}px", ImGuiSliderFlags.AlwaysClamp);
         ImGui.Spacing();
 
@@ -296,7 +302,7 @@ public sealed class Tabs : ISettingsTab
                 EditPopupOpen = false;
         }
 
-        // ═══ 编辑窗（方案C改版：要求不用模态窗口 → 普通浮动窗，设置页仍可操作）═══
+        // ═══ 编辑窗（方案C改版：不用模态窗口 → 普通浮动窗，设置页仍可操作）═══
         if (EditPopupOpen && EditingTab >= 0 && EditingTab < Mutable.Tabs.Count)
         {
             ImGui.SetNextWindowSize(new Vector2(540f * ImGuiHelpers.GlobalScale, 560f * ImGuiHelpers.GlobalScale), ImGuiCond.FirstUseEver);
@@ -367,14 +373,14 @@ public sealed class Tabs : ISettingsTab
                 ImGuiUtil.OptionCheckbox(ref tab.HideInLoadingScreens, Language.Options_HideInLoadingScreens_Name);
                 ImGui.Spacing();
 
-                // "在战斗中隐藏"已删除：保持关闭（要求）
+                // "在战斗中隐藏"已删除：保持关闭
             }
 
             ImGuiUtil.OptionCheckbox(ref tab.CanResize, Language.Popout_CanResize_Name);
             ImGui.Spacing();
         }
 
-        // 未读模式设置已删除：固定为"未看过的"（UnreadMode.Unseen，默认值，要求）
+        // 未读模式设置已删除：固定为"未看过的"（UnreadMode.Unseen，默认值）
 
         if (Mutable.HideWhenInactive)
             ImGui.Checkbox(Language.Options_Tabs_InactivityBehaviour, ref tab.UnhideOnActivity);

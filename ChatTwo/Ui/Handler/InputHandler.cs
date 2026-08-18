@@ -125,7 +125,7 @@ public class InputHandler
             var inputActive = ImGui.IsItemActive();
             InputFocused = isChatEnabled && inputActive;
 
-            // 输入框轮廓描边（要求默认界面也描边，不再限于仿原生）：外圈 1px 黑线
+            // 输入框轮廓描边（默认界面也描边，不再限于仿原生）：外圈 1px 黑线
             //（与背景交融）+ 内圈 1px 灰白线（可见边界），四角磨圆
             {
                 var rMin = ImGui.GetItemRectMin();

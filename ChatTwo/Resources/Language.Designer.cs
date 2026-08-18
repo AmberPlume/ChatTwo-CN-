@@ -2743,6 +2743,78 @@ namespace ChatTwo.Resources {
         }
 
         /// <summary>
+        /// Looks up a localized string similar to Timestamp in its own column.
+        /// </summary>
+        internal static string Options_Timestamp_OwnColumn_Name {
+            get {
+                return ResourceManager.GetString("Options_Timestamp_OwnColumn_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Keep the timestamp in its own column on the left and indent the message body, so wrapped lines never return below the timestamp; messages stand out more clearly..
+        /// </summary>
+        internal static string Options_Timestamp_OwnColumn_Description {
+            get {
+                return ResourceManager.GetString("Options_Timestamp_OwnColumn_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Timestamp to body spacing.
+        /// </summary>
+        internal static string Options_Timestamp_ColumnGap_Name {
+            get {
+                return ResourceManager.GetString("Options_Timestamp_ColumnGap_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Horizontal gap between the timestamp column and the message body (px), used when the timestamp is in its own column..
+        /// </summary>
+        internal static string Options_Timestamp_ColumnGap_Description {
+            get {
+                return ResourceManager.GetString("Options_Timestamp_ColumnGap_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Hide add-tab button.
+        /// </summary>
+        internal static string Options_HideNewTabButton_Name {
+            get {
+                return ResourceManager.GetString("Options_HideNewTabButton_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Hide the "+" button at the end of the tab bar (new tabs can still be added via shortcuts or the right-click menu)..
+        /// </summary>
+        internal static string Options_HideNewTabButton_Description {
+            get {
+                return ResourceManager.GetString("Options_HideNewTabButton_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Custom message area background color.
+        /// </summary>
+        internal static string Options_CustomMessageLogBg_Name {
+            get {
+                return ResourceManager.GetString("Options_CustomMessageLogBg_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Customize the message area background color; when off it follows the theme (slightly lightened automatically). Opacity is always controlled by the "message area opacity" setting..
+        /// </summary>
+        internal static string Options_CustomMessageLogBg_Description {
+            get {
+                return ResourceManager.GetString("Options_CustomMessageLogBg_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
         /// Looks up a localized string similar to Tighten the letter spacing of the timestamp so it takes up the least space..
         /// </summary>
         internal static string Options_Timestamp_Compact_Description {
@@ -2842,7 +2914,7 @@ namespace ChatTwo.Resources {
         }
 
         /// <summary>
-        /// Looks up a localized string similar to Choose whether tabs appear at the top or bottom of the chat window..
+        /// Looks up a localized string similar to Choose whether tabs appear at the top or bottom of the chat window. Locked to the bottom when the native-style window is enabled..
         /// </summary>
         internal static string Options_TabPosition_Description {
             get {

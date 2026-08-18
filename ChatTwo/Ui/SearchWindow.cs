@@ -65,14 +65,14 @@ public class SearchWindow : Window
     private string ChannelTabName = "";   // 频道来源 Tab 名（右键选择，空=当前 Tab）
     private DateTime BrowseDate = DateTime.Today;
     private DateTime CalendarMonth = DateTime.Today;
-    // !!! 决策：锁按钮移除，MoveLocked 从设置页读取（Config.MoveLocked）
+    // !!! 锁按钮移除，MoveLocked 从设置页读取（Config.MoveLocked）
     private bool MoveLocked => Plugin.Config.MoveLocked;
 
     // 消息区屏幕矩形（上一帧 DrawMessageLog 回调记录，本窗口自己的——不污染 ChatLog 字段）
     private Vector2 LastMessageAreaMin = Vector2.Zero;
     private Vector2 LastMessageAreaMax = Vector2.Zero;
 
-    // 消息区容器（##history-area child）矩形：缩放手柄锚点（决策：手柄移到消息区右上角）
+    // 消息区容器（##history-area child）矩形：缩放手柄锚点（手柄移到消息区右上角）
     private Vector2 MsgAreaMin = Vector2.Zero;
     private Vector2 MsgAreaMax = Vector2.Zero;
 
@@ -130,7 +130,7 @@ public class SearchWindow : Window
         BgAlpha = 0f; // !!! float? null=不透明，必须显式 0
 
 
-        // !!! 决策（纠正）：消息区任何情况下都不可拖（不依赖锁定开关），
+        // !!! 消息区任何情况下都不可拖（不依赖锁定开关），
         // 未锁定时其余区域可拖；锁定时整个窗口锁死。缩放手柄的 NoMove 由下方 CanResize 分支处理。
         if (IsMouseOverMessageArea() || MoveLocked)
             Flags |= ImGuiWindowFlags.NoMove;
@@ -177,7 +177,7 @@ public class SearchWindow : Window
         // !!! 鼠标在聊天窗口内 → 帧末光标决策（保持游戏指针；按钮/tab 上手指）
         Plugin.MarkCursorInChatWindow();
 
-        // !!! 决策（布局重构）：顶栏完全移除（原 DrawCornerControls 状态行沉底
+        // !!! 布局重构：顶栏完全移除（原 DrawCornerControls 状态行沉底
         // 到 DrawStatusRow）；缩放手柄从窗口右上角移到消息区右上角。顶部只留消息区。
 
         // 消息区高度 = 剩余高度 - 底部搜索栏 - 底部状态行
@@ -264,7 +264,7 @@ public class SearchWindow : Window
         }
         else
         {
-            // 滚动模式：从当前时间开始往回，不固定日期（要求）
+            // 滚动模式：从当前时间开始往回，不固定日期
             ImGui.TextColored(ImGuiColors.DalamudGrey, Language.Search_Latest);
         }
 
@@ -312,7 +312,7 @@ public class SearchWindow : Window
         var btnW = ImGuiUtil.CalcIconButtonSize().X;
         var avail = ImGui.GetContentRegionAvail().X;
 
-        // !!! 统一主窗口输入行逻辑（要求）：
+        // !!! 统一主窗口输入行逻辑：
         // 搜索框 = 输入框大小（InputFont + FramePadding.Y=0 → 高度 = FontSize）；
         // 频道按钮 + [搜索][玩家][日期]× = 输入框旁边按钮逻辑（FontAwesomeSmall 高度，垂直居中于搜索框行）
         float searchBoxHeight;
@@ -326,13 +326,13 @@ public class SearchWindow : Window
 
         // !!! 布局模仿主窗口输入行（纯流式，从不出错）：
         // 先精确计算搜索框宽度（给所有按钮预留空间），然后流式 SameLine 排布。
-        // !!! 决策：删除 tab 旁的 ChevronDown 小箭头（无意义），tab 按钮自身即可弹选择。
+        // !!! 删除 tab 旁的 ChevronDown 小箭头（无意义），tab 按钮自身即可弹选择。
         var tabText = ChannelTabName.Length > 0 ? ChannelTabName : "频道";
         var tabTextW = ImGui.CalcTextSize(tabText).X + ImGui.GetStyle().FramePadding.X * 2 + 14f;
         var tabTotalW = tabTextW;
 
         var leftBtns = 3;  // [搜索] [玩家] [日期]
-        var rightBtns = 1; // ×（锁按钮已移除，决策）
+        var rightBtns = 1; // ×（锁按钮已移除）
         // 所有按钮 + 所有间隔（tab后 1 + 搜索框后 4 + [锁定]后 1 = 6 个 spacing）+ 充裕余量
         var searchW = Math.Max(40f * scale,
             avail - tabTotalW - btnW * (leftBtns + rightBtns) - spacing * (leftBtns + rightBtns + 1) - 20f * scale);
@@ -412,7 +412,7 @@ public class SearchWindow : Window
         if (!area.Success)
             return;
 
-        // 记录消息区容器矩形（缩放手柄锚点：手柄画在消息区右上角，决策）
+        // 记录消息区容器矩形（缩放手柄锚点：手柄画在消息区右上角）
         MsgAreaMin = ImGui.GetWindowPos();
         MsgAreaMax = MsgAreaMin + ImGui.GetWindowSize();
 
@@ -471,7 +471,7 @@ public class SearchWindow : Window
     private void DrawSidePanel(float height)
     {
         var w = 220f * ImGuiHelpers.GlobalScale;
-        // !!! 背景与消息区统一（）：默认 Child 背景透明 → 面板"完全透明"。
+        // !!! 背景与消息区统一：默认 Child 背景透明 → 面板"完全透明"。
         // 与 ChatLog.DrawMessageLog 同款条件——NativeBackground（窗口透明）时 push WindowBg 色背景，
         // 非 Native 时透出窗口背景（行为完全一致）；透明度跟随 WindowAlpha 设置。
         var bgColor = SidePanelBgColor();
@@ -486,12 +486,8 @@ public class SearchWindow : Window
             DrawCalendar();
     }
 
-    /// <summary>侧面板背景色：与消息区背景（ChatLog.MessageLogBgColor）一致——WindowBg 的 RGB + WindowAlpha 透明度。</summary>
-    private Vector4 SidePanelBgColor()
-    {
-        var winBg = ImGui.GetStyle().Colors[(int)ImGuiCol.WindowBg];
-        return new Vector4(winBg.X, winBg.Y, winBg.Z, winBg.W * (Plugin.Config.WindowAlpha / 100f));
-    }
+    /// <summary>侧面板背景色：与消息区背景一致（共用 ChatLog.ChatBackgroundColor——WindowBg RGB 变淡 8% + WindowAlpha 透明度）。</summary>
+    private Vector4 SidePanelBgColor() => ChatTwo.Ui.ChatLog.ChatLog.ChatBackgroundColor();
 
     private void DrawPlayerPanel()
     {
@@ -771,7 +767,7 @@ public class SearchWindow : Window
     }
 
     // ================= 缩放手柄（消息区右上角，仿 PopOut） =================
-    // !!! 决策：手柄从窗口右上角移到消息区右上角（锚点 = ##history-area 容器矩形）。
+    // !!! 手柄从窗口右上角移到消息区右上角（锚点 = ##history-area 容器矩形）。
 
     private void DrawTopRightResizeHandle()
     {

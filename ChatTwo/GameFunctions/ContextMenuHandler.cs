@@ -319,7 +319,7 @@ public sealed partial class ContextMenuHandler : IDisposable
                 });
             }
 
-            // !!! 决策：删除"← 返回"子项（不必要的按钮，徒增代码复杂度）。
+            // !!! 删除"← 返回"子项（不必要的按钮，徒增代码复杂度）。
             // 二级菜单通过点击菜单项/点击菜单外（游戏原生）关闭。
 
             if (blockItems.Count > 0)

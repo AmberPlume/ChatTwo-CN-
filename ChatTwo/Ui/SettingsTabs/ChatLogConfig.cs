@@ -24,15 +24,19 @@ public sealed class ChatLogConfig : ISettingsTab
         using (ImRaii.TextWrapPos(0.0f))
         {
             // 保持输入焦点 / 标签页位置 / 允许移动 / 允许调整大小：
-            // 已按要求挪到"基础设置"页（Display.cs）
+            // 已挪到"基础设置"页（Display.cs）
 
             // 播放音效 / 显示新人频道加入按钮 / 显示隐藏按钮 / 显示原始道具帮助：
-            // 要求锁定开启且不再显示在设置中（默认值已在 Configuration 中固定）
+            // 锁定开启且不再显示在设置中（默认值已在 Configuration 中固定）
             // 提示窗口偏移设置项已删除（TooltipOffset 对当前实现无效）
 
-            // 仿原生窗口（v1.40.17+ 从"基础设置"移入，要求改名"仿原生窗口"）：
+            // 仿原生窗口（v1.40.17+ 从"基础设置"移入，改名"仿原生窗口"）：
             // 使用 FFXIV 原生 UI 贴图（工具栏图标/底部标签页）
             ImGuiUtil.OptionCheckbox(ref Mutable.NativeBackground, Language.Options_NativeBackground_Name, Language.Options_NativeBackground_Description);
+            ImGui.Spacing();
+
+            // 隐藏标签页栏末尾的"+"按钮（快捷键/右键菜单仍可新建）——标签页相关，跟随仿原生窗口
+            ImGuiUtil.OptionCheckbox(ref Mutable.HideNewTabButton, Language.Options_HideNewTabButton_Name, Language.Options_HideNewTabButton_Description);
             ImGui.Spacing();
 
             // 输入区缩放：影响输入框、左右图标、频道名行（v1.40.17+ 不再影响 tab 区）
@@ -49,8 +53,19 @@ public sealed class ChatLogConfig : ISettingsTab
             ImGuiUtil.DragFloatVertical(Language.Options_MessageAlpha_Name, Language.Options_MessageAlpha_Description, ref Mutable.WindowAlpha, .25f, 0f, 100f, $"{Mutable.WindowAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
 
+            // 自定义消息区背景颜色（调色盘）：默认关闭 = 跟随主题（自动略变淡）；开启后手动调 RGB。
+            // 透明度统一由上面的"消息区透明度"控制（调色盘只调颜色，不调透明度）
+            ImGuiUtil.OptionCheckbox(ref Mutable.CustomMessageLogBg, Language.Options_CustomMessageLogBg_Name, Language.Options_CustomMessageLogBg_Description);
+            if (Mutable.CustomMessageLogBg)
+            {
+                var col = ColourUtil.RgbaToVector3(Mutable.MessageLogBgColor);
+                if (ImGui.ColorEdit3("##custom-msg-bg-color", ref col, ImGuiColorEditFlags.NoInputs))
+                    Mutable.MessageLogBgColor = ColourUtil.Vector3ToRgba(col);
+            }
+            ImGui.Spacing();
+
             // !!! v1.40.17+ 仿原生界面（NativeBackground）下标签页用三段式贴图，透明度由素材自带，
-            // TabAlpha 无效 → 隐藏设置项（要求）
+            // TabAlpha 无效 → 隐藏设置项
             if (!Mutable.NativeBackground)
             {
                 ImGuiUtil.DragFloatVertical(Language.Options_TabAlpha_Name, Language.Options_TabAlpha_Description, ref Mutable.TabAlpha, .25f, 0f, 100f, $"{Mutable.TabAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
@@ -66,7 +81,7 @@ public sealed class ChatLogConfig : ISettingsTab
                 Mutable.MaxLinesToRender = Math.Clamp(Mutable.MaxLinesToRender, 1, 10_000);
             ImGui.Spacing();
 
-            // 显示聊天窗口标题栏 / 显示弹出标签页标题栏：要求锁定关闭且不再显示在设置中
+            // 显示聊天窗口标题栏 / 显示弹出标签页标题栏：锁定关闭且不再显示在设置中
 
             ImGuiUtil.OptionCheckbox(ref Mutable.OverrideStyle, Language.Options_OverrideStyle_Name, Language.Options_OverrideStyle_Name_Desc);
             ImGui.Spacing();

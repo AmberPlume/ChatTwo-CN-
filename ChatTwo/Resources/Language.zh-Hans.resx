@@ -79,7 +79,7 @@
     <value>标签页位置</value>
   </data>
   <data name="Options_TabPosition_Description">
-    <value>选择标签页显示在聊天窗口的顶部还是底部。</value>
+    <value>选择标签页显示在聊天窗口的顶部还是底部。仿原生窗口开启时固定为底部。</value>
   </data>
   <data name="Options_ShowTimestamp_Name">
     <value>显示时间戳</value>
@@ -110,6 +110,30 @@
   </data>
   <data name="Options_Timestamp_LetterSpacing_Description">
     <value>自由调整时间戳字符间距（负值更紧凑，正值更疏松）。与正文字间距相互独立。</value>
+  </data>
+  <data name="Options_Timestamp_OwnColumn_Name">
+    <value>时间戳单独成列</value>
+  </data>
+  <data name="Options_Timestamp_OwnColumn_Description">
+    <value>时间戳占左侧固定一列，消息正文整体缩进，换行不会回到时间戳下方，用时间戳区分消息更明显。</value>
+  </data>
+  <data name="Options_Timestamp_ColumnGap_Name">
+    <value>时间戳与正文间距</value>
+  </data>
+  <data name="Options_Timestamp_ColumnGap_Description">
+    <value>时间戳单独成列时，时间戳列与正文之间的水平间隔（px）。</value>
+  </data>
+  <data name="Options_HideNewTabButton_Name">
+    <value>隐藏添加标签页按钮</value>
+  </data>
+  <data name="Options_HideNewTabButton_Description">
+    <value>隐藏标签页栏末尾的"+"按钮（快捷键/右键菜单仍可新建标签页）。</value>
+  </data>
+  <data name="Options_CustomMessageLogBg_Name">
+    <value>自定义消息区背景颜色</value>
+  </data>
+  <data name="Options_CustomMessageLogBg_Description">
+    <value>自定义消息区背景颜色；关闭时跟随主题（自动略微变淡）。透明度始终由"消息区透明度"控制。</value>
   </data>
   <data name="Options_MessageSpacing_Name">
     <value>段落间距</value>

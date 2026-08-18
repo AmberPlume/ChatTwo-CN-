@@ -228,7 +228,7 @@ public sealed class Plugin : IDalamudPlugin
             // 四透明度迁移：新字段（背景/标签页/输入框透明度）首次复制消息区透明度
             Config.EnsureAlphaMigration();
 
-            // 以下选项已锁定，不再显示在设置界面中（要求）：
+            // 以下选项已锁定，不再显示在设置界面中：
             // 强制开启：播放音效 / 显示新人频道加入按钮 / 显示隐藏按钮 / 显示原始道具帮助
             Config.PlaySounds = true;
             Config.ShowNoviceNetwork = true;
@@ -237,7 +237,7 @@ public sealed class Plugin : IDalamudPlugin
             // 强制关闭：显示聊天窗口标题栏 / 显示弹出标签页标题栏
             Config.ShowTitleBar = false;
             Config.ShowPopOutTitleBar = false;
-            // 频道切换策略：灵活模式（实测体感灵活且要求保留——确认。
+            // 频道切换策略：灵活模式（体感灵活，保留）。
             // !!! 原版遗留：L133 曾有"偏好页已删除：热键固定严格模式"的覆盖行，与这里的 Flexible
             // 冲突（后写覆盖先写），且与体感（按住 W 移动时也能切频道）矛盾 → 已删除 Strict 覆盖行。
             // Flexible：修饰键"包含"即触发（Ctrl+R、Ctrl+Shift+R 都行）；Strict 需"完全相等"。
@@ -253,9 +253,9 @@ public sealed class Plugin : IDalamudPlugin
             Config.HideInBattle = false;            // 在战斗中隐藏聊天窗口
             Config.HideWhenInactive = false;        // 非活动时隐藏（已从设置移除）
             Config.InactivityHideActiveDuringBattle = false;
-            // 采集/制作消息不记录（要求，设置项已从历史记录页移除）
+            // 采集/制作消息不记录（设置项已从历史记录页移除）
             Config.DatabaseGatherCraftMessages = false;
-            // 未读模式固定为"未看过的"（设置项已从标签页页删除，要求）
+            // 未读模式固定为"未看过的"（设置项已从标签页页删除）
             foreach (var tab in Config.Tabs)
             {
                 tab.HideInBattle = false;

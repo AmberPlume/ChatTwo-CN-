@@ -38,7 +38,7 @@ public sealed class Database : ISettingsTab
             ShowAdvanced = ImGui.GetIO().KeyShift;
 
         ImGuiUtil.OptionCheckbox(ref Mutable.DatabaseBattleMessages, Language.Options_DatabaseBattleMessages_Name, Language.Options_DatabaseBattleMessages_Description);
-        // 采集/制作消息入库已按要求移除设置项并强制关闭（见 Plugin.cs 构造函数）
+        // 采集/制作消息入库已移除设置项并强制关闭（见 Plugin.cs 构造函数）
         ImGui.Spacing();
 
         if (ImGuiUtil.OptionCheckbox(ref Mutable.LoadPreviousSession, Language.Options_LoadPreviousSession_Name, Language.Options_LoadPreviousSession_Description))

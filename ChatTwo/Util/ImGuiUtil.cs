@@ -137,7 +137,7 @@ public static class ImGuiUtil
 
     public static unsafe void WrapText(string csText, Chunk chunk, PayloadHandler? handler, Vector4 defaultText, float lineWidth, float letterSpacing = 0f)
     {
-        // !!! v1.40.17+ 正文字间距（要求）：非零且是消息内容时走自绘逐字符路径。
+        // !!! v1.40.17+ 正文字间距：非零且是消息内容时走自绘逐字符路径。
         // 换行/描边/点击命中/选字全部按间距补偿；时间戳与发送者名不受影响（调用方只给 Content 传间距）。
         if (letterSpacing != 0f && chunk.Source == ChunkSource.Content)
         {
@@ -516,7 +516,7 @@ public static class ImGuiUtil
     /// <summary>
     /// 原生贴图图标按钮。
     /// <para>
-    /// 交互反馈（决策，替代"方形底框"）：不画 hover/active 背景矩形，
+    /// 交互反馈（，替代"方形底框"）：不画 hover/active 背景矩形，
     /// 状态只靠图标本身——hover 轻微拉亮（tint 1.25）、按下下沉 1px（模拟原生按钮 pressed）。
     /// 点击时播放 <paramref name="sfx"/> 指定音效（默认打开音 23；排除项传 <see cref="BtnSfx.None"/>）。
     /// </para>
@@ -583,7 +583,7 @@ public static class ImGuiUtil
     public static bool OptionCheckbox(ref bool value, string label, string? description = null)
     {
         var ret = ImGui.Checkbox(label, ref value);
-        // !!! v1.40.17+ 要求：说明悬浮在选项本身上（勾选框/文字），无独立 ? 标记
+        // !!! v1.40.17+ ：说明悬浮在选项本身上（勾选框/文字），无独立 ? 标记
         if (!string.IsNullOrEmpty(description) && ImGui.IsItemHovered())
             Tooltip(description);
 
@@ -591,7 +591,7 @@ public static class ImGuiUtil
     }
 
     /// <summary>
-    /// 把说明悬浮到上一个控件/文本上（无独立 ? 标记，v1.40.17+ 要求：悬浮选项即出说明）。
+    /// 把说明悬浮到上一个控件/文本上（无独立 ? 标记，v1.40.17+ ：悬浮选项即出说明）。
     /// 必须在目标 item 绘制后立即调用（IsItemHovered 指向上一个 item）。
     /// </summary>
     public static void TooltipOnLastItem(string text)

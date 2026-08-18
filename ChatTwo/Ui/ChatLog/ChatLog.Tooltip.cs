@@ -117,7 +117,7 @@ public partial class ChatLog
                 var name = addon->NameString;
                 if (name == "ItemDetail" || name == "ActionDetail")
                 {
-                    // !!! 决策：放弃提示框"原生跟手"实验（ExperimentalTooltipFollowMouse
+                    // !!! 放弃提示框"原生跟手"实验（ExperimentalTooltipFollowMouse
                     // 已移除）→ 恒走智能放置：游戏每帧 SetPosition 覆盖 tooltip 位置（跟随鼠标），
                     // detour 把坐标替换为我们算好的"避开聊天框"位置，当帧渲染即为我们的位置 → 零闪帧
                     //（[SPDiag] 铁证：游戏每帧调 SetPosition）。
@@ -260,7 +260,7 @@ public partial class ChatLog
 
     /// <summary>
     /// ContextMenu（一级菜单）的 PreDraw 回调，每帧执行。
-    /// !!! 决策：**不再控制菜单位置**（右侧固定/中心固定全部废弃，菜单恢复
+    /// !!! **不再控制菜单位置**（右侧固定/中心固定全部废弃，菜单恢复
     /// 游戏原生跟手，由 PayloadHandler 打开时 SetPosition 定位）。本方法保留的是两类必需逻辑：
     /// ① OwnerAddon 清零（时分复用：注入阶段=ChatLog 供 DR/Allagan 识别，渲染阶段清 0 防二级菜单绑定）；
     /// ② BlockedParentId 清零（时分复用：注入阶段=ChatLog 供 OnMenuOpened 的 AddonName 识别，
@@ -278,7 +278,7 @@ public partial class ChatLog
             if (!Plugin.ContextMenuActive)
                 return;
 
-            // !!! 不调用 SetChatInteractable(true)：原生聊天框必须始终隐藏（要求）。
+            // !!! 不调用 SetChatInteractable(true)：原生聊天框必须始终隐藏。
             // 之前担心 bindToOwner 子菜单需要访问聊天框，实测菜单在隐藏状态下可正常打开。
 
             // 菜单来源判断：不再依赖 OwnerAddon（根治：ChatTwo 触发菜单时
@@ -302,7 +302,7 @@ public partial class ChatLog
                 return;
             }
 
-            // !!! OwnerAddon 时分复用（）：注入阶段（OnMenuOpened）由 PayloadHandler
+            // !!! OwnerAddon 时分复用：注入阶段（OnMenuOpened）由 PayloadHandler
             // 设为 ChatLog（DR/Allagan 靠 AddonName="ChatLog" 识别注入），此处（渲染阶段，注入已完成）
             // 每帧清零 → 点二级菜单时 OpenAddon 读到 owner=0 → 不绑定 ChatLog → 二级菜单正常显示。
             // 仅清 ChatLog 来源，不影响小队/背包等其他来源（那些来源 OwnerAddon 本就是其他 addon 或 0）。
@@ -314,7 +314,7 @@ public partial class ChatLog
             }
             catch (Exception ex) { Plugin.Log.Debug($"[NativeCtxMenu] owner-clear error {ex.Message}"); }
 
-            // !!! BlockedParentId 时分复用（）：OpenAddonByAgent detour 为 DR/Allagan
+            // !!! BlockedParentId 时分复用：OpenAddonByAgent detour 为 DR/Allagan
             // 注入设 BlockedParentId=ChatLog（OnMenuOpened 的 AddonName 来源），但它同时是"阻塞父"
             // 字段——ChatLog 隐藏（ChatTwo 常态）会持续阻塞菜单 → 一级菜单闪没（实测，打开原生
             // 聊天框才保持显示）。此处（渲染阶段，注入已完成）清 0 → 显示期间不被阻塞。
@@ -326,7 +326,7 @@ public partial class ChatLog
             catch (Exception ex) { Plugin.Log.Debug($"[NativeCtxMenu] blockedparent-clear error {ex.Message}"); }
 
             // ═══════════════════════════════════════════════════════════════════
-            // !!! 决策：不再控制菜单位置（右侧固定/中心固定全部废弃）。
+            // !!! 不再控制菜单位置（右侧固定/中心固定全部废弃）。
             // 菜单恢复游戏原生"跟手"逻辑（跟随鼠标/右键目标），由游戏自己定位。
             // 位置控制已整体注释（含 [Hole-PoC 临时] 中心固定与旧右侧固定逻辑）。
             // 上方 OwnerAddon 清零 + BlockedParentId 清零仍必须保留（防闪没/二级菜单正常）。
@@ -343,7 +343,7 @@ public partial class ChatLog
 
     /// <summary>
     /// AddonContextSub（二级菜单）的 PreDraw/PostShow 回调，每帧执行。
-    /// !!! 决策：**不再控制二级菜单位置**（恢复游戏原生跟手，跟随一级菜单旁）。
+    /// !!! **不再控制二级菜单位置**（恢复游戏原生跟手，跟随一级菜单旁）。
     /// 本方法保留的是必需逻辑：**OwnerAddon 清零**——原生聊天框隐藏（ChatTwo 常态）时，游戏检查
     /// owner(ChatLog) 可见性失败会关闭 AddonContextSub（"闪一下消失"）；清零后游戏 owner 检查必读到 0。
     /// 仅 ChatTwo 菜单会话（ChatTwoMenuSession）期间执行；背包等原生场景该标志恒 false → 不干预。
@@ -386,7 +386,7 @@ public partial class ChatLog
             }
 
             // ═══════════════════════════════════════════════════════════════════
-            // !!! 决策：二级菜单同样恢复游戏原生位置（跟随一级菜单展开）。
+            // !!! 二级菜单同样恢复游戏原生位置（跟随一级菜单展开）。
             // 位置计算 + SetPosition 已整体注释（旧逻辑：固定到聊天框右侧）。
             // 上方 OwnerAddon 清零仍必须保留（原生聊天框隐藏会让游戏检查 owner 可见性失败并
             // 关闭 AddonContextSub——清零后游戏后续 owner 检查必读到 0，二级菜单正常显示）。

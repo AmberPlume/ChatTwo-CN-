@@ -19,7 +19,7 @@ public static class WrapperUtil
     /// <summary>
     /// 直接以原始字符串打开 URL（和 DR / OmenTools 的 Util.OpenLink 行为一致）。
     /// 使用 Process.Start + UseShellExecute，不经过 Uri 类的强制编码/转义，
-    /// 适用于贴吧/FFLogs 等要求特定编码格式的站点。
+    /// 适用于贴吧/FFLogs 等需要特定编码格式的站点。
     /// </summary>
     public static void TryOpenUri(string rawUrl)
     {

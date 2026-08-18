@@ -83,7 +83,7 @@ public sealed class PayloadHandler
 
         // 数帧后仍未显示（游戏拒绝打开）→ 静默放弃 + 复位菜单标志。
         // !!! 双修复：
-        // ① 不再回退 ImGui 弹窗（原版菜单弃用，决策）
+        // ① 不再回退 ImGui 弹窗（原版菜单弃用）
         // ② 必须复位标志——此前残留 ContextMenuActive=true → NoMouseInputs 持续
         // → 聊天框穿透（实测：左键点击玩家后穿透保持，直到原生菜单开关才恢复）。
         if (--NativeMenuFallbackFrames <= 0)
@@ -328,7 +328,7 @@ public sealed class PayloadHandler
             case UriPayload uri:
                 WrapperUtil.TryOpenUri(uri.Uri);
                 break;
-            // !!! 决策：未知 payload 静默（不弹原版 ImGui 菜单）
+            // !!! 未知 payload 静默（不弹原版 ImGui 菜单）
             default:
                 break;
         }
@@ -486,7 +486,7 @@ public sealed class PayloadHandler
     /// 触发原生玩家右键菜单（左右键共用的打开路径，由 Click → HandlePayloadClick → OpenPlayerContextMenu 调用）。
     /// 设置 AgentContext 目标数据后，用 OpenContextMenu 确保菜单实际显示（游戏内部重新定位 → 原生跟手）。
     /// 位置：打开前用 ComputeMenuPos 计算并 SetPosition（实验功能开关：跟随鼠标 vs 聊天框右侧固定）；
-    /// 打开后不再每帧控制位置（决策，菜单由游戏原生跟手）。
+    /// 打开后不再每帧控制位置（，菜单由游戏原生跟手）。
     /// 菜单打开期间聊天框的点击穿透（NoMouseInputs）与挖洞（RenderHole）在 ChatLog.Window / RenderHole 处理。
     /// 若游戏拒绝打开（无 ContentId/World 的目标），由 VerifyNativeMenuFallback 数帧后静默放弃并复位标志。
     /// </summary>
@@ -561,7 +561,7 @@ public sealed class PayloadHandler
             // 设置菜单位置提示
             agent->SetPosition(gameX, gameY);
 
-            // !!! 不调用 SetChatInteractable(true)：原生聊天框必须始终隐藏（要求），
+            // !!! 不调用 SetChatInteractable(true)：原生聊天框必须始终隐藏，
             // 菜单在隐藏状态下可正常打开
 
             // 清除上次菜单的残留原生菜单项，防止显示缓存内容。
@@ -578,7 +578,7 @@ public sealed class PayloadHandler
             if (chunk.Message is { AccountId: > 0 })
                 agent->TargetAccountId = chunk.Message.AccountId;
             // TargetHomeWorldId 直接用世界行 ID：
-            // 原生游戏玩家菜单此字段就是玩家的世界 ID（DR 要求 RowId != 0）
+            // 原生游戏玩家菜单此字段就是玩家的世界 ID（需 RowId != 0）
             agent->TargetHomeWorldId = (short)world.RowId;
 
             // 设置目标对象ID（游戏原生菜单构建器需要此字段判断玩家在场状态）
@@ -760,7 +760,7 @@ public sealed class PayloadHandler
             // 设置菜单位置提示
             agent->SetPosition(gameX, gameY);
 
-            // !!! 不调用 SetChatInteractable(true)：原生聊天框必须始终隐藏（要求）
+            // !!! 不调用 SetChatInteractable(true)：原生聊天框必须始终隐藏
 
             // 清除上次菜单的残留原生菜单项（同玩家菜单逻辑）
             agent->ClearMenu();
@@ -814,7 +814,7 @@ public sealed class PayloadHandler
 
                 if (items.Count > 0)
                 {
-                    // !!! 关键修复（）：游戏"复制名"动作（hParam=0x10005）读"道具上下文"对象
+                    // !!! 关键修复：游戏"复制名"动作（hParam=0x10005）读"道具上下文"对象
                     // 的 [self+0x9c0] 字段（当前道具 ID，反汇编 0xed8bd5 确认），而非 ChatLog.ContextItemId！
                     // self = AgentChatLog（[HandlerID] 实测 matchACL=True）；[0x9c0] 存道具 ID。
                     // 修复：把 [0x9c0] 写为当前道具 RawItemId，且 [0x9c8] 写类型=3（反汇编 0xed8bdd：

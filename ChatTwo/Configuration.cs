@@ -50,7 +50,7 @@ public class Configuration : IPluginConfiguration
     public bool NativeItemTooltips = true;
     // !!! v1.40.17 清理：原作者"现代化布局"（PrettierTimestamps 表格渲染 / MoreCompactPretty /
     // HideSameTimestamps）已移除，时间戳统一走 DrawTimestampInline 行内渲染
-    public bool ShowNoviceNetwork = true; // 要求：锁定开启（不再显示在设置中）
+    public bool ShowNoviceNetwork = true; // ：锁定开启（不再显示在设置中）
     public TabPosition TabPosition = TabPosition.Bottom;
     public bool PrintChangelog = true;
     public CommandHelpSide CommandHelpSide = CommandHelpSide.None;
@@ -58,7 +58,7 @@ public class Configuration : IPluginConfiguration
     public LanguageOverride LanguageOverride = LanguageOverride.None;
     public bool CanResize = true;
     public bool ShowTitleBar;
-    public bool ShowPopOutTitleBar; // 要求：关闭（不再显示在设置中）
+    public bool ShowPopOutTitleBar; // ：关闭（不再显示在设置中）
     /// <summary>
     /// 对话历史数据库存放的文件夹路径。空 = 默认（ConfigDirectory）。
     /// </summary>
@@ -80,19 +80,29 @@ public class Configuration : IPluginConfiguration
     public bool Use24HourClock;
     // 全局"显示时间戳"开关（v1.40.11+，与各 tab 的 DisplayTimestamp 叠加）
     public bool ShowTimestamp = true;
-    // ═══ 时间戳子选项（v1.40.17+ 要求，替代旧"现代化布局"表格逻辑，见 DrawTimestampInline）═══
+    // ═══ 时间戳子选项（v1.40.17+，替代旧"现代化布局"表格逻辑，见 DrawTimestampInline）═══
     /// <summary>去除时间戳方括号：[12:34] → 12:34（更短）。</summary>
     public bool RemoveTimestampBrackets;
     /// <summary>紧凑排布：压缩时间戳字符间距，让时间戳最短。</summary>
     public bool CompactTimestampSpacing;
     /// <summary>
     /// 时间戳字间距自由调整（px，负值更紧凑，正值更疏松）。只作用于时间戳，
-    /// 与正文字间距（MessageLetterSpacing）相互独立（v1.40.17+ 要求）。
+    /// 与正文字间距（MessageLetterSpacing）相互独立（v1.40.17+）。
     /// </summary>
     public float TimestampLetterSpacing = 0f;
+    /// <summary>时间戳单独成列：时间戳占左侧固定列，正文整体缩进（换行不回到时间戳下方）。</summary>
+    public bool TimestampOwnColumn;
+    /// <summary>时间戳列与正文之间的间隔（px，单独成列时生效，默认 8）。</summary>
+    public float TimestampColumnGap = 8f;
+    /// <summary>隐藏标签页栏末尾的"添加标签页"（+）按钮。</summary>
+    public bool HideNewTabButton;
+    /// <summary>自定义消息区背景颜色（关闭 = 跟随主题 WindowBg 混合 25% 白；透明度仍由 WindowAlpha 控制）。</summary>
+    public bool CustomMessageLogBg;
+    /// <summary>自定义消息区背景 RGB（RGBA 格式，alpha 忽略——统一走 WindowAlpha）。</summary>
+    public uint MessageLogBgColor = ColourUtil.ComponentsToRgba(96, 96, 96);
     /// <summary>
     /// 正文（消息内容）字间距自由调整（px，负值更紧凑，正值更疏松）。
-    /// 只作用于消息正文，不影响时间戳/发送者名（v1.40.17+ 要求）。
+    /// 只作用于消息正文，不影响时间戳/发送者名（v1.40.17+）。
     /// </summary>
     public float MessageLetterSpacing = 0f;
     /// <summary>
@@ -118,7 +128,7 @@ public class Configuration : IPluginConfiguration
 
     /// <summary>
     /// 输入区缩放（1.0 = 100%）。只影响输入区：输入框、输入框左右图标按钮、频道名行。
-    /// tab 区由 TabScale 独立控制（v1.40.17+ 拆分，要求）。
+    /// tab 区由 TabScale 独立控制（v1.40.17+ 拆分）。
     /// </summary>
     public float InputAreaScale = 1.0f;
     /// <summary>
@@ -222,6 +232,11 @@ public class Configuration : IPluginConfiguration
         RemoveTimestampBrackets = other.RemoveTimestampBrackets;
         CompactTimestampSpacing = other.CompactTimestampSpacing;
         TimestampLetterSpacing = other.TimestampLetterSpacing;
+        TimestampOwnColumn = other.TimestampOwnColumn;
+        TimestampColumnGap = other.TimestampColumnGap;
+        HideNewTabButton = other.HideNewTabButton;
+        CustomMessageLogBg = other.CustomMessageLogBg;
+        MessageLogBgColor = other.MessageLogBgColor;
         MessageLetterSpacing = other.MessageLetterSpacing;
         MessageLineSpacing = other.MessageLineSpacing;
         FontsEnabled = other.FontsEnabled;
@@ -291,7 +306,7 @@ public static class UnreadModeExt
     };
 }
 
-/// <summary>未读消息的显示提示方式（全局设置）。默认高亮（在设置中要求）。</summary>
+/// <summary>未读消息的显示提示方式（全局设置）。默认高亮（在设置中）。</summary>
 [Serializable]
 public enum UnreadNotifyMode
 {
