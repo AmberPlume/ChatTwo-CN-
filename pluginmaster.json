@@ -10,9 +10,9 @@
     "DalamudApiLevel": 15,
     "TestingDalamudApiLevel": 15,
     "ApplicableVersion": "any",
-    "DownloadLinkInstall": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.41.3.0/ChatTwo-CN-v1.41.2.zip",
+    "DownloadLinkInstall": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.41.3.0/ChatTwo-CN-v1.41.3.zip",
     "DownloadLinkTesting": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.41.2.0/ChatTwo-CN-v1.41.2.zip",
-    "DownloadLinkUpdate": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.41.3.0/ChatTwo-CN-v1.41.2.zip",
+    "DownloadLinkUpdate": "https://github.com/AmberPlume/ChatTwo-CN-/releases/download/v1.41.3.0/ChatTwo-CN-v1.41.3.zip",
     "IconUrl": "",
     "Changelog": "v1.41.3\n【新增】\n- 新增：输入法候选框替换功能（设置-字体设置-「改变输入法候选框」，默认关闭）：放大候选词/页码、移除拼音与分隔线、候选框贴合内容、左/下边固定\n- 新增：输入法候选词大小（子选项，仅开启时生效）、候选框透明度设置\n【修复】\n- 修复：设置了输入频道的未锁定标签页无法通过气泡按钮切换频道（改为按锁定状态判断）",
     "Tags": [
