@@ -135,6 +135,18 @@
     <data name="Options_CustomMessageLogBg_Description">
         <value>Customize the message area background color; when off it follows the theme (slightly lightened automatically). Opacity is always controlled by the "message area opacity" setting.</value>
     </data>
+    <data name="Options_CustomInputBg_Name">
+        <value>Custom input box background color</value>
+    </data>
+    <data name="Options_CustomInputBg_Description">
+        <value>Customize the chat input box background color; when off it follows the theme. Opacity is always controlled by the "input box opacity" setting.</value>
+    </data>
+    <data name="Options_CustomTabBg_Name">
+        <value>Custom tab bar background color</value>
+    </data>
+    <data name="Options_CustomTabBg_Description">
+        <value>Customize the tab bar background color (non-native UI only); when off it follows the default colors. Opacity follows the color rule of the current tab position.</value>
+    </data>
     <data name="Options_MessageSpacing_Name">
         <value>Message spacing</value>
     </data>
@@ -142,7 +154,7 @@
         <value>Extra vertical spacing between message lines (0 = no extra spacing; negative values tighten the line spacing within the font line-height slack, too negative overlaps text).</value>
     </data>
     <data name="Options_FontSize_Name">
-        <value>Font size</value>
+        <value>Message area text size</value>
     </data>
     <data name="Popout_CanResize_Name">
         <value>Allow resizing window</value>
@@ -340,19 +352,46 @@
         <value>Font</value>
     </data>
     <data name="Options_Font_Description">
-        <value>The font {0} will use to display non-Japanese text.</value>
+        <value>The font family used for message area text. When a custom font is chosen, message text uses it (otherwise the game Axis font is used).</value>
     </data>
     <data name="Options_Tabs_ChannelTypes_Special">
         <value>Special</value>
     </data>
     <data name="Options_InputFontSize_Name">
-        <value>Input font size</value>
+        <value>Input box text size</value>
     </data>
     <data name="Options_InputFontSize_Description">
         <value>Size of the text in the chat input box. The input box height follows this size.</value>
     </data>
+    <data name="Options_TabFontSize_Name">
+        <value>Tab name text size</value>
+    </data>
+    <data name="Options_TabFontSize_Description">
+        <value>Size of the tab name text in the chat window. Applies to both default and native tabs, combined with Tab Scale to determine final tab size.</value>
+    </data>
+    <data name="Options_ChannelFontSize_Name">
+        <value>Current channel text size</value>
+    </data>
+    <data name="Options_ChannelFontSize_Description">
+        <value>Size of the current channel name above the input box. Scales with the input area scale.</value>
+    </data>
+    <data name="Options_ImeCandidateFontSize_Name">
+        <value>IME candidate text size</value>
+    </data>
+    <data name="Options_ImeCandidateFontSize_Description">
+        <value>Size of the input method candidate (selection) text. IME candidates are rendered by Dalamud; this enlarges candidate text and box, independent of the input box font size.</value>
+    </data>
+    <data name="Options_ImeCandidateAlpha_Name">
+        <value>IME candidate box opacity</value>
+    </data>
+    <data name="Options_ImeCandidateAlpha_Description">
+        <value>Opacity of the IME candidate (selection) box background; 0 = fully transparent, 100 = opaque.</value>
+    </data>
+    <data name="Options_Font_PageHint">
+        <value>The following settings control text size at different places: message area body, input box text, tab names, current input channel, and the settings window.</value>
+    </data>
     <data name="Options_SettingsFontSize_Name">
-        <value>Settings font size</value>
+        <value>Settings text size</value>
     </data>
     <data name="Options_SettingsFontSize_Description">
         <value>Size of the text in the settings windows. Independent from the chat font size.</value>
@@ -1296,5 +1335,11 @@ Your old database can still be recovered, please contact the plugin author for h
     </data>
     <data name="Search_ResultsFor">
         <value>Search: {0}</value>
+    </data>
+<data name="Options_ModifyImeCandidate_Name">
+        <value>Modify IME candidate box</value>
+    </data>
+    <data name="Options_ModifyImeCandidate_Description">
+        <value>When enabled, replaces Dalamud's original IME rendering: enlarges candidates/page number, removes pinyin and separators, adjusts the candidate box layout. When disabled, uses Dalamud's original IME (default).</value>
     </data>
 </root>

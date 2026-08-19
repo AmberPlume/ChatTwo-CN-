@@ -24,6 +24,8 @@ public class FontManager
 
     /// <summary>输入框字体，大小由设置中的"输入字体大小"控制，输入框高度随之自适应。</summary>
     public IFontHandle InputFont = null!;
+    /// <summary>输入法候选字体（卫月候选放大用，字号由"输入法候选词文字大小"控制）。</summary>
+    public IFontHandle ImeCandidateFont = null!;
 
     /// <summary>设置界面字体，大小由"设置界面字体大小"控制（独立于聊天主字体）。</summary>
     public IFontHandle SettingsFont = null!;
@@ -180,10 +182,10 @@ public class FontManager
         // 斜体消息统一用 AxisItalic（不再单独构建 ItalicFont）
         ItalicFont = null;
 
-        // 小号字体：固定 12pt（输入框频道名等 UI 元素，不随主字体设置变化）
+        // 小号字体：当前输入频道名（默认 12pt，字号由"当前输入频道字号"设置独立控制）
         // !!! 频道名缩放比率降低：按钮/图标全量跟随输入区缩放（+100% 就 +100%），
         // 频道名只按 25% 比率缓变（输入区缩放 2.0 时频道名仅 +25%），避免频道名过度放大
-        var smallFontSizePt = 12f * (1f + (inputScale - 1f) * 0.25f) * 0.9f;  // 频道名（输入框附近），×0.9 缩小
+        var smallFontSizePt = Plugin.Config.ChannelNameFontSizePt * (1f + (inputScale - 1f) * 0.25f) * 0.9f;  // ×0.9 缩小
         SmallFont = Plugin.Interface.UiBuilder.FontAtlas.NewDelegateFontHandle(
             e => e.OnPreBuild(
                 tk =>
@@ -238,8 +240,28 @@ public class FontManager
                 }
             ));
 
-        // 标签页字体：固定 12pt × TabScale（不随"字体大小"变化；v1.40.17+ 由"标签页缩放"独立控制）
-        var tabFontSizePt = 12f * tabScale;
+        // 输入法候选字体：字号由"输入法候选词文字大小"设置控制（独立于输入框；
+        // 卫月接管候选渲染，ChatTwo 绘制层 hook 临时换此字体放大候选）
+        ImeCandidateFont = Plugin.Interface.UiBuilder.FontAtlas.NewDelegateFontHandle(
+            e => e.OnPreBuild(
+                tk =>
+                {
+                    var config = new SafeFontConfig {SizePt = Plugin.Config.ImeCandidateFontSizePt, GlyphRanges = Ranges};
+                    config.MergeFont = mainFontId.AddToBuildToolkit(tk, config);
+
+                    config.SizePt = Plugin.Config.ImeCandidateFontSizePt;
+                    config.GlyphRanges = JpRange;
+                    jpFontId.AddToBuildToolkit(tk, config);
+
+                    tk.AddGameSymbol(config);
+
+                    tk.Font = config.MergeFont;
+                }
+            ));
+
+        // 标签页字体：基准字号由"标签页名称字号"设置控制（默认 12pt）× TabScale
+        //（不随"字体大小"变化；v1.40.17+ 由"标签页缩放"独立控制）
+        var tabFontSizePt = Plugin.Config.TabFontSizePt * tabScale;
         TabFont = Plugin.Interface.UiBuilder.FontAtlas.NewDelegateFontHandle(
             e => e.OnPreBuild(
                 tk =>
@@ -257,10 +279,10 @@ public class FontManager
                 }
             ));
 
-        // 标签页栏图标字体（末尾 + 按钮）：12px × TabScale × 0.9，与 TabFont 同源缩放
+        // 标签页栏图标字体（末尾 + 按钮）：随标签页名称字号 + TabScale 同源缩放（默认 12px 基准不变）
         FontAwesomeTab = Plugin.Interface.UiBuilder.FontAtlas.NewDelegateFontHandle(e =>
         {
-            e.OnPreBuild(tk => tk.AddFontAwesomeIconFont(new SafeFontConfig { SizePx = 12f * tabScale * 0.9f }));
+            e.OnPreBuild(tk => tk.AddFontAwesomeIconFont(new SafeFontConfig { SizePx = Plugin.Config.TabFontSizePt * tabScale * 0.9f }));
             e.OnPostBuild(tk => tk.FitRatio(tk.Font));
         });
     }

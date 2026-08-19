@@ -61,10 +61,12 @@ public class InputHandler
         AutoCompleteHandler = new AutoCompleteHandler(this);
     }
 
-    public void DrawInputArea(Tab activeTab, float inputWidth, ref bool tellSpecial)
+    public unsafe void DrawInputArea(Tab activeTab, float inputWidth, ref bool tellSpecial)
     {
         // 输入文字用独立字体（大小由"输入字体大小"设置控制），输入框高度随之自适应
         using var inputFont = Plugin.FontManager.InputFont.Push();
+        // IME 候选字放大：缓存输入字体 ImFont*（AddText detour 在聚焦时临时换字体）
+        Plugin.SetImeFont(Plugin.FontManager.InputFont.Available ? (nint)ImGui.GetFont().Handle : 0);
 
         var inputType = activeTab.CurrentChannel.UseTempChannel
             ? activeTab.CurrentChannel.TempChannel.ToChatType()
@@ -106,9 +108,13 @@ public class InputHandler
                 : Plugin.Config.InputAlpha;
             var bgAlphaF = inputBgAlpha / 100f;
             // !!! 回滚：原生输入框贴图素材取消（素材不好）→ 恢复 FrameBg 颜色 + 描边
-            using (ImRaii.PushColor(ImGuiCol.FrameBg, ImGui.GetColorU32(ImGuiCol.FrameBg, bgAlphaF), bgAlphaF < 1f))
-            using (ImRaii.PushColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, bgAlphaF), bgAlphaF < 1f))
-            using (ImRaii.PushColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, bgAlphaF), bgAlphaF < 1f))
+            // 自定义输入框背景：CustomInputBg 开启时用自定义 RGB（alpha 统一走 InputAlpha）
+            var frameBgU32 = Plugin.Config.CustomInputBg && ColourUtil.RgbaToVector4(Plugin.Config.InputBgColor) is { } customBg
+                ? ImGui.GetColorU32(new Vector4(customBg.X, customBg.Y, customBg.Z, bgAlphaF))
+                : ImGui.GetColorU32(ImGuiCol.FrameBg, bgAlphaF);
+            using (ImRaii.PushColor(ImGuiCol.FrameBg, frameBgU32, Plugin.Config.CustomInputBg || bgAlphaF < 1f))
+            using (ImRaii.PushColor(ImGuiCol.FrameBgHovered, frameBgU32, Plugin.Config.CustomInputBg || bgAlphaF < 1f))
+            using (ImRaii.PushColor(ImGuiCol.FrameBgActive, frameBgU32, Plugin.Config.CustomInputBg || bgAlphaF < 1f))
             using (ImRaii.Disabled(!isChatEnabled))
             {
                 var flags = InputFlags | (!isChatEnabled ? ImGuiInputTextFlags.ReadOnly : ImGuiInputTextFlags.None);
@@ -119,6 +125,11 @@ public class InputHandler
                     {
                         ImGui.SetNextItemWidth(inputWidth);
                         ImGui.InputTextWithHint("##chat2-input", isChatEnabled ? "" : Language.ChatLog_DisabledInput, ref ChatInput, 500, flags, Callback);
+                        // IME 候选字放大开关：输入框焦点时 AddText detour 放大候选文字
+                        Plugin.SetImeActive(ImGui.IsItemActive());
+                        // 候选字体句柄（临时 push 候选字体取 ImFont*，供 IME detour 换字体）
+                        using (var imeFont = Plugin.FontManager.ImeCandidateFont.Push())
+                            Plugin.SetImeFont(Plugin.FontManager.ImeCandidateFont.Available ? (nint)ImGui.GetFont().Handle : 0);
                     }
                 }
             }

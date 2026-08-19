@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Numerics;
@@ -372,6 +372,18 @@ public partial class ChatLog : Window, IChatWindow
         return height;
     }
 
+    /// <summary>顶部标签模式下标签条的垂直高度（用于把缩放手柄/命中区下移到消息区顶部）。
+    /// 仅默认窗口 + 顶部位置时非 0；反除字号比保持高度只随 TabScale，
+    /// 与消息区顶部偏移一致（手柄恰好落在消息区右上角）。</summary>
+    private float GetTopTabBarHeight()
+    {
+        if (Plugin.Config.NativeBackground || Plugin.Config.TabPosition is not TabPosition.Top)
+            return 0f;
+        using var tabFont = Plugin.FontManager.TabFont.Push();
+        var style = ImGui.GetStyle();
+        return (ImGui.GetTextLineHeight() / (Plugin.Config.TabFontSizePt / 12f) + style.FramePadding.Y * 2) * 0.9f;
+    }
+
     public void ChangeTab(int index) {
         Plugin.WantedTab = index;
         InputHandler.LastActivityTime = InputHandler.FrameTime;
@@ -490,7 +502,7 @@ public partial class ChatLog : Window, IChatWindow
         var insetY = NativeIcons.ResizeHandleInsetY(Plugin.Config.NativeBackground);
         var handleMin = new Vector2(
             LastWindowPos.X + LastWindowSize.X - hSize - st.WindowPadding.X - insetX,
-            LastWindowPos.Y + st.WindowPadding.Y + insetY);
+            LastWindowPos.Y + st.WindowPadding.Y + insetY + GetTopTabBarHeight());
         var handleMax = handleMin + new Vector2(hSize, hSize);
         var mp = ImGui.GetIO().MousePos;
         MouseOverResizeHandle = mp.X >= handleMin.X && mp.X <= handleMax.X
@@ -586,7 +598,7 @@ public partial class ChatLog : Window, IChatWindow
         var insetY = NativeIcons.ResizeHandleInsetY(Plugin.Config.NativeBackground);
         var localPos = new Vector2(
             LastWindowSize.X - hSize - style.WindowPadding.X - insetX,
-            style.WindowPadding.Y + insetY);
+            style.WindowPadding.Y + insetY + GetTopTabBarHeight());
         var p = LastWindowPos + localPos;
         NativeIcons.DrawResizeHandle(ImGui.GetForegroundDrawList(), p, new Vector2(hSize, hSize),
             MouseOverResizeHandle || IsResizingTopRight);
@@ -721,13 +733,14 @@ public partial class ChatLog : Window, IChatWindow
         var hSize = NativeIcons.ResizeHandleSize();
 
         // 缩放手柄位置：默认界面贴窗口背景右上角内侧 3px（恰到好处）；
-        // 仿原生：X 内缩 8px 落在消息区背景内；Y 实测"再往上 2px 就对了"
-        // （Y inset=-2 → 手柄顶 = WindowPadding.Y - 2）
+        // 仿原生：X 内缩 8px 落在消息区背景内；Y 内缩统一走 NativeIcons.ResizeHandleInsetY
+        //（默认 3px / 仿原生 4px + 下移 5px，实测校准）。
+        // !!! 顶部标签模式：手柄必须下移标签条高度（GetTopTabBarHeight）才落在消息区右上角
         var insetX = NativeIcons.ResizeHandleInsetX(Plugin.Config.NativeBackground);
         var insetY = NativeIcons.ResizeHandleInsetY(Plugin.Config.NativeBackground);
         var localPos = new Vector2(
             windowSize.X - hSize - style.WindowPadding.X - insetX,
-            style.WindowPadding.Y + insetY);
+            style.WindowPadding.Y + insetY + GetTopTabBarHeight());
 
         var mousePos = ImGui.GetIO().MousePos;
         var handleRectMin = windowPos + localPos;
@@ -859,13 +872,18 @@ public partial class ChatLog : Window, IChatWindow
         WasDocked = ImGui.IsWindowDocked();
 
         // 仿原生界面（NativeBackground）下标签页固定底部（三段式贴图只支持底部），位置选项失效。
-        // 顶部选项已移除（窗口背景完全透明后无布局支撑）→ Top 旧配置也归为底部
-        var bottomTabs = Plugin.Config.NativeBackground || Plugin.Config.TabPosition is not TabPosition.Side;
+        // 默认窗口分类下：Bottom / Side / Top（Top 重新支持，标签条移到消息区上方）
+        var topTabs = !Plugin.Config.NativeBackground && Plugin.Config.TabPosition is TabPosition.Top;
+        var bottomTabs = Plugin.Config.NativeBackground || Plugin.Config.TabPosition is not (TabPosition.Side or TabPosition.Top);
         var sideTabs = !Plugin.Config.NativeBackground && Plugin.Config.TabPosition is TabPosition.Side;
 
         if (sideTabs)
         {
             DrawTabSidebar();
+        }
+        else if (topTabs)
+        {
+            DrawTopTabLog();
         }
         else if (bottomTabs)
         {
@@ -876,7 +894,12 @@ public partial class ChatLog : Window, IChatWindow
             DrawTabBar();
         }
 
-        if (bottomTabs)
+        if (topTabs)
+        {
+            // 顶部模式：标签条在消息区上方（已在 DrawTopTabLog 内绘制），底部只剩输入行
+            DrawChannelInputRow();
+        }
+        else if (bottomTabs)
         {
             // 缩放通过字体重建实现（输入区 = FontManager 字号 × InputAreaScale；标签页 × TabScale，
             // v1.40.17+ 拆分），这里无需 SetWindowFontScale —— drawList 渲染的文字随字体 atlas 自动缩放
@@ -927,10 +950,12 @@ public partial class ChatLog : Window, IChatWindow
         ImGui.SetCursorPosY(iconTop); // !!! 修复：此前只设 X 没设 Y → 气泡贴顶不居中
         // 原生图标：新素材 icon_05 聊天气泡；wrap 未加载时回退 Comment FontAwesome。
         // !!! 音效改 UiSwitch(1)：游戏原生频道切换音效（原排除"选择频道"——确认要加）
+        // !!! 修复：气泡可点条件按"输入频道锁定"（InputChannelLocked）而非"Channel 是否非 null"——
+        // 设置了固定频道但未锁定的标签页也应能自由切换频道（快捷键可、气泡之前被误禁）
         if (ImGuiUtil.NativeIconButton(NativeIcons.Bubble, "channel-switcher-bubble", null, FontAwesomeIcon.Comment, sfx: ImGuiUtil.BtnSfx.UiSwitch)
-            && activeTab.Channel is null)
+            && !activeTab.InputChannelLocked)
             ImGui.OpenPopup(ChatChannelPicker);
-        if (activeTab.Channel is not null && ImGui.IsItemHovered())
+        if (activeTab.InputChannelLocked && ImGui.IsItemHovered())
             ImGuiUtil.Tooltip(Language.ChatLog_SwitcherDisabled);
 
         using (var popup = ImRaii.Popup(ChatChannelPicker))
@@ -1244,8 +1269,12 @@ public partial class ChatLog : Window, IChatWindow
             var dl = ImGui.GetWindowDrawList();
             var cMin = ImGui.GetWindowPos();
             var cMax = cMin + ImGui.GetWindowSize();
+            // !!! 顶部标签模式：消息区顶边两角直角（紧贴同色 tab 条，左右边缘平齐），
+            // 只圆底边两角；其余场景四角圆（默认）
+            var topTabs = !Plugin.Config.NativeBackground && Plugin.Config.TabPosition is TabPosition.Top;
             dl.PushClipRect(cMin, cMax, false);
-            dl.AddRectFilled(cMin, cMax, ImGui.GetColorU32(MessageLogBgColor()), 8f);
+            dl.AddRectFilled(cMin, cMax, ImGui.GetColorU32(MessageLogBgColor()), 8f,
+                topTabs ? ImDrawFlags.RoundCornersBottom : ImDrawFlags.None);
             dl.PopClipRect();
         }
 
@@ -1612,7 +1641,7 @@ public partial class ChatLog : Window, IChatWindow
             // 导致缩放后 Legacy tab 变高被底边切
             tabBarHeight = Plugin.Config.NativeBackground
                 ? 17f * ImGuiHelpers.GlobalScale * Plugin.Config.TabScale + 4f
-                : (ImGui.GetTextLineHeight() + style.FramePadding.Y * 2) * 0.9f + 2f;
+                : (ImGui.GetTextLineHeight() / (Plugin.Config.TabFontSizePt / 12f) + style.FramePadding.Y * 2) * 0.9f + 2f;
         }
         // separatorHeight（1+ItemSpacing*0.3）是历史"分隔线余量"——实际 DrawBottomTabBar 不画 separator
         // （tab 上移 2px 重叠已经是 separator），曾让 childHeight 偏大约 2px → 底部空白
@@ -1660,6 +1689,46 @@ public partial class ChatLog : Window, IChatWindow
         _renderedTabIndex = Plugin.LastTab;
     }
 
+    private void DrawTopTabLog()
+    {
+        // Handle WantedTab before drawing messages so switchedTab is correct
+        var activeTab = Plugin.CurrentTab;
+        var switchedTab = _renderedTabIndex >= 0 && _renderedTabIndex != Plugin.LastTab;
+
+        if (Plugin.WantedTab.HasValue)
+        {
+            var wanted = Plugin.WantedTab.Value;
+            if (wanted < Plugin.Config.Tabs.Count)
+            {
+                switchedTab = Plugin.LastTab != wanted;
+                var previousTab = Plugin.CurrentTab;
+                Plugin.LastTab = wanted;
+                var newTab = Plugin.Config.Tabs[wanted];
+                newTab.Unread = 0;
+                if (switchedTab)
+                    TabSwitched(newTab, previousTab);
+                Plugin.WantedTab = null;
+                activeTab = Plugin.CurrentTab;
+            }
+        }
+
+        // 输入频道锁定（同底部模式）
+        if (activeTab.Channel is not null && activeTab.InputChannelLocked)
+            activeTab.CurrentChannel.SetChannel(activeTab.Channel.Value);
+
+        // 顶部标签页：先画标签条（样式与底部完全一致；topTabs 必非原生 → Legacy 纯色 tab），
+        // 再画消息区填满剩余空间。非嵌套结构（匹配 Side 模式）：消息 childHeight>0，
+        // 圆角背景由 DrawMessageLog 内部绘制（##chat2-messages）——避免额外外层 child 的上下文问题。
+        var barTopY = ImGui.GetCursorPosY();
+        DrawBottomTabBar();
+        // !!! 消息区紧贴标签条底部：Legacy 末尾 NewLine 行高 > tab 高会产生空隙，
+        // 光标拉回 tab 条底（GetTopTabBarHeight 与背景条高度一致）→ 同色区域连成一体
+        ImGui.SetCursorPosY(barTopY + GetTopTabBarHeight());
+
+        DrawMessageLog(activeTab, InputHandler.PayloadHandler, GetRemainingHeightForMessageLog(), switchedTab, MsgState);
+        _renderedTabIndex = Plugin.LastTab;
+    }
+
     private void DrawBottomTabBar()
     {
         // !!! 大工程：NativeBackground = 素材开关。
@@ -1683,6 +1752,8 @@ public partial class ChatLog : Window, IChatWindow
         // 拼装顺序 = 左帽 → 分割线 → (中段 + 分割线)×N → 右帽 → "+"（+ 前无分割线）。
         // !!! Bug 修复：tab 高度必须 × TabScale——tab 文字字号 = 12pt×tabScale（v1.40.17+ 拆分），
         // 之前只变长不变高 → 比例破坏；左/下固定、缩放向右上。
+        // !!! tab 高度只由"标签页缩放"(TabScale) 控制，"标签页名称文字大小"(TabFontSizePt)
+        // 只改文字字号不改高度（高度已有 TabScale 管，见 v1.40.17 拆分）
         var tabHeight = 17f * scale * Plugin.Config.TabScale;
         var tabScale = tabHeight / 48f;  // 素材原始高 48px → 目标高度
         var capLeftSize = new Vector2(39f, 48f) * tabScale;
@@ -1723,6 +1794,31 @@ public partial class ChatLog : Window, IChatWindow
         // 左帽后第一根分割线（与 tab 之间同款）
         DrawDivider();
 
+        // !!! tab 自适应长度：窗口面积不足（tab 条放不下全部完全展开的 tab）时按比例
+        // 缩短中段宽度（左右帽/分隔线不动），文字随之缩减（私聊→私）；面积充足时 factor=1 原逻辑。
+        // 字号 = tab 高 3/5 基准 × 字号比（文字大小独立设置；高度不随字号变）
+        var effectiveFontSize = tabHeight * 0.6f * (Plugin.Config.TabFontSizePt / 12f);
+        var oneCharW = effectiveFontSize * 0.5f;  // !!! 左右留白 = 半个字（一个字母），实测整字太大
+        var availTabW = ImGui.GetContentRegionAvail().X;
+        var plusTabW = Plugin.Config.HideNewTabButton ? 0f : ImGuiUtil.CalcIconButtonSize().X;
+        var fixedTabW = capLeftSize.X + dividerSize.X + capRightSize.X + plusTabW;
+        var fullTabWidths = new List<float>(tabs.Count);
+        var sumFullTabW = 0f;
+        foreach (var t in tabs)
+        {
+            if (t.PopOut)
+                continue;
+            var tw = Math.Max(middleBaseSize.X, ImGui.CalcTextSize(t.Name).X + oneCharW * 2);
+            fullTabWidths.Add(tw);
+            sumFullTabW += tw;
+        }
+        // 每中段后一根分隔线；预算 = 可用宽 - 固定开销，factor 下限 0.15（极端窄窗仍可点）
+        var tabBudget = availTabW - fixedTabW - dividerSize.X * fullTabWidths.Count;
+        var tabWidthFactor = tabBudget <= 0f ? 0.15f : Math.Min(1f, tabBudget / Math.Max(sumFullTabW, 1f));
+        // 中段下限 = 单字 + 左右留白（文字至少 1 字）
+        var minMidW = effectiveFontSize + oneCharW * 2;
+        var tabWIdx = 0;
+
         var unreadGreen = UnreadColor();
         // Button 背景全透明（贴图自绘；hover 用 tint 提亮，不靠 Button 自带背景）
         var transparent = new Vector4(0, 0, 0, 0);
@@ -1743,13 +1839,11 @@ public partial class ChatLog : Window, IChatWindow
 
             // 中段 = 真正的 tab：宽度 = 文字 + 左右各留一个字空间（缩短中段）；
             // Button 只负责命中
-            // !!! 字号 = tab 高 3/5（提前定义，中段宽计算也要用）
-            var effectiveFontSize = tabHeight * 0.6f;
-            var tabTextWidth = ImGui.CalcTextSize(tab.Name).X;
-            var oneCharW = effectiveFontSize * 0.5f;  // !!! 左右留白 = 半个字（一个字母），实测整字太大
+            // !!! 面积不足时按 tabWidthFactor 压缩（下限 minMidW 至少 1 字 + 留白）
             var size = new Vector2(
-                Math.Max(middleBaseSize.X, tabTextWidth + oneCharW * 2),
+                Math.Max(minMidW, fullTabWidths[tabWIdx] * tabWidthFactor),
                 tabHeight);
+            tabWIdx++;
             var clicked = ImGui.Button($"##bottom-tab-{tabI}", size);
             var btnMin = ImGui.GetItemRectMin();
             var btnMax = ImGui.GetItemRectMax();
@@ -1824,7 +1918,9 @@ public partial class ChatLog : Window, IChatWindow
                 ? ImGui.GetColorU32(unreadGreen)
                 : ImGui.GetColorU32(new Vector4(238f / 255f, 236f / 255f, 215f / 255f, 1f));
             var activeFont = ImGui.GetFont();
-            var tabTextSize = ImGui.CalcTextSize(tab.Name);
+            // 压缩后宽度不足时文字渐进缩减（私聊→私）；宽度充足时原样
+            var displayText = FitTabText(tab.Name, size.X - oneCharW * 2);
+            var tabTextSize = ImGui.CalcTextSize(displayText);
             var fontScale = effectiveFontSize / activeFont.FontSize;
             // !!! 修复 v2：AddText pos = 文字顶（频道名 DrawChannelName 用 GetCursorScreenPos
             // 直接当顶，看正常——铁证）； 的 baseline 语义 + Ascent 项反而把文字压到
@@ -1837,7 +1933,7 @@ public partial class ChatLog : Window, IChatWindow
                 btnMin.X + (btnMax.X - btnMin.X - tabTextSize.X) / 2f + 5f * scale * Plugin.Config.TabScale,
                 btnMin.Y + (btnMax.Y - btnMin.Y - effectiveFontSize) / 2f - 2f * fontScale);
             // !!! 必须显式指定字体：AddText(pos,col,text) 重载会用窗口开始时的字体
-            drawList.AddText(activeFont, effectiveFontSize, textPos, tabTextColor, tab.Name);
+            drawList.AddText(activeFont, effectiveFontSize, textPos, tabTextColor, displayText);
 
             DrawTabContextMenu(tab, tabI);
 
@@ -1910,6 +2006,22 @@ public partial class ChatLog : Window, IChatWindow
 
         // !!! 重构：tab 双模式公共逻辑（原生/非原生共用，改一处即可）
 
+    /// <summary>tab 文字按可用宽度渐进缩减（完整 → 逐字 → 单字）；宽度充足时返回原样。</summary>
+    private static string FitTabText(string name, float availW)
+    {
+        if (availW <= 0f || string.IsNullOrEmpty(name))
+            return name;
+        if (ImGui.CalcTextSize(name).X <= availW)
+            return name;
+        for (var n = name.Length - 1; n >= 1; n--)
+        {
+            var sub = name[..n];
+            if (ImGui.CalcTextSize(sub).X <= availW)
+                return sub;
+        }
+        return name[..1];
+    }
+
     /// <summary>tab 点击切换（音效 1 + 切换逻辑）；返回是否发生点击。</summary>
     private bool HandleTabClick(int tabI, bool clicked, Tab tab)
     {
@@ -1966,24 +2078,81 @@ public partial class ChatLog : Window, IChatWindow
 
             var style = ImGui.GetStyle();
             // 底部标签页文字用固定大小字体（TabFont，12pt），压缩短边高度
+            // !!! tab 高度只随 TabScale：从含字号的行高反除字号比（TabFontSizePt/12），
+            // "标签页名称文字大小"只改文字不改高度（高度已有 TabScale 管）
             using var tabFont = Plugin.FontManager.TabFont.Push();
-            var tabHeight = (ImGui.GetTextLineHeight() + style.FramePadding.Y * 2) * 0.9f;
+            var tabHeight = (ImGui.GetTextLineHeight() / (Plugin.Config.TabFontSizePt / 12f) + style.FramePadding.Y * 2) * 0.9f;
             var drawList = ImGui.GetWindowDrawList();
             var dividerColor = ImGui.GetColorU32(new Vector4(0.25f, 0.25f, 0.25f, 0.55f));
             // 标签页背景透明度独立（TabAlpha，四透明度之一）
             var tabAlpha = Plugin.Config.TabAlpha / 100f;
-            var barBgColor = ImGui.GetColorU32(new Vector4(0.12f, 0.12f, 0.12f, 0.5f * tabAlpha));
+            // 顶部模式：tab 栏与消息区同色（WindowAlpha 统一控制透明度），底部画分界线；
+            // 底部模式：独立深色条（TabAlpha 控制）；CustomTabBg（仅非原生）优先用自定义 RGB
+            var isTopTabs = !Plugin.Config.NativeBackground && Plugin.Config.TabPosition is TabPosition.Top;
+            uint barBgColor;
+            if (Plugin.Config.CustomTabBg && ColourUtil.RgbaToVector4(Plugin.Config.TabBgColor) is { } customTabBg)
+            {
+                // 透明度沿用当前模式规则：顶部=消息区同规则（WindowBg.alpha×WindowAlpha），
+                // 底部=深色条的 TabAlpha 系数
+                var barAlpha = isTopTabs
+                    ? ImGui.GetStyle().Colors[(int)ImGuiCol.WindowBg].W * (Plugin.Config.WindowAlpha / 100f)
+                    : 0.5f * tabAlpha;
+                barBgColor = ImGui.GetColorU32(new Vector4(customTabBg.X, customTabBg.Y, customTabBg.Z, barAlpha));
+            }
+            else
+            {
+                barBgColor = isTopTabs
+                    ? ImGui.GetColorU32(MessageLogBgColor())
+                    : ImGui.GetColorU32(new Vector4(0.12f, 0.12f, 0.12f, 0.5f * tabAlpha));
+            }
             var activeColor = ImGui.GetColorU32(new Vector4(0.28f, 0.28f, 0.28f, 0.6f * tabAlpha));
 
             // 仿原生着色时只给 tab 本身颜色（不画整条背景）；普通模式保持整条背景条
             var barStart = ImGui.GetCursorScreenPos();
             if (!Plugin.Config.NativeBackground)
             {
-                var barWidth = ImGui.GetContentRegionAvail().X;
-                drawList.AddRectFilled(barStart, new Vector2(barStart.X + barWidth, barStart.Y + tabHeight), barBgColor);
+                // !!! 顶部模式 tab 背景与消息区背景精确同宽：GetContentRegionAvail 比消息区
+                // child 的 -1 宽多 1px（实测 749 vs 748）→ 用上一帧记录的消息区矩形宽保证平齐
+                var msgW = LastMessageAreaMax.X - LastMessageAreaMin.X;
+                var barWidth = isTopTabs && msgW > 0f ? msgW : ImGui.GetContentRegionAvail().X;
+                // !!! 顶部模式：右上角磨圆上移（消息区右上角圆角让给 tab 条，8f 同款）；
+                // 消息区顶边改直角后左右边缘与 tab 条平齐
+                drawList.AddRectFilled(barStart, new Vector2(barStart.X + barWidth, barStart.Y + tabHeight), barBgColor, 8f,
+                    isTopTabs ? ImDrawFlags.RoundCornersTopRight : ImDrawFlags.None);
+                // 顶部模式：tab 栏底边画分界线（与消息区相接处 2px 亮线）
+                if (isTopTabs)
+                {
+                    var sepColor = ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.18f));
+                    drawList.AddRectFilled(
+                        new Vector2(barStart.X, barStart.Y + tabHeight - 2f),
+                        new Vector2(barStart.X + barWidth, barStart.Y + tabHeight),
+                        sepColor);
+                }
             }
 
             var unreadGreen = UnreadColor();
+
+            // !!! tab 自适应长度（同原生）：窗口面积不足时按比例缩短 tab 宽（仅长度），
+            // 文字随之缩减（私聊→私）；面积充足时 factor=1 原逻辑
+            var availTabW = ImGui.GetContentRegionAvail().X;
+            var plusTabW = Plugin.Config.HideNewTabButton ? 0f : ImGuiUtil.CalcIconButtonSize().X;
+            var fullTabWidths = new List<float>(tabs.Count);
+            var sumFullTabW = 0f;
+            foreach (var t in tabs)
+            {
+                if (t.PopOut)
+                    continue;
+                var tw = ImGui.CalcTextSize(t.Name).X + style.FramePadding.X * 2 + 20f;
+                fullTabWidths.Add(tw);
+                sumFullTabW += tw;
+            }
+            // 分隔线 2px 只画在 tab 之间（first 之后的 tab 前）；预算 = 可用宽 - "+" - 分隔线
+            var legacyDividerTotal = Math.Max(0, fullTabWidths.Count - 1) * 2f;
+            var legacyBudget = availTabW - plusTabW - legacyDividerTotal;
+            var tabWidthFactor = legacyBudget <= 0f ? 0.15f : Math.Min(1f, legacyBudget / Math.Max(sumFullTabW, 1f));
+            // 下限 = 单字 + padding + 微留白（文字至少 1 字）
+            var minTabW = ImGui.CalcTextSize("字").X + style.FramePadding.X * 2 + 6f;
+            var tabWIdx = 0;
 
             var transparent = new Vector4(0, 0, 0, 0);
             using var btnBg = ImRaii.PushColor(ImGuiCol.Button, transparent);
@@ -2015,8 +2184,11 @@ public partial class ChatLog : Window, IChatWindow
                 }
                 first = false;
 
-                var textWidth = ImGui.CalcTextSize(tab.Name).X;
-                var size = new Vector2(textWidth + style.FramePadding.X * 2 + 20f, tabHeight);
+                // 面积不足时按 tabWidthFactor 压缩（下限 minTabW 至少 1 字可点）
+                var size = new Vector2(
+                    Math.Max(minTabW, fullTabWidths[tabWIdx] * tabWidthFactor),
+                    tabHeight);
+                tabWIdx++;
                 using var unreadCol = ImRaii.PushColor(ImGuiCol.Text, unreadGreen, hasUnread);
 
                 // 按钮只负责命中检测（隐藏文字），文字手动绘制并垂直居中（同顶部标签页）
@@ -2031,7 +2203,9 @@ public partial class ChatLog : Window, IChatWindow
                 else if (Plugin.Config.NativeBackground)
                     drawList.AddRectFilled(btnMin, btnMax, barBgColor);
                 var activeFont = ImGui.GetFont();
-                var tabTextSize = ImGui.CalcTextSize(tab.Name);
+                // 压缩后宽度不足时文字渐进缩减（私聊→私）；宽度充足时原样
+                var displayText = FitTabText(tab.Name, size.X - style.FramePadding.X * 2);
+                var tabTextSize = ImGui.CalcTextSize(displayText);
                 // 垂直居中：CJK 字形视觉中心 ≈ baseline − FontSize × 0.38，再上提 5px（实测校准）
                 // 用生效尺寸（随 UI 缩放）渲染 tab 文字：与 tab 框（GetTextLineHeight 随 UI 缩放）保持一致
                 var effectiveFontSize = ImGui.GetFontSize();
@@ -2040,7 +2214,7 @@ public partial class ChatLog : Window, IChatWindow
                     btnMin.X + (btnMax.X - btnMin.X - tabTextSize.X) / 2f,
                     btnMin.Y + (btnMax.Y - btnMin.Y) / 2f - activeFont.Ascent * fontScale + effectiveFontSize * 0.38f - 2f * fontScale);
                 // !!! 必须显式指定字体：AddText(pos,col,text) 重载会用窗口开始时的字体；传 FontSize 不随 UI 缩放
-                drawList.AddText(activeFont, effectiveFontSize, textPos, ImGui.GetColorU32(ImGuiCol.Text), tab.Name);
+                drawList.AddText(activeFont, effectiveFontSize, textPos, ImGui.GetColorU32(ImGuiCol.Text), displayText);
 
                 DrawTabContextMenu(tab, tabI);
 

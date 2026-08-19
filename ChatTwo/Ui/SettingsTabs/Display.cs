@@ -58,11 +58,9 @@ public sealed class Display : ISettingsTab
             {
                 if (tabCombo.Success)
                 {
-                    // 顶部选项已移除（窗口背景完全透明后顶部标签页无原生布局支撑）
+                    // 顶部位置已重新支持（默认窗口布局下：标签条移到消息区上方，样式与底部一致）
                     foreach (var tabPos in Enum.GetValues<TabPosition>())
                     {
-                        if (tabPos == TabPosition.Top)
-                            continue;
                         if (ImGui.Selectable(tabPos.Name(), Mutable.TabPosition == tabPos))
                             Mutable.TabPosition = tabPos;
                     }
@@ -90,6 +88,11 @@ public sealed class Display : ISettingsTab
 
         // 保持输入焦点（与显示时间戳互换位置）
         ImGuiUtil.OptionCheckbox(ref Mutable.KeepInputFocus, Language.Options_KeepInputFocus_Name, Language.Options_KeepInputFocus_Description);
+        ImGui.Spacing();
+
+        // 聊天窗口中可显示日志行的最大数量（内存保留上限，超出裁剪最旧消息）
+        if (ImGuiUtil.InputIntVertical(Language.Options_MaxLinesToShow_Name, Language.Options_MaxLinesToShow_Description, ref Mutable.MaxLinesToRender))
+            Mutable.MaxLinesToRender = Math.Clamp(Mutable.MaxLinesToRender, 1, 10_000);
         ImGui.Spacing();
 
         // 定型文排序调整（原"定型文列表排序"，改名）

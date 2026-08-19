@@ -2319,6 +2319,105 @@ namespace ChatTwo.Resources {
         }
 
         /// <summary>
+        /// Looks up a localized string similar to Size of the current channel name above the input box. Scales with the input area scale..
+        /// </summary>
+        internal static string Options_ChannelFontSize_Description {
+            get {
+                return ResourceManager.GetString("Options_ChannelFontSize_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Current channel text size.
+        /// </summary>
+        internal static string Options_ChannelFontSize_Name {
+            get {
+                return ResourceManager.GetString("Options_ChannelFontSize_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Size of the input method candidate (selection) text. IME candidates are rendered by Dalamud; this enlarges candidate text and box, independent of the input box font size..
+        /// </summary>
+        internal static string Options_ImeCandidateFontSize_Description {
+            get {
+                return ResourceManager.GetString("Options_ImeCandidateFontSize_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to IME candidate text size.
+        /// </summary>
+        internal static string Options_ImeCandidateFontSize_Name {
+            get {
+                return ResourceManager.GetString("Options_ImeCandidateFontSize_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Opacity of the IME candidate (selection) box background; 0 = fully transparent, 100 = opaque..
+        /// </summary>
+        internal static string Options_ImeCandidateAlpha_Description {
+            get {
+                return ResourceManager.GetString("Options_ImeCandidateAlpha_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to IME candidate box opacity.
+        /// </summary>
+        internal static string Options_ImeCandidateAlpha_Name {
+            get {
+                return ResourceManager.GetString("Options_ImeCandidateAlpha_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Modify IME candidate box.
+        /// </summary>
+        internal static string Options_ModifyImeCandidate_Name {
+            get {
+                return ResourceManager.GetString("Options_ModifyImeCandidate_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to When enabled, replaces Dalamud&apos;s original IME rendering: enlarges candidates/page number, removes pinyin and separators, adjusts the candidate box layout. When disabled, uses Dalamud&apos;s original IME (default)..
+        /// </summary>
+        internal static string Options_ModifyImeCandidate_Description {
+            get {
+                return ResourceManager.GetString("Options_ModifyImeCandidate_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to The following settings control text size at different places: message area body, input box text, tab names, current input channel, and the settings window..
+        /// </summary>
+        internal static string Options_Font_PageHint {
+            get {
+                return ResourceManager.GetString("Options_Font_PageHint", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Size of the tab name text in the chat window. Applies to both default and native tabs, combined with Tab Scale to determine final tab size..
+        /// </summary>
+        internal static string Options_TabFontSize_Description {
+            get {
+                return ResourceManager.GetString("Options_TabFontSize_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Tab name text size.
+        /// </summary>
+        internal static string Options_TabFontSize_Name {
+            get {
+                return ResourceManager.GetString("Options_TabFontSize_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
         /// Looks up a localized string similar to The font {0} will use to display non-Japanese text..
         /// </summary>
         internal static string Options_Font_Description {
@@ -2811,6 +2910,42 @@ namespace ChatTwo.Resources {
         internal static string Options_CustomMessageLogBg_Description {
             get {
                 return ResourceManager.GetString("Options_CustomMessageLogBg_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Customize the chat input box background color; when off it follows the theme. Opacity is always controlled by the "input box opacity" setting..
+        /// </summary>
+        internal static string Options_CustomInputBg_Description {
+            get {
+                return ResourceManager.GetString("Options_CustomInputBg_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Custom input box background color.
+        /// </summary>
+        internal static string Options_CustomInputBg_Name {
+            get {
+                return ResourceManager.GetString("Options_CustomInputBg_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Customize the tab bar background color (non-native UI only); when off it follows the default colors. Opacity follows the color rule of the current tab position..
+        /// </summary>
+        internal static string Options_CustomTabBg_Description {
+            get {
+                return ResourceManager.GetString("Options_CustomTabBg_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to Custom tab bar background color.
+        /// </summary>
+        internal static string Options_CustomTabBg_Name {
+            get {
+                return ResourceManager.GetString("Options_CustomTabBg_Name", resourceCulture);
             }
         }
 

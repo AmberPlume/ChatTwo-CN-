@@ -159,18 +159,35 @@ public sealed class SettingsWindow : Window
                           || Math.Abs(Mutable.SettingsFontSize - Plugin.Config.SettingsFontSize) > 0.001
                           || Math.Abs(Mutable.InputAreaScale - Plugin.Config.InputAreaScale) > 0.001
                           || Math.Abs(Mutable.TabScale - Plugin.Config.TabScale) > 0.001
+                          || Math.Abs(Mutable.TabFontSizePt - Plugin.Config.TabFontSizePt) > 0.001
+                          || Math.Abs(Mutable.ChannelNameFontSizePt - Plugin.Config.ChannelNameFontSizePt) > 0.001
+                          || Math.Abs(Mutable.ImeCandidateFontSizePt - Plugin.Config.ImeCandidateFontSizePt) > 0.001
+                          // 额外字符集：参与字体 atlas 构建（FontManager 读取），变化必须重建
+                          || Mutable.ExtraGlyphRanges != Plugin.Config.ExtraGlyphRanges
                           // 自定义字体：字体族变化也要重建（字号统一由 FontSizeV2 控制，不比较 SizePt）
                           || Mutable.GlobalFontV2.FontId.EnglishName != Plugin.Config.GlobalFontV2.FontId.EnglishName
                           || Mutable.JapaneseFontV2.FontId.EnglishName != Plugin.Config.JapaneseFontV2.FontId.EnglishName
                           || Mutable.FontsEnabled != Plugin.Config.FontsEnabled;
+
+        // !!! 消息重载条件化：只有影响消息内容/过滤/布局的设置变化才清空重载
+        //（字体变化→消息高度缓存失效必须重算；语言/会话范围/定型文排序→文本内容变化）。
+        // 纯视觉设置（透明度/颜色/开关/缩放等）跳过 → 保存瞬间无加载感。
+        var messagesNeedReload = fontSizeChanged
+                              || languageChanged
+                              || Mutable.FilterIncludePreviousSessions != Plugin.Config.FilterIncludePreviousSessions
+                              || Mutable.SortAutoTranslate != Plugin.Config.SortAutoTranslate;
 
         Plugin.Config.UpdateFrom(Mutable, true);
 
         // save after 60 frames have passed, which should hopefully not
         // commit any changes that cause a crash
         Plugin.DeferredSaveFrames = 60;
-        Plugin.MessageManager.ClearAllTabs();
-        Plugin.MessageManager.FilterAllTabsAsync();
+
+        if (messagesNeedReload)
+        {
+            Plugin.MessageManager.ClearAllTabs();
+            Plugin.MessageManager.FilterAllTabsAsync();
+        }
 
         if (fontSizeChanged)
             Plugin.FontManager.BuildFonts();
