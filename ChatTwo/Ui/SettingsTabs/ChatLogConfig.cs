@@ -64,6 +64,30 @@ public sealed class ChatLogConfig : ISettingsTab
             }
             ImGui.Spacing();
 
+            // 自定义输入框背景颜色（调色盘）：默认关闭 = 跟随主题 FrameBg；开启后手动调 RGB。
+            // 透明度统一由"输入框透明度"控制
+            ImGuiUtil.OptionCheckbox(ref Mutable.CustomInputBg, Language.Options_CustomInputBg_Name, Language.Options_CustomInputBg_Description);
+            if (Mutable.CustomInputBg)
+            {
+                var inputCol = ColourUtil.RgbaToVector3(Mutable.InputBgColor);
+                if (ImGui.ColorEdit3("##custom-input-bg-color", ref inputCol, ImGuiColorEditFlags.NoInputs))
+                    Mutable.InputBgColor = ColourUtil.Vector3ToRgba(inputCol);
+            }
+            ImGui.Spacing();
+
+            // 自定义标签页栏背景颜色（仅非仿原生）：仿原生用三段式贴图素材，颜色由素材自带 → 隐藏
+            if (!Mutable.NativeBackground)
+            {
+                ImGuiUtil.OptionCheckbox(ref Mutable.CustomTabBg, Language.Options_CustomTabBg_Name, Language.Options_CustomTabBg_Description);
+                if (Mutable.CustomTabBg)
+                {
+                    var tabCol = ColourUtil.RgbaToVector3(Mutable.TabBgColor);
+                    if (ImGui.ColorEdit3("##custom-tab-bg-color", ref tabCol, ImGuiColorEditFlags.NoInputs))
+                        Mutable.TabBgColor = ColourUtil.Vector3ToRgba(tabCol);
+                }
+                ImGui.Spacing();
+            }
+
             // !!! v1.40.17+ 仿原生界面（NativeBackground）下标签页用三段式贴图，透明度由素材自带，
             // TabAlpha 无效 → 隐藏设置项
             if (!Mutable.NativeBackground)
@@ -75,11 +99,12 @@ public sealed class ChatLogConfig : ISettingsTab
             ImGuiUtil.DragFloatVertical(Language.Options_InputAlpha_Name, Language.Options_InputAlpha_Description, ref Mutable.InputAlpha, .25f, 0f, 100f, $"{Mutable.InputAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
 
-            // 未读消息提示方式已搬至"基础设置"页（v1.40.11+）
-
-            if (ImGuiUtil.InputIntVertical(Language.Options_MaxLinesToShow_Name, Language.Options_MaxLinesToShow_Description, ref Mutable.MaxLinesToRender))
-                Mutable.MaxLinesToRender = Math.Clamp(Mutable.MaxLinesToRender, 1, 10_000);
+            // 输入法候选框透明度（卫月接管候选渲染，ChatTwo 绘制层 hook 时应用）
+            ImGuiUtil.DragFloatVertical(Language.Options_ImeCandidateAlpha_Name, Language.Options_ImeCandidateAlpha_Description, ref Mutable.ImeCandidateAlpha, .25f, 0f, 100f, $"{Mutable.ImeCandidateAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
+
+            // 未读消息提示方式已搬至"基础设置"页（v1.40.11+）
+            // 日志行数上限已搬至"基础设置"页
 
             // 显示聊天窗口标题栏 / 显示弹出标签页标题栏：锁定关闭且不再显示在设置中
 

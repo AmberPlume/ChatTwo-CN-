@@ -135,6 +135,18 @@
   <data name="Options_CustomMessageLogBg_Description">
     <value>自定义消息区背景颜色；关闭时跟随主题（自动略微变淡）。透明度始终由"消息区透明度"控制。</value>
   </data>
+  <data name="Options_CustomInputBg_Name">
+    <value>自定义输入框背景颜色</value>
+  </data>
+  <data name="Options_CustomInputBg_Description">
+    <value>自定义聊天输入框背景颜色；关闭时跟随主题。透明度始终由"输入框透明度"控制。</value>
+  </data>
+  <data name="Options_CustomTabBg_Name">
+    <value>自定义标签页栏背景颜色</value>
+  </data>
+  <data name="Options_CustomTabBg_Description">
+    <value>自定义标签页栏背景颜色（仅非仿原生界面生效）；关闭时跟随默认配色。透明度沿用当前标签页位置的颜色规则。</value>
+  </data>
   <data name="Options_MessageSpacing_Name">
     <value>段落间距</value>
   </data>
@@ -142,7 +154,7 @@
     <value>消息行之间的额外垂直间距（0 = 不额外留白；负值可在字体行高余量内收紧行距，过负会文字重叠）。</value>
   </data>
   <data name="Options_FontSize_Name">
-    <value>字体大小</value>
+    <value>消息区文字大小</value>
   </data>
   <data name="Popout_CanResize_Name">
     <value>允许调整窗口大小</value>
@@ -345,19 +357,46 @@
     <value>字体</value>
   </data>
   <data name="Options_Font_Description">
-    <value>字体将用于 {0} 显示非日文文本。</value>
+    <value>用于消息区正文文字的字体族；选自定义字体后消息区文字使用该字体（不选则用游戏 Axis 字体）。</value>
   </data>
   <data name="Options_Tabs_ChannelTypes_Special">
     <value>特殊</value>
   </data>
   <data name="Options_InputFontSize_Name">
-    <value>输入字体大小</value>
+    <value>输入框文字大小</value>
   </data>
   <data name="Options_InputFontSize_Description">
     <value>聊天输入框中文字的大小，输入框高度随字体大小自适应。</value>
   </data>
+  <data name="Options_TabFontSize_Name">
+    <value>标签页名称文字大小</value>
+  </data>
+  <data name="Options_TabFontSize_Description">
+    <value>聊天窗口标签页上名称文字的大小；默认界面与仿原生界面均生效，与"标签页缩放"相乘决定标签页最终大小。</value>
+  </data>
+  <data name="Options_ChannelFontSize_Name">
+    <value>当前输入频道文字大小</value>
+  </data>
+  <data name="Options_ChannelFontSize_Description">
+    <value>输入框上方当前频道名称文字的大小，随输入区缩放联动。</value>
+  </data>
+  <data name="Options_ImeCandidateFontSize_Name">
+    <value>输入法候选词文字大小</value>
+  </data>
+  <data name="Options_ImeCandidateFontSize_Description">
+    <value>输入法候选词（选字）文字的大小；输入法候选由卫月接管渲染，此设置放大候选文字与候选框，独立于输入框字号。</value>
+  </data>
+  <data name="Options_ImeCandidateAlpha_Name">
+    <value>输入法候选框透明度</value>
+  </data>
+  <data name="Options_ImeCandidateAlpha_Description">
+    <value>输入法候选框（选字框）背景的透明度，0 = 完全透明，100 = 不透明。</value>
+  </data>
+  <data name="Options_Font_PageHint">
+    <value>以下设置项分别控制聊天窗口中不同位置的文字：消息区正文、输入框文字、标签页名称、当前输入频道、设置界面。</value>
+  </data>
   <data name="Options_SettingsFontSize_Name">
-    <value>设置界面字体大小</value>
+    <value>设置界面文字大小</value>
   </data>
   <data name="Options_SettingsFontSize_Description">
     <value>设置窗口中文字的大小，独立于聊天主字体。</value>
@@ -1298,5 +1337,11 @@
   </data>
   <data name="Search_ResultsFor">
     <value>搜索: {0}</value>
+  </data>
+  <data name="Options_ModifyImeCandidate_Name">
+    <value>改变输入法候选框</value>
+  </data>
+  <data name="Options_ModifyImeCandidate_Description">
+    <value>启用后替换卫月原始 IME 渲染：放大候选词/页码、移除拼音和分隔线、调整候选框布局。关闭时使用卫月原始 IME（默认）。</value>
   </data>
 </root>

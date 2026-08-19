@@ -100,6 +100,14 @@ public class Configuration : IPluginConfiguration
     public bool CustomMessageLogBg;
     /// <summary>自定义消息区背景 RGB（RGBA 格式，alpha 忽略——统一走 WindowAlpha）。</summary>
     public uint MessageLogBgColor = ColourUtil.ComponentsToRgba(96, 96, 96);
+    /// <summary>自定义输入框背景颜色（关闭 = 跟随主题 FrameBg；透明度仍由 InputAlpha 控制）。</summary>
+    public bool CustomInputBg;
+    /// <summary>自定义输入框背景 RGB（RGBA 格式，alpha 忽略——统一走 InputAlpha）。</summary>
+    public uint InputBgColor = ColourUtil.ComponentsToRgba(96, 96, 96);
+    /// <summary>自定义标签页栏背景颜色（仅非仿原生窗口；关闭 = 跟随默认深色条/顶部模式消息区同色）。</summary>
+    public bool CustomTabBg;
+    /// <summary>自定义标签页栏背景 RGB（RGBA 格式，alpha 忽略——透明度由 TabAlpha 或消息区同色规则决定）。</summary>
+    public uint TabBgColor = ColourUtil.ComponentsToRgba(96, 96, 96);
     /// <summary>
     /// 正文（消息内容）字间距自由调整（px，负值更紧凑，正值更疏松）。
     /// 只作用于消息正文，不影响时间戳/发送者名（v1.40.17+）。
@@ -136,6 +144,26 @@ public class Configuration : IPluginConfiguration
     /// 与输入区缩放（InputAreaScale）相互独立。
     /// </summary>
     public float TabScale = 1.0f;
+    /// <summary>
+    /// 标签页名称基准字号（pt，默认 12）。与 TabScale 相乘 = 标签页最终大小：
+    /// 字号设基准，TabScale 设整体倍率（默认/仿原生 tab 均生效）。
+    /// </summary>
+    public float TabFontSizePt = 12f;
+    /// <summary>
+    /// 当前输入频道名称字号（pt，默认 12）。输入框上方频道名行，随输入区缩放联动。
+    /// </summary>
+    public float ChannelNameFontSizePt = 12f;
+    /// <summary>
+    /// 输入法候选词字号（pt，默认 16）。卫月接管候选渲染，ChatTwo 放大候选文字用（独立于输入框字号）。
+    /// </summary>
+    public float ImeCandidateFontSizePt = 16f;
+    /// <summary>输入法候选框透明度（0-100，默认 100 不透明；0 = 完全透明）。</summary>
+    public float ImeCandidateAlpha = 100f;
+    /// <summary>
+    /// 大开关：是否替换输入法候选框（放大候选词/页码、移除拼音/分隔线、调整布局）。
+    /// 关闭时全部 IME detour 走透传（使用卫月原始 IME 渲染），默认关闭。
+    /// </summary>
+    public bool ModifyImeCandidate = false;
     /// <summary>
     /// 未读消息的频道过滤（v1.40.17+）：为空 = 全部频道的新消息都计入未读；
     /// 非空 = 仅选中频道（含来源/目标细分）计入未读。
@@ -245,6 +273,10 @@ public class Configuration : IPluginConfiguration
         HideNewTabButton = other.HideNewTabButton;
         CustomMessageLogBg = other.CustomMessageLogBg;
         MessageLogBgColor = other.MessageLogBgColor;
+        CustomInputBg = other.CustomInputBg;
+        InputBgColor = other.InputBgColor;
+        CustomTabBg = other.CustomTabBg;
+        TabBgColor = other.TabBgColor;
         MessageLetterSpacing = other.MessageLetterSpacing;
         MessageLineSpacing = other.MessageLineSpacing;
         FontsEnabled = other.FontsEnabled;
@@ -254,6 +286,11 @@ public class Configuration : IPluginConfiguration
         FontSizeV2 = other.FontSizeV2;
         InputAreaScale = other.InputAreaScale;
         TabScale = other.TabScale;
+        TabFontSizePt = other.TabFontSizePt;
+        ChannelNameFontSizePt = other.ChannelNameFontSizePt;
+        ImeCandidateFontSizePt = other.ImeCandidateFontSizePt;
+        ModifyImeCandidate = other.ModifyImeCandidate;
+        ImeCandidateAlpha = other.ImeCandidateAlpha;
         UnreadChannels = other.UnreadChannels.ToDictionary(pair => pair.Key, pair => pair.Value);
         MigratedFromChatTwo = other.MigratedFromChatTwo;
         PendingDbImportSource = other.PendingDbImportSource;
@@ -269,7 +306,17 @@ public class Configuration : IPluginConfiguration
         UnreadNotifyMode = other.UnreadNotifyMode;
         MoveLocked = other.MoveLocked;
         ChatColours = other.ChatColours.ToDictionary(entry => entry.Key, entry => entry.Value);
+        // !!! Clone 不拷贝 Messages（内存消息列表，非配置字段）——若直接替换列表，
+        // 每次保存（UpdateFrom）都会把消息区清空（旧 Tab 的 Messages 全丢，只有
+        // 重载插件/新消息才能恢复）。按 Identifier 从旧列表转移 Messages 引用。
+        var oldTabs = Tabs;
         Tabs = other.Tabs.Select(t => t.Clone()).ToList();
+        foreach (var newTab in Tabs)
+        {
+            var old = oldTabs.FirstOrDefault(o => o.Identifier == newTab.Identifier);
+            if (old != null)
+                newTab.Messages = old.Messages;
+        }
         OverrideStyle = other.OverrideStyle;
         ChosenStyle = other.ChosenStyle;
         MigrationStatus = other.MigrationStatus;
