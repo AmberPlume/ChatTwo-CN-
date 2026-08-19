@@ -111,12 +111,14 @@ public sealed class Display : ISettingsTab
         ImGui.Separator();
         ImGui.Spacing();
         ImGui.TextUnformatted("从原版 Chat Two 迁移");
-        ImGuiUtil.TooltipOnLastItem("复制原版 Chat Two（InternalName=ChatTwo）的设置与聊天历史到本插件。复制后需要重启游戏生效。");
+        ImGuiUtil.TooltipOnLastItem("迁移原版 Chat Two（InternalName=ChatTwo）的设置与聊天历史到本插件。设置立即生效；聊天历史在重启游戏后自动导入。");
         DrawMigrationSection();
         ImGui.Spacing();
     }
 
     // 从原版 ChatTwo 迁移配置/历史（原版配置: pluginConfigs/ChatTwo.json，库: pluginConfigs/ChatTwo/chat-sqlite.db）
+    // 原库/目标库在运行中都可能被插件连接占用，不能文件复制；配置也不能整文件覆盖
+    // （会丢 CN 特有字段）。配置 = 白名单字段合并立即生效；历史 = 写标记重启后在线导入。
     private void DrawMigrationSection()
     {
         var parentDir = Plugin.Interface.ConfigDirectory.Parent;
@@ -124,15 +126,35 @@ public sealed class Display : ISettingsTab
             return;
 
         var srcConfig = Path.Combine(parentDir.FullName, "ChatTwo.json");
-        var srcExists = File.Exists(srcConfig);
+        var srcDb = Path.Combine(parentDir.FullName, "ChatTwo", "chat-sqlite.db");
 
-        if (Mutable.MigratedFromChatTwo)
+        if (Plugin.Config.MigratedFromChatTwo)
         {
-            ImGui.TextColored(new System.Numerics.Vector4(0.49f, 0.78f, 0.49f, 1f), "已迁移过，请重启游戏生效。");
+            var pending = Plugin.Config.PendingDbImportSource;
+            ImGui.TextColored(new System.Numerics.Vector4(0.49f, 0.78f, 0.49f, 1f),
+                string.IsNullOrEmpty(pending)
+                    ? "已从原版 Chat Two 迁移设置。"
+                    : "设置已迁移。聊天历史将在重启游戏后自动导入。");
+
+            // 补救入口（防重复仍有效：重新迁移需二次确认；取消待导入用于放弃失败重试）
+            if (ImGui.Button("重新迁移"))
+                ImGui.OpenPopup("chat2-re-migrate");
+            if (!string.IsNullOrEmpty(pending))
+            {
+                ImGui.SameLine();
+                if (ImGui.Button("取消待导入"))
+                {
+                    Plugin.Config.PendingDbImportSource = null;
+                    Mutable.PendingDbImportSource = null;
+                    Plugin.Interface.SavePluginConfig(Plugin.Config);
+                }
+            }
+
+            DrawReMigratePopup(srcConfig, srcDb);
             return;
         }
 
-        if (!srcExists)
+        if (!File.Exists(srcConfig))
         {
             ImGui.TextUnformatted("未找到原版配置（pluginConfigs/ChatTwo.json）。");
             return;
@@ -141,35 +163,66 @@ public sealed class Display : ISettingsTab
         var alsoDb = _migrateAlsoDb;
         ImGui.Checkbox("同时迁移聊天历史（数据库）", ref alsoDb);
         _migrateAlsoDb = alsoDb;
+        if (alsoDb && !File.Exists(srcDb))
+            ImGui.TextUnformatted("未找到原版聊天历史数据库（pluginConfigs/ChatTwo/chat-sqlite.db），本次仅迁移设置。");
 
         if (ImGui.Button("迁移设置"))
+            DoMigrate(srcConfig, srcDb);
+    }
+
+    // 重新迁移二次确认弹窗（防止误点反复合并配置/反复写导入标记）
+    private void DrawReMigratePopup(string srcConfig, string srcDb)
+    {
+        using var popup = ImRaii.Popup("chat2-re-migrate");
+        if (!popup)
+            return;
+
+        if (!File.Exists(srcConfig))
         {
-            try
-            {
-                // 备份当前配置
-                var dstConfig = Plugin.Interface.ConfigFile.FullName;
-                File.Copy(dstConfig, $"{dstConfig}.bak", true);
+            ImGui.TextUnformatted("未找到原版配置（pluginConfigs/ChatTwo.json），无法重新迁移。");
+            ImGui.Spacing();
+            if (ImGui.Button("关闭"))
+                ImGui.CloseCurrentPopup();
+            return;
+        }
 
-                // 复制原版配置
-                File.Copy(srcConfig, dstConfig, true);
+        ImGui.TextUnformatted("重新从原版 Chat Two 迁移？");
+        ImGui.TextUnformatted("将再次合并原版设置（CN 特有设置不受影响）。");
+        if (_migrateAlsoDb)
+        {
+            if (File.Exists(srcDb))
+                ImGui.TextUnformatted("聊天历史将重新标记导入（重启后生效）。");
+            else
+                ImGui.TextUnformatted("未找到原版聊天历史数据库，本次仅迁移设置。");
+        }
 
-                // 可选：复制聊天历史数据库
-                if (_migrateAlsoDb)
-                {
-                    var srcDb = Path.Combine(parentDir.FullName, "ChatTwo", "chat-sqlite.db");
-                    var dstDb = Path.Combine(Plugin.Interface.ConfigDirectory.FullName, "chat-sqlite.db");
-                    if (File.Exists(srcDb))
-                    {
-                        try { File.Copy(srcDb, dstDb, true); } catch { /* 数据库可能被占用，忽略 */ }
-                    }
-                }
+        ImGui.Spacing();
+        if (ImGui.Button("确认迁移"))
+        {
+            DoMigrate(srcConfig, srcDb);
+            ImGui.CloseCurrentPopup();
+        }
 
-                Mutable.MigratedFromChatTwo = true;
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error(ex, "迁移原版配置失败");
-            }
+        ImGui.SameLine();
+        if (ImGui.Button("取消"))
+            ImGui.CloseCurrentPopup();
+    }
+
+    // 迁移核心：白名单字段合并进当前配置（不覆盖 CN 特有字段），立即生效并持久化；
+    // Mutable（设置窗口副本）同步合并，防止用户随后点"保存"把迁移结果回滚。
+    // 聊天历史只写待导入标记，重启后由 MessageManager 用 SQLite Online Backup 导入。
+    private void DoMigrate(string srcConfig, string srcDb)
+    {
+        ChatTwoMigrator.MergeConfigFrom(Plugin.Config, srcConfig);
+        ChatTwoMigrator.MergeConfigFrom(Mutable, srcConfig);
+        Plugin.Config.MigratedFromChatTwo = true;
+        Mutable.MigratedFromChatTwo = true;
+        Plugin.Interface.SavePluginConfig(Plugin.Config);
+
+        if (_migrateAlsoDb && File.Exists(srcDb))
+        {
+            Plugin.Config.PendingDbImportSource = srcDb;
+            Plugin.Interface.SavePluginConfig(Plugin.Config);
         }
     }
 
