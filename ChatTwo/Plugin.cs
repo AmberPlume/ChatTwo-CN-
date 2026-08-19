@@ -265,7 +265,7 @@ public sealed class Plugin : IDalamudPlugin
     private static unsafe void AddLineDetour(nint drawList, System.Numerics.Vector2 p1, System.Numerics.Vector2 p2, uint col, float thickness)
     {
         // 大开关关闭：完全透传（卫月原始 IME）
-        if (!Plugin.Config.ModifyImeCandidate)
+        if (Plugin.Config == null || !Plugin.Config.ModifyImeCandidate)
         {
             _imeLineHook!.Original(drawList, p1, p2, col, thickness);
             return;
@@ -278,7 +278,7 @@ public sealed class Plugin : IDalamudPlugin
     private static unsafe void AddRectFilledDetour(nint drawList, System.Numerics.Vector2 pMin, System.Numerics.Vector2 pMax, uint col, float rounding, uint flags)
     {
         // 大开关关闭：完全透传（卫月原始 IME）
-        if (!Plugin.Config.ModifyImeCandidate)
+        if (Plugin.Config == null || !Plugin.Config.ModifyImeCandidate)
         {
             _imeRectHook!.Original(drawList, pMin, pMax, col, rounding, flags);
             return;
@@ -409,7 +409,7 @@ public sealed class Plugin : IDalamudPlugin
     private static unsafe void AddTextDetour(nint drawList, System.Numerics.Vector2 pos, uint col, nint textBegin, nint textEnd)
     {
         // 大开关关闭：完全透传（卫月原始 IME）
-        if (!Plugin.Config.ModifyImeCandidate)
+        if (Plugin.Config == null || !Plugin.Config.ModifyImeCandidate)
         {
             _imeAddTextHook!.Original(drawList, pos, col, textBegin, textEnd);
             return;
