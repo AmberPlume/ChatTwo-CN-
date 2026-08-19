@@ -11,6 +11,8 @@
     <ItemGroup>
         <PackageReference Include="MessagePack" Version="3.1.7" />
         <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
+        <!-- 迁移原版 ChatTwo 配置必需：原版 ChatTwo.json 由 Dalamud 用 Newtonsoft+$type 保存（字体 IFontId 接口），System.Text.Json 读必崩 -->
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
         <PackageReference Include="morelinq" Version="4.4.0" />
         <PackageReference Include="Pidgin" Version="3.3.0" />
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />

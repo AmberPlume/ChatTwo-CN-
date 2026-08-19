@@ -143,6 +143,14 @@ public class Configuration : IPluginConfiguration
     public Dictionary<ChatType, (ChatSource Source, ChatSource Target)> UnreadChannels = [];
     // 是否已从原版 ChatTwo 迁移过配置（迁移按钮防重复用）
     public bool MigratedFromChatTwo;
+
+    /// <summary>
+    /// 待从原版 ChatTwo 导入的聊天历史数据库路径（迁移标记）。
+    /// 设置页"迁移设置"勾选聊天历史时写入；下次启动时由 MessageManager
+    /// 在创建 MessageStore 之前用 SQLite Online Backup 导入，成功后清空。
+    /// 运行时不能直接复制该库文件：源库/目标库均可能被各自的插件连接占用。
+    /// </summary>
+    public string? PendingDbImportSource;
     public float SymbolsFontSizeV2 = 12.75f;
     public SingleFontSpec GlobalFontV2 = new()
     {
@@ -248,6 +256,7 @@ public class Configuration : IPluginConfiguration
         TabScale = other.TabScale;
         UnreadChannels = other.UnreadChannels.ToDictionary(pair => pair.Key, pair => pair.Value);
         MigratedFromChatTwo = other.MigratedFromChatTwo;
+        PendingDbImportSource = other.PendingDbImportSource;
         GlobalFontV2 = other.GlobalFontV2;
         JapaneseFontV2 = other.JapaneseFontV2;
         ItalicFontV2 = other.ItalicFontV2;

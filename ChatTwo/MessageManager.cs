@@ -54,6 +54,37 @@ public class MessageManager : IAsyncDisposable
     {
         Plugin = plugin;
 
+        // 从原版 ChatTwo 导入聊天历史：设置页"迁移设置"只写 PendingDbImportSource 标记，
+        // 运行中的库文件无法安全复制（源/目标均可能被占用），统一在重启后、
+        // MessageStore 创建之前用 SQLite Online Backup 导入（含 WAL 数据，事务安全）。
+        var pendingImport = Plugin.Config.PendingDbImportSource;
+        if (!string.IsNullOrWhiteSpace(pendingImport))
+        {
+            var dstPath = DatabasePath();
+            var samePath = string.Equals(
+                Path.GetFullPath(pendingImport),
+                Path.GetFullPath(dstPath),
+                StringComparison.OrdinalIgnoreCase);
+
+            if (!File.Exists(pendingImport) || samePath)
+            {
+                // 源已不存在（原版已清理）或路径相同 → 清标记，不阻塞启动
+                Plugin.Config.PendingDbImportSource = null;
+                Plugin.SaveConfig();
+            }
+            else if (ChatTwoMigrator.TryImportDatabase(pendingImport, dstPath))
+            {
+                Plugin.Config.PendingDbImportSource = null;
+                Plugin.SaveConfig();
+                WrapperUtil.AddNotification("已从原版 Chat Two 导入聊天历史。", NotificationType.Success);
+            }
+            else
+            {
+                // 导入失败（原版插件仍在运行占用源库等）→ 保留标记，下次启动重试
+                WrapperUtil.AddNotification("从原版 Chat Two 导入聊天历史失败，将在下次启动时重试。", NotificationType.Error);
+            }
+        }
+
         try
         {
             Store = new MessageStore(plugin, DatabasePath());
