@@ -1396,6 +1396,8 @@ public partial class ChatLog : Window, IChatWindow
             }
 
             var lastPosY = ImGui.GetCursorPosY();
+            // !!! 合并相同时间：记录上一条已显示的时间戳（每帧重置 → 每条日志首条总是显示）
+            var lastTimestamp = string.Empty;
 
             var maxLines = Plugin.Config.MaxLinesToRender;
             var startLine = messages.Count > maxLines ? messages.Count - maxLines : 0;
@@ -1466,9 +1468,15 @@ public partial class ChatLog : Window, IChatWindow
                     // 时间戳用主字体渲染（与聊天框文字大小一致）。
                     // !!! v1.40.17 清理：旧"现代化布局"表格分支已移除，统一 DrawTimestampInline 行内渲染
                     //（支持 去括号/紧凑排布/时间戳字间距）
+                    // !!! 合并相同时间（原版 HideSameTimestamps 回归）：同一分钟内连续消息只显示
+                    // 第一个时间戳。行内模式=跳过绘制+SameLine（正文顶格）；独立列模式=不绘制但
+                    // 保留缩进宽度（列对齐不被破坏，时间戳位置留白）
+                    var sameAsLast = Plugin.Config.MergeSameTimestamps && timestamp == lastTimestamp;
                     if (Plugin.Config.TimestampOwnColumn)
                     {
-                        var tsW = DrawTimestampInline(timestamp);
+                        if (!sameAsLast)
+                            lastTimestamp = timestamp;
+                        var tsW = DrawTimestampInline(timestamp, draw: !sameAsLast);
                         // 列宽 = 时间戳文本宽 + 时间戳与正文间距（可调，默认 8px×scale）。
                         // !!! scaled:false 必须——tsW 已是像素宽，PushIndent 默认 scaled=true 会再乘
                         // GlobalScale（1.5）→ 缩进 1.5 倍 → 时间戳与正文巨大空白（实测）
@@ -1477,8 +1485,12 @@ public partial class ChatLog : Window, IChatWindow
                     }
                     else
                     {
-                        DrawTimestampInline(timestamp);
-                        ImGui.SameLine();
+                        if (!sameAsLast)
+                        {
+                            lastTimestamp = timestamp;
+                            DrawTimestampInline(timestamp);
+                            ImGui.SameLine();
+                        }
                     }
                 }
 
@@ -1535,8 +1547,9 @@ public partial class ChatLog : Window, IChatWindow
     /// 逐字符 AddText 实现 字间距自由调整；配合 去括号 / 紧凑排布 两个独立子选项。
     /// 用 Dummy 锚定光标（SameLine / GetContentRegionAvail 依赖上一个 item 的矩形）。
     /// 返回时间戳文本渲染宽度（不含 tailGap；单独成列模式用其做正文缩进量）。
+    /// draw=false = 仅计算宽度不绘制（合并相同时间时独立列模式的留白占位，保持列对齐）。
     /// </summary>
-    private static float DrawTimestampInline(string timestamp)
+    private static float DrawTimestampInline(string timestamp, bool draw = true)
     {
         var cfg = Plugin.Config;
         var text = cfg.RemoveTimestampBrackets ? timestamp : $"[{timestamp}]";
@@ -1555,7 +1568,8 @@ public partial class ChatLog : Window, IChatWindow
         {
             var chStr = ch.ToString();
             var cw = ImGui.CalcTextSize(chStr).X;
-            dl.AddText(font, size, pos, col, chStr);
+            if (draw)
+                dl.AddText(font, size, pos, col, chStr);
             pos.X += cw + spacing;
             totalW += cw + spacing;
         }
@@ -1566,8 +1580,9 @@ public partial class ChatLog : Window, IChatWindow
 
         // !!! 必须手动注册进选字系统：旧实现经 DrawChunk→WrapText 会自动 AddChunk，
         // 自绘后若不注册，PointToChar 在时间戳区域映射不到字符 → 自由选取选不到时间戳
-        //（v1.40.17 回归修复）。矩形用行高（非 0 高 Dummy），charX 含间距
-        if (ImGuiUtil.CurrentSelection != null && text.Length > 0)
+        //（v1.40.17 回归修复）。矩形用行高（非 0 高 Dummy），charX 含间距。
+        // draw=false 时没有可见文字，不注册（避免选中"看不见的字"）
+        if (draw && ImGuiUtil.CurrentSelection != null && text.Length > 0)
         {
             var lineHeight = ImGui.GetTextLineHeight();
             var charX = new float[text.Length + 1];

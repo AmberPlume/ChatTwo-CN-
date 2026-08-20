@@ -232,6 +232,9 @@ public sealed class Tabs : ISettingsTab
                 ImGui.Spacing();
                 ImGuiUtil.OptionCheckbox(ref Mutable.CompactTimestampSpacing, Language.Options_Timestamp_Compact_Name, Language.Options_Timestamp_Compact_Description);
                 ImGui.Spacing();
+                // 合并相同时间（原版 HideSameTimestamps 回归）：同一分钟连续消息只显示第一个时间戳
+                ImGuiUtil.OptionCheckbox(ref Mutable.MergeSameTimestamps, Language.Options_Timestamp_MergeSame_Name, Language.Options_Timestamp_MergeSame_Description);
+                ImGui.Spacing();
                 // 时间戳单独成列：正文整体缩进，换行不回到时间戳下方
                 ImGuiUtil.OptionCheckbox(ref Mutable.TimestampOwnColumn, Language.Options_Timestamp_OwnColumn_Name, Language.Options_Timestamp_OwnColumn_Description);
                 ImGui.Spacing();
