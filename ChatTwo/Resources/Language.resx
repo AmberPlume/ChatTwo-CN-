@@ -99,6 +99,12 @@
     <data name="Options_Timestamp_Compact_Description">
         <value>Tighten the letter spacing of the timestamp so it takes up the least space.</value>
     </data>
+    <data name="Options_Timestamp_MergeSame_Name">
+        <value>Merge same timestamps</value>
+    </data>
+    <data name="Options_Timestamp_MergeSame_Description">
+        <value>Messages within the same minute only show the first timestamp; repeated timestamps are hidden.</value>
+    </data>
     <data name="Options_LetterSpacing_Name">
         <value>Letter spacing</value>
     </data>

@@ -48,8 +48,9 @@ public class Configuration : IPluginConfiguration
     public HashSet<Guid> InactivityHideExtraChatChannels = [];
     public bool ShowHideButton = true;
     public bool NativeItemTooltips = true;
-    // !!! v1.40.17 清理：原作者"现代化布局"（PrettierTimestamps 表格渲染 / MoreCompactPretty /
-    // HideSameTimestamps）已移除，时间戳统一走 DrawTimestampInline 行内渲染
+    // !!! v1.40.17 清理：原作者"现代化布局"（PrettierTimestamps 表格渲染 / MoreCompactPretty）
+    // 已移除，时间戳统一走 DrawTimestampInline 行内渲染；HideSameTimestamps 已回归为
+    // MergeSameTimestamps（合并相同时间，见 DrawMessages）
     public bool ShowNoviceNetwork = true; // ：锁定开启（不再显示在设置中）
     public TabPosition TabPosition = TabPosition.Bottom;
     public bool PrintChangelog = true;
@@ -90,6 +91,11 @@ public class Configuration : IPluginConfiguration
     /// 与正文字间距（MessageLetterSpacing）相互独立（v1.40.17+）。
     /// </summary>
     public float TimestampLetterSpacing = 0f;
+    /// <summary>
+    /// 合并相同时间（原版 HideSameTimestamps 回归）：同一分钟内连续的消息只显示
+    /// 第一个的时间戳，后续相同时间戳不再重复（行内模式=正文顶格；独立列模式=时间戳留白占位）。
+    /// </summary>
+    public bool MergeSameTimestamps;
     /// <summary>时间戳单独成列：时间戳占左侧固定列，正文整体缩进（换行不回到时间戳下方）。</summary>
     public bool TimestampOwnColumn;
     /// <summary>时间戳列与正文之间的间隔（px，单独成列时生效，默认 8）。</summary>
@@ -268,6 +274,7 @@ public class Configuration : IPluginConfiguration
         RemoveTimestampBrackets = other.RemoveTimestampBrackets;
         CompactTimestampSpacing = other.CompactTimestampSpacing;
         TimestampLetterSpacing = other.TimestampLetterSpacing;
+        MergeSameTimestamps = other.MergeSameTimestamps;
         TimestampOwnColumn = other.TimestampOwnColumn;
         TimestampColumnGap = other.TimestampColumnGap;
         HideNewTabButton = other.HideNewTabButton;

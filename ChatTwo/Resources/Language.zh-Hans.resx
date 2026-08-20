@@ -99,6 +99,12 @@
   <data name="Options_Timestamp_Compact_Description">
     <value>压缩时间戳字符间距，让时间戳占位最短。</value>
   </data>
+  <data name="Options_Timestamp_MergeSame_Name">
+    <value>合并相同时间</value>
+  </data>
+  <data name="Options_Timestamp_MergeSame_Description">
+    <value>同一分钟内连续的消息只显示第一个的时间戳，后续相同时间戳不再重复显示。</value>
+  </data>
   <data name="Options_LetterSpacing_Name">
     <value>字间距</value>
   </data>

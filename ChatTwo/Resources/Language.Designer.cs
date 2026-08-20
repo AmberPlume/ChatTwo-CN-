@@ -2966,6 +2966,24 @@ namespace ChatTwo.Resources {
                 return ResourceManager.GetString("Options_Timestamp_Compact_Name", resourceCulture);
             }
         }
+        
+        /// <summary>
+        /// Looks up a localized string similar to Messages within the same minute only show the first timestamp; repeated timestamps are hidden..
+        /// </summary>
+        internal static string Options_Timestamp_MergeSame_Description {
+            get {
+                return ResourceManager.GetString("Options_Timestamp_MergeSame_Description", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        /// Looks up a localized string similar to Merge same timestamps.
+        /// </summary>
+        internal static string Options_Timestamp_MergeSame_Name {
+            get {
+                return ResourceManager.GetString("Options_Timestamp_MergeSame_Name", resourceCulture);
+            }
+        }
 
         /// <summary>
         /// Looks up a localized string similar to Hide the square brackets around the timestamp, e.g. [12:34] becomes — shorter and cleaner..
