@@ -977,8 +977,10 @@ public partial class ChatLog : Window, IChatWindow
         var btnSpacing = Plugin.Config.NativeBackground
             ? 2f * ImGuiHelpers.GlobalScale
             : ImGui.GetStyle().ItemSpacing.X;
-        // Cog + 搜索恒显示；隐藏/新人按钮按配置（锁按钮已移除）
-        var buttonsRight = 1 + 1 + (showNovice ? 1 : 0) + (Plugin.Config.ShowHideButton ? 1 : 0);
+        // 快捷面板按钮：仅 DR QuickChatPanel 模块订阅 IPC 时显示（自动挤窄输入框）
+        var showQuickPanel = Plugin.Ipc.QuickChatPanelAvailable;
+        // Cog + 搜索恒显示；隐藏/新人按钮按配置（锁按钮已移除）；快捷面板按 DR 订阅
+        var buttonsRight = 1 + 1 + (showNovice ? 1 : 0) + (Plugin.Config.ShowHideButton ? 1 : 0) + (showQuickPanel ? 1 : 0);
         var inputWidth = ImGui.GetContentRegionAvail().X - buttonWidth * buttonsRight - btnSpacing * buttonsRight;
         InputHandler.DrawInputArea(activeTab, inputWidth, ref TellSpecial);
 
@@ -1019,6 +1021,18 @@ public partial class ChatLog : Window, IChatWindow
         // 原生图标：新素材 icon_09 放大镜（与聊天记录窗口内"搜索"按钮 icon_34 不同图）
         if (ImGuiUtil.NativeIconButton(NativeIcons.ChatSearch, "chat-search", Language.Search_Title, FontAwesomeIcon.Search))
             Plugin.SearchWindow.Toggle();
+
+        // 快捷聊天面板（DR QuickChatPanel 模块）：仅模块订阅 IPC 时显示；
+        // 素材缺失时 FontAwesome 兜底，无需额外素材
+        if (showQuickPanel)
+        {
+            ImGui.SameLine(0, btnSpacing);
+            ImGui.SetCursorPosY(iconTop);
+            // 快捷聊天面板（DR QuickChatPanelChat2 订阅 IPC 时才显示）：仿原生气泡图标，
+            // 素材缺失时 FontAwesome 兜底
+            if (ImGuiUtil.NativeIconButton(NativeIcons.Bubble, "chat-quick-panel", "快捷聊天面板", FontAwesomeIcon.Bolt))
+                Plugin.Ipc.ToggleQuickChatPanel();
+        }
     }
 
     public Dictionary<string, InputChannel> GetValidChannels()
