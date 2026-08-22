@@ -73,6 +73,51 @@ public class ContextMenuIntegration {
 }
 ```
 
+# Chat Input IPC
+
+If your plugin replaces or supplements the chat input area (e.g. a quick-chat
+panel), you can read and submit the text currently typed into Chat 2's input
+box. Chat 2 hides the native chat log addon, so the native `ChatLog` input
+component (node id 5) is **not** usable — always go through these endpoints
+instead.
+
+- `ChatTwo.Input.Get`: call this function to retrieve the current input box
+  text (`string`). Returns an empty string when the box is empty; the text is
+  kept even when the input box does not have focus (Chat 2 preserves
+  unsent text on blur).
+- `ChatTwo.Input.Send`: submits the current input box text using Chat 2's full
+  send pipeline — channel prefix, auto-translate, tell-special handling and
+  input history — exactly as if the player pressed Enter, then clears the box.
+  Returns `bool`: `true` when there was non-whitespace text to send, `false`
+  when the box was empty (nothing is sent, the box is not cleared).
+
+Both calls must be made from the game's main (framework) thread, e.g. inside
+an `AddonLifecycle` callback or a `Framework.Update` handler — they are
+synchronous and touch UI state directly.
+
+Example usage:
+```cs
+public sealed class ChatInputIntegration {
+    private ICallGateSubscriber<string> Get { get; }
+    private ICallGateSubscriber<bool> Send { get; }
+
+    public ChatInputIntegration(DalamudPluginInterface @interface) {
+        this.Get  = @interface.GetIpcSubscriber<string>("ChatTwo.Input.Get");
+        this.Send = @interface.GetIpcSubscriber<bool>("ChatTwo.Input.Send");
+    }
+
+    // Replace your native-ChatLog-based "is there text in the input box" check
+    // (node 5 / SearchNodeById(16)) with this:
+    public bool IsAnyTextInBlock()
+        => !string.IsNullOrWhiteSpace(this.Get.InvokeFunc());
+
+    // Replace your native input-component send+clear with this. Returns false
+    // when the box was empty, mirroring your previous SendChatboxMessage().
+    public bool SendChatboxMessage()
+        => this.Send.InvokeFunc();
+}
+```
+
 # Typing State IPC
 
 If you need to know whether the player is currently interacting with Chat 2's
@@ -122,6 +167,43 @@ public sealed class TypingIntegration {
         } else {
             // Hide typing indicator.
         }
+    }
+}
+```
+
+# Quick Chat Panel IPC
+
+If a plugin wants to display a toggle button next to Chat 2's input box (like
+DailyRoutines' QuickChatPanel), it can subscribe to this endpoint and Chat 2
+will show a lightning-bolt button in the input area's right icon row whenever
+at least one subscriber is present. Clicking it fires the toggle.
+
+- `ChatTwo.QuickChatPanel.Toggle`: subscribe to receive a notification when the
+  user clicks the quick-panel button in Chat 2's input area. Chat 2 shows the
+  button only while `SubscriptionCount > 0` (i.e. while your plugin is
+  subscribed), so the button appears and disappears together with your module.
+
+Example usage:
+```cs
+public sealed class QuickChatPanelIntegration {
+    private ICallGateSubscriber<object?> Toggle { get; }
+
+    public QuickChatPanelIntegration(DalamudPluginInterface @interface) {
+        this.Toggle = @interface.GetIpcSubscriber<object?>("ChatTwo.QuickChatPanel.Toggle");
+    }
+
+    public void Enable() {
+        // While subscribed, Chat 2 displays the quick-panel button in its input area.
+        this.Toggle.Subscribe(OnToggle);
+    }
+
+    public void Disable() {
+        this.Toggle.Unsubscribe(OnToggle);
+    }
+
+    private void OnToggle() {
+        // Toggle your panel (e.g. an ImGui overlay).
+        this.Overlay.IsOpen ^= true;
     }
 }
 ```

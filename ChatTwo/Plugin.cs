@@ -561,6 +561,7 @@ public sealed class Plugin : IDalamudPlugin
     public IpcManager Ipc { get; }
     public ExtraChat ExtraChat { get; }
     public TypingIpc TypingIpc { get; }
+    public ChatInputIpc ChatInputIpc { get; }
     public FontManager FontManager { get; }
 
     public int DeferredSaveFrames = -1;
@@ -657,6 +658,7 @@ public sealed class Plugin : IDalamudPlugin
             Ipc = new IpcManager();
 
             TypingIpc = new TypingIpc(this);
+            ChatInputIpc = new ChatInputIpc(this);
             ExtraChat = new ExtraChat();
             FontManager = new FontManager();
 
@@ -740,6 +742,7 @@ public sealed class Plugin : IDalamudPlugin
 
 
         TypingIpc?.Dispose();
+        ChatInputIpc?.Dispose();
         ExtraChat?.Dispose();
         Ipc?.Dispose();
         ContextMenuHandler?.Dispose();
