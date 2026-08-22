@@ -360,7 +360,8 @@ public static class ImGuiUtil
         }
     }
 
-    /// <summary>按 (字宽+间距) 累计找断行点：优先断在最后一个可容纳的空格后；否则按字符断行（至少推进 1 字符）。</summary>
+    /// <summary>按 (字宽+间距) 累计找断行点：优先断在最后一个可容纳的空格后；否则按字符断行（至少推进 1 字符）。
+    /// 颜文字簇（( ... ) 包裹的短序列）整体测量，放不下整簇换行不拆开。</summary>
     private static unsafe byte* FindBreakSpaced(byte* text, byte* textEnd, float maxWidth, float spacing)
     {
         var p = text;
@@ -370,6 +371,19 @@ public static class ImGuiUtil
         {
             var chLen = Utf8CharLen(p, textEnd);
             var chStr = Utf8CharString(p, chLen);
+
+            // 颜文字簇保护：扫描到 ( 起始的短序列时整体测量，放不下 → 断在簇前（整簇换行）
+            var clusterEnd = FindKaomojiClusterAt(p, textEnd);
+            if (clusterEnd != null)
+            {
+                var clusterWidth = MeasureClusterWidth(p, clusterEnd, spacing);
+                if (w + clusterWidth > maxWidth)
+                    return p == text ? text + Utf8CharLen(text, textEnd) : p;  // 断在簇前，保底推进
+                w += clusterWidth;
+                p = clusterEnd;
+                continue;
+            }
+
             var cw = ImGui.CalcTextSize(chStr).X;
             if (w + cw > maxWidth)
                 break;
@@ -386,6 +400,38 @@ public static class ImGuiUtil
         if (p == text)
             p = text + Utf8CharLen(text, textEnd);
         return p;
+    }
+
+    /// <summary>若 p 处是半角 ( 起始的颜文字簇（( ... ) 包裹、≤ 12 字符），返回簇结束指针；否则 null。</summary>
+    private static unsafe byte* FindKaomojiClusterAt(byte* p, byte* textEnd)
+    {
+        if (p >= textEnd || *p != (byte)'(')
+            return null;
+
+        var scan = p + 1;
+        var chars = 1;
+        while (scan < textEnd)
+        {
+            var len = Utf8CharLen(scan, textEnd);
+            var ch = Utf8CharString(scan, len);
+            if (ch == ")")
+                return chars + 1 <= 12 ? scan + len : null;
+
+            chars++;
+            if (chars > 12)
+                return null;   // 过长，不是颜文字
+            scan += len;
+        }
+        return null;           // 无闭合括号
+    }
+
+    /// <summary>测量 [start, end) 的累计宽度（含间距）。</summary>
+    private static unsafe float MeasureClusterWidth(byte* start, byte* end, float spacing)
+    {
+        var w = 0f;
+        for (var q = start; q < end; q += Utf8CharLen(q, end))
+            w += ImGui.CalcTextSize(Utf8CharString(q, Utf8CharLen(q, end))).X + spacing;
+        return w;
     }
 
     /// <summary>逐字符绘制一行（8 方向描边 + 正文，间距推进），Dummy 注册 item，随后处理 payload 点击/选字/hover 高亮。</summary>

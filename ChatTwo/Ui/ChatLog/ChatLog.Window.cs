@@ -47,6 +47,32 @@ public sealed class MessageLogState
 
 public partial class ChatLog : Window, IChatWindow
 {
+    // 复制快捷键物理键检测：游戏热键系统会消费 C 的 ImGui 消息事件（C 绑技能时
+    // IsKeyPressed 收不到），改用 user32 GetAsyncKeyState 轮询物理键；edge 状态按帧
+    // 隔离——多窗口（主窗口/PopOut/聊天记录）共用 DrawMessageLog，每帧只更新一次，
+    // 各窗口绘制时按"鼠标是否在本窗口"决定是否复制本窗口选区。
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int vKey);
+
+    private static bool _copyKeyCDown;
+    private static bool _copyKeyThisFrame;
+    private static int _copyKeyCheckFrame = -1;
+
+    private static void UpdateCopyKeyState()
+    {
+        var frame = ImGui.GetFrameCount();
+        if (_copyKeyCheckFrame == frame)
+            return;
+        _copyKeyCheckFrame = frame;
+
+        var cDown = (GetAsyncKeyState(0x43) & 0x8000) != 0;   // VK_C
+        var edge  = cDown && !_copyKeyCDown;
+        _copyKeyCDown = cDown;
+
+        var ctrlDown = (GetAsyncKeyState(0x11) & 0x8000) != 0; // VK_CONTROL
+        _copyKeyThisFrame = edge && ctrlDown;
+    }
+
     // cimgui 的 igSetNextWindowScroll（Begin 前锁定滚动位置，唤出帧当帧即生效）。
     // 防御式加载：导出不存在时返回 null，降级用 Begin 后的 SetScrollY(0)（下帧生效）。
     private static readonly unsafe delegate* unmanaged<Vector2, void> ResetScrollFn = LoadResetScrollFn();
@@ -1332,7 +1358,9 @@ public partial class ChatLog : Window, IChatWindow
         var onLeftScrollbar = mp.X >= childPos.X - 2f && mp.X <= childPos.X + 8f;
 
         // Ctrl+C copy - check early so it works even during drag
-        if (ImGui.GetIO().KeyCtrl && ImGui.IsKeyPressed(ImGuiKey.C))
+        // 物理键检测（游戏热键消费 C 的 ImGui 消息事件，IsKeyPressed 收不到）；仅鼠标在本窗口时复制本窗口选区
+        UpdateCopyKeyState();
+        if (_copyKeyThisFrame && inChild)
         {
             var text = selection.GetSelectedText();
             if (!string.IsNullOrEmpty(text))
