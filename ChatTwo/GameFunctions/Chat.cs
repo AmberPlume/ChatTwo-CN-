@@ -157,7 +157,7 @@ public sealed unsafe class Chat : IDisposable
         // If the user is already typing in ChatTwo's input, don't re-activate
         // the chat. During scene transitions the game fires this event as part
         // of the UI refresh, and re-focusing the ImGui input via
-        // SetKeyboardFocusHere() interrupts the IME composition state, causing
+        // SetKeyboardFocusHere interrupts the IME composition state, causing
         // stuck preedit text, broken candidate selection, and pinyin leaking
         // into the chat box on Enter.
         if (Plugin.ChatLog.InputHandler.InputFocused)
@@ -414,7 +414,7 @@ public sealed unsafe class Chat : IDisposable
             Plugin.CurrentTab.CurrentChannel.TempTellTarget = null;
         }
 
-        // Instead of calling SetChannel(), we ask the ExtraChat plugin to set a
+        // Instead of calling SetChannel, we ask the ExtraChat plugin to set a
         // channel override by just calling the command directly.
         if (channel.Value.IsExtraChatLinkshell())
         {
@@ -424,7 +424,7 @@ public sealed unsafe class Chat : IDisposable
                 return;
 
             // Send the command through the game chat. We can't call
-            // ICommandManager.ProcessCommand() here because ExtraChat only
+            // ICommandManager.ProcessCommand here because ExtraChat only
             // registers stub handlers and actually processes its commands in a
             // SendMessage detour.
             var bytes = Encoding.UTF8.GetBytes(channel.Value.Prefix());
@@ -443,7 +443,7 @@ public sealed unsafe class Chat : IDisposable
         // ExtraChat linkshells aren't supported in game so we never want to
         // call the ChangeChatChannel function with them.
         //
-        // Callers should call ChatLogWindow.SetChannel() which handles
+        // Callers should call ChatLogWindow.SetChannel which handles
         // ExtraChat channels
         if (channel.IsExtraChatLinkshell())
             return;

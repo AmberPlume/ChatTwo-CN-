@@ -46,7 +46,7 @@ public class ChunkHandler
 
         var texSize = new Vector2(iconTexture.Width, iconTexture.Height);
 
-        // 用当前生效字号（ImGui.GetFontSize()）：与文字同比例，跟随主字体和 UI 缩放
+        // 用当前生效字号（ImGui.GetFontSize）：与文字同比例，跟随主字体和 UI 缩放
         var sizeRatio = ImGui.GetFontSize() / entry.Height;
         var size = new Vector2(entry.Width, entry.Height) * sizeRatio;
 
@@ -103,7 +103,7 @@ public class ChunkHandler
 
         if (wrap)
         {
-            // !!! v1.40.17+ 正文字间距：只给消息内容（Content）传间距，时间戳/发送者名保持原样
+            // !!! 正文字间距：只给消息内容（Content）传间距，时间戳/发送者名保持原样
             var letterSpacing = chunk.Source == ChunkSource.Content
                 ? Plugin.Config.MessageLetterSpacing * ImGuiHelpers.GlobalScale
                 : 0f;

@@ -324,7 +324,7 @@ public class MessageManager : IAsyncDisposable
 
         var currentMatches = Plugin.CurrentTab.Matches(message);
         // 消息属于"当前正在看的 tab" → 立即标记 Seen（必须在遍历前！否则 tab 列表前面的
-        // 匹配 tab 会先计数——实测"位于 B 时 A 闪烁"就是 A 排在前面先计数了）
+        // 匹配 tab 会先计数——"位于 B 时 A 闪烁"就是 A 排在前面先计数了）
         if (currentMatches && Plugin.CurrentTab.UnreadMode == UnreadMode.Unseen)
             message.Seen = true;
 

@@ -31,7 +31,7 @@ public sealed class Tabs : ISettingsTab
         WriteIndented = true,
     };
 
-    // !!! 方案C（拍板）：标签页列表只保留一行操作按钮 + 名称，
+    // !!! 标签页列表只保留一行操作按钮 + 名称，
     // 点击名称弹出独立编辑窗口（PopupModal），设置页不再出现超长展开树。
     private int EditingTab = -1;   // 正在编辑的标签页索引（-1 = 无）
     private bool EditPopupOpen;    // 编辑弹窗打开状态（ref bool 用，点 X 关闭自动置 false）
@@ -182,7 +182,7 @@ public sealed class Tabs : ISettingsTab
 
         var toRemove = -1;
 
-        // ═══════════════ 未读消息设置（v1.40.17+，：放在编辑标签页上方） ═══════════════
+        // 未读消息设置（放在编辑标签页上方）
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
@@ -190,7 +190,7 @@ public sealed class Tabs : ISettingsTab
         ImGuiUtil.TooltipOnLastItem(Language.Options_UnreadSettings_Description);   // 悬浮标题即出说明
         ImGui.Spacing();
 
-        // 计入未读的频道：复用 ChannelSelector（空 = 全部频道）；说明悬浮在标题上（v1.40.17+）
+        // 计入未读的频道：复用 ChannelSelector（空 = 全部频道）；说明悬浮在标题上
         ImGuiUtil.ChannelSelector(Language.Options_UnreadSettings_Channels, Mutable.UnreadChannels, Language.Options_UnreadSettings_Channels_Description);
         ImGui.Spacing();
 
@@ -220,7 +220,7 @@ public sealed class Tabs : ISettingsTab
         ImGui.Separator();
         ImGui.Spacing();
 
-        // ═══════════════ 时间戳（v1.40.17+：显示时间戳从"基础设置"移入；不折叠，勾选后缩进出现子选项） ═══════════════
+        // 时间戳（显示时间戳从"基础设置"移入；不折叠，勾选后缩进出现子选项）
         ImGuiUtil.OptionCheckbox(ref Mutable.ShowTimestamp, Language.Options_ShowTimestamp_Name, Language.Options_ShowTimestamp_Description);
         // 未勾选开启时只看到"显示时间戳"；勾选后下方首行缩进出现子选项（相互独立互不干扰）
         if (Mutable.ShowTimestamp)
@@ -247,7 +247,7 @@ public sealed class Tabs : ISettingsTab
             }
         }
 
-        // 正文字间距（v1.40.17+ ：作用于消息正文，不影响时间戳/发送者名；与段落间距同级）
+        // 正文字间距（作用于消息正文，不影响时间戳/发送者名；与段落间距同级）
         ImGuiUtil.DragFloatVertical(Language.Options_LetterSpacing_Name, Language.Options_LetterSpacing_Description, ref Mutable.MessageLetterSpacing, 0.1f, -3f, 6f, $"{Mutable.MessageLetterSpacing:0.0}px", ImGuiSliderFlags.AlwaysClamp);
         ImGui.Spacing();
 
@@ -259,7 +259,7 @@ public sealed class Tabs : ISettingsTab
         ImGui.Separator();
         ImGui.Spacing();
 
-        // ═══════════════ 标签页列表（方案C：一行 = 操作按钮 + 名称，点名称开独立编辑窗） ═══════════════
+        // 标签页列表（一行 = 操作按钮 + 名称，点名称开独立编辑窗）
         for (var i = 0; i < Mutable.Tabs.Count; i++)
         {
             var tab = Mutable.Tabs[i];
@@ -290,7 +290,7 @@ public sealed class Tabs : ISettingsTab
 
             ImGui.SameLine();
 
-            // 名称按钮：点击打开独立编辑窗口（方案C）
+            // 名称按钮：点击打开独立编辑窗口
             if (ImGui.Button($"{tab.Name}###open-edit-{i}", new Vector2(ImGui.GetContentRegionAvail().X, 0)))
                 OpenTabEditor(i);
             if (ImGui.IsItemHovered())
@@ -305,7 +305,7 @@ public sealed class Tabs : ISettingsTab
                 EditPopupOpen = false;
         }
 
-        // ═══ 编辑窗（方案C改版：不用模态窗口 → 普通浮动窗，设置页仍可操作）═══
+        // 编辑窗（不用模态窗口 → 普通浮动窗，设置页仍可操作）
         if (EditPopupOpen && EditingTab >= 0 && EditingTab < Mutable.Tabs.Count)
         {
             ImGui.SetNextWindowSize(new Vector2(540f * ImGuiHelpers.GlobalScale, 560f * ImGuiHelpers.GlobalScale), ImGuiCond.FirstUseEver);
@@ -339,7 +339,7 @@ public sealed class Tabs : ISettingsTab
         }
     }
 
-    /// <summary>标签页编辑弹窗内容（方案C）：名称 + 该标签页的全部设置。</summary>
+    /// <summary>标签页编辑弹窗内容：名称 + 该标签页的全部设置。</summary>
     private void DrawTabEditContents(Tab tab)
     {
         // 名称（重命名移入编辑窗，列表行只做入口）
@@ -350,7 +350,7 @@ public sealed class Tabs : ISettingsTab
         ImGui.Separator();
         ImGui.Spacing();
 
-        // ═══════════════ 基本 ═══════════════
+        // 基本
         ImGui.Checkbox(Language.Options_Tabs_ShowTimestamps, ref tab.DisplayTimestamp);
         ImGui.Checkbox(Language.Options_Tabs_PopOut, ref tab.PopOut);
         if (tab.PopOut)
@@ -392,7 +392,7 @@ public sealed class Tabs : ISettingsTab
         ImGui.Separator();
         ImGui.Spacing();
 
-        // ═══════════════ 频道 ═══════════════
+        // 频道
         // 接收频道（本标签页显示哪些频道的消息）——放在"输入频道"上方
         using (var disabled = ImRaii.Disabled(tab.Channel == InputChannel.Tell))
         {
@@ -413,9 +413,9 @@ public sealed class Tabs : ISettingsTab
         ImGui.Separator();
         ImGui.Spacing();
 
-        // ═══════════════ 输入 ═══════════════
+        // 输入
         // 输入频道：用与上方"接收频道"一致的折叠样式（标题即折叠行），避免
-        // "标题+下拉框"和"标题在折叠上"两种形态混排（反馈视觉不统一）
+        // "标题+下拉框"和"标题在折叠上"两种形态混排（视觉不统一）
         if (!tab.InputDisabled)
         {
             using (var node = ImRaii.TreeNode(Language.Options_Tabs_InputChannel))

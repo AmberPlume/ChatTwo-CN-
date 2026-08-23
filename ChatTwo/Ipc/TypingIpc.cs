@@ -19,8 +19,8 @@ public sealed class TypingIpc : IDisposable
     {
         Plugin = plugin;
 
-        StateQueryGate = Plugin.Interface.GetIpcProvider<ChatInputState>("ChatTwo.GetChatInputState");
-        StateChangedGate = Plugin.Interface.GetIpcProvider<ChatInputState, object?>("ChatTwo.ChatInputStateChanged");
+        StateQueryGate = Plugin.Interface.GetIpcProvider<ChatInputState>("ChatTwoCN.GetChatInputState");
+        StateChangedGate = Plugin.Interface.GetIpcProvider<ChatInputState, object?>("ChatTwoCN.ChatInputStateChanged");
 
         StateQueryGate.RegisterFunc(GetState);
     }

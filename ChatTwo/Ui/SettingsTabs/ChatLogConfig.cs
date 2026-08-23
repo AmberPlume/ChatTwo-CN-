@@ -30,7 +30,7 @@ public sealed class ChatLogConfig : ISettingsTab
             // 锁定开启且不再显示在设置中（默认值已在 Configuration 中固定）
             // 提示窗口偏移设置项已删除（TooltipOffset 对当前实现无效）
 
-            // 仿原生窗口（v1.40.17+ 从"基础设置"移入，改名"仿原生窗口"）：
+            // 仿原生窗口（从"基础设置"移入，改名"仿原生窗口"）：
             // 使用 FFXIV 原生 UI 贴图（工具栏图标/底部标签页）
             ImGuiUtil.OptionCheckbox(ref Mutable.NativeBackground, Language.Options_NativeBackground_Name, Language.Options_NativeBackground_Description);
             ImGui.Spacing();
@@ -39,11 +39,11 @@ public sealed class ChatLogConfig : ISettingsTab
             ImGuiUtil.OptionCheckbox(ref Mutable.HideNewTabButton, Language.Options_HideNewTabButton_Name, Language.Options_HideNewTabButton_Description);
             ImGui.Spacing();
 
-            // 输入区缩放：影响输入框、左右图标、频道名行（v1.40.17+ 不再影响 tab 区）
+            // 输入区缩放：影响输入框、左右图标、频道名行（不再影响 tab 区）
             ImGuiUtil.DragFloatVertical(Language.Options_InputAreaScale_Name, Language.Options_InputAreaScale_Description, ref Mutable.InputAreaScale, 0.05f, 0.5f, 2.0f, $"{Mutable.InputAreaScale * 100f:N0}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
 
-            // 标签页缩放（v1.40.17+ 新增）：标签页文字/标签栏/末尾 + 按钮，与输入区缩放独立
+            // 标签页缩放：标签页文字/标签栏/末尾 + 按钮，与输入区缩放独立
             ImGuiUtil.DragFloatVertical(Language.Options_TabScale_Name, Language.Options_TabScale_Description, ref Mutable.TabScale, 0.05f, 0.5f, 2.0f, $"{Mutable.TabScale * 100f:N0}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
 
@@ -88,7 +88,7 @@ public sealed class ChatLogConfig : ISettingsTab
                 ImGui.Spacing();
             }
 
-            // !!! v1.40.17+ 仿原生界面（NativeBackground）下标签页用三段式贴图，透明度由素材自带，
+            // !!! 仿原生界面（NativeBackground）下标签页用三段式贴图，透明度由素材自带，
             // TabAlpha 无效 → 隐藏设置项
             if (!Mutable.NativeBackground)
             {
@@ -103,7 +103,7 @@ public sealed class ChatLogConfig : ISettingsTab
             ImGuiUtil.DragFloatVertical(Language.Options_ImeCandidateAlpha_Name, Language.Options_ImeCandidateAlpha_Description, ref Mutable.ImeCandidateAlpha, .25f, 0f, 100f, $"{Mutable.ImeCandidateAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
 
-            // 未读消息提示方式已搬至"基础设置"页（v1.40.11+）
+            // 未读消息提示方式已搬至"基础设置"页
             // 日志行数上限已搬至"基础设置"页
 
             // 显示聊天窗口标题栏 / 显示弹出标签页标题栏：锁定关闭且不再显示在设置中

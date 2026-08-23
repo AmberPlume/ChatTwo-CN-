@@ -111,7 +111,7 @@ public class Popout : Window, IChatWindow
 
         Flags = ImGuiWindowFlags.None;
         // 与主窗口一致：窗口自身从不滚动（滚动全在消息区 child 内）——否则内容溢出会出现
-        // ImGui 原生右滚动条（与我们的左滚动条并存）；NoResize 永禁原生缩放（右下角 grip），
+        // ImGui 原生右滚动条（与自绘左滚动条并存）；NoResize 永禁原生缩放（右下角 grip），
         // 缩放走自定义金字塔手柄
         Flags |= ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoFocusOnAppearing;
         Flags |= ImGuiWindowFlags.NoResize;
@@ -239,7 +239,7 @@ public class Popout : Window, IChatWindow
     // 底部 tab 栏高度（一行，与主窗口 tab 同尺寸基准）
     private float PopOutTabBarHeight()
     {
-        // !!! 原生模式：与主窗口 tab 高度一致（17px×scale×TabScale，v1.40.17+ 拆分）
+        // !!! 原生模式：与主窗口 tab 高度一致（17px×scale×TabScale，拆分）
         if (Plugin.Config.NativeBackground)
             return 17f * ImGuiHelpers.GlobalScale * Plugin.Config.TabScale;
 
@@ -250,8 +250,8 @@ public class Popout : Window, IChatWindow
 
         // 底部行：左下角 tab 名（像 tab 标签）+ 右侧 关闭 按钮。
         // 锁定按钮已移除（锁定改到设置页，且只锁消息区）。
-        // 关闭是窗口级按钮，放这里两种模式（有无输入区）都可见。
-        // !!! 无 Separator：实测分割线会让 tab 行下移被底部截断
+        // 关闭是窗口级按钮，放此处两种模式（有无输入区）都可见。
+        // !!! 无 Separator：分割线会让 tab 行下移被底部截断
         private void DrawPopOutTabBar()
         {
             // !!! 原生模式：tab 也用左帽+中段+右帽（与主窗口一致），关闭按钮换原生图片
@@ -289,7 +289,7 @@ public class Popout : Window, IChatWindow
             using var tabFont = Plugin.FontManager.TabFont.Push();
 
             var scale = ImGuiHelpers.GlobalScale;
-            var cfgTabScale = Plugin.Config.TabScale;  // !!! v1.40.17+ 标签页缩放与输入区缩放拆分
+            var cfgTabScale = Plugin.Config.TabScale;  // !!! 标签页缩放与输入区缩放拆分
             var tabHeight = 17f * scale * cfgTabScale;
             var tabScale = tabHeight / 48f;  // 素材原始高 48px → 目标高度
             var capLeftSize = new Vector2(39f, 48f) * tabScale;
@@ -385,7 +385,7 @@ public class Popout : Window, IChatWindow
         if (hovered || IsResizingTopRight)
             ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
 
-        // !!! 绘制已移至 PostDraw（前台 dl 置顶）；这里只保留 hit-test（否则出现双手柄）
+        // !!! 绘制已移至 PostDraw（前台 dl 置顶）；此处只保留 hit-test（否则出现双手柄）
     }
 
     public override void PostDraw()

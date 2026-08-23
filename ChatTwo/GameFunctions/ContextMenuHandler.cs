@@ -26,7 +26,7 @@ namespace ChatTwo.GameFunctions;
 /// 工作原理：
 /// PayloadHandler.TryShowNativePlayerContextMenu / TryShowNativeItemContextMenu
 /// 设置 AgentContext 目标字段后调用 OpenContextMenuForAddon，内部触发
-/// Dalamud 的 OnMenuOpened 事件。本处理器在事件回调中通过 args.AddMenuItem()
+/// Dalamud 的 OnMenuOpened 事件。本处理器在事件回调中通过 args.AddMenuItem
 /// 添加自定义菜单项（发送悄悄话、复制名字、组队邀请等）。
 /// 第三方插件（DailyRoutines、Allagan Tools）的菜单项也会在同一事件中添加。
 /// </summary>
@@ -88,7 +88,7 @@ public sealed partial class ContextMenuHandler : IDisposable
         Plugin = plugin;
         Plugin.ContextMenu.OnMenuOpened += OnMenuOpened;
 
-        // ===== [ENABLE_CTX_DIAG] 逆向诊断 hook（独立文件，编译开关控制，平时不启用）=====
+// [ENABLE_CTX_DIAG] 逆向诊断 hook（独立文件，编译开关控制）
 #if ENABLE_CTX_DIAG
         InitDiagnostics();
 #endif
@@ -104,7 +104,7 @@ public sealed partial class ContextMenuHandler : IDisposable
 
     private void OnMenuOpened(IMenuOpenedArgs args)
     {
-        // ===== [ENABLE_CTX_DIAG] 逆向诊断（独立文件，编译开关控制）=====
+// [ENABLE_CTX_DIAG] 逆向诊断（独立文件，编译开关控制）
 #if ENABLE_CTX_DIAG
         DumpOnMenuOpened(args);
 #endif
@@ -155,9 +155,7 @@ public sealed partial class ContextMenuHandler : IDisposable
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════
     // 道具菜单
-    // ═══════════════════════════════════════════════════════════════
 
     private void HandleItemMenu(IMenuOpenedArgs args, uint rawItemId)
     {
@@ -268,15 +266,12 @@ public sealed partial class ContextMenuHandler : IDisposable
         });
     }
 
-    // ═══════════════════════════════════════════════════════════════
     // 玩家菜单
-    // ═══════════════════════════════════════════════════════════════
 
     private void HandlePlayerMenu(IMenuOpenedArgs args, MenuTargetDefault target)
     {
-        // ===== 屏蔽机能子菜单（Dalamud OpenSubmenu → RaptureAtkModule::OpenAddon 通道，
-        // 直接打开 AddonContextSub，绕开右键事件流 —— 此前三条路失败皆因绑定右键链）。
-        // 子项点击走插件 handler（AddToBlacklist/AddToMuteList/AddToTermsList），不依赖游戏动作上下文。=====
+        // 屏蔽机能子菜单：Dalamud OpenSubmenu 直接打开 AddonContextSub，绕开右键事件流。
+        // 子项点击走插件 handler（AddToBlacklist/AddToMuteList/AddToTermsList），不依赖游戏动作上下文。
         {
             var pName = target.TargetName ?? string.Empty;
             var wId = (ushort)(target.TargetHomeWorld.IsValid ? target.TargetHomeWorld.RowId : 0);
@@ -285,7 +280,7 @@ public sealed partial class ContextMenuHandler : IDisposable
                 cId = CurrentContentId;
 
             // 好友：屏蔽机能只有"记录屏蔽词"；陌生人：完整三项（黑名单/屏蔽名单/屏蔽词）。
-            // 复用 GetFriends 按 ContentId 匹配（实测确认：好友仅记录屏蔽词）。
+            // 复用 GetFriends 按 ContentId 匹配（好友仅记录屏蔽词）。
             var isFriend = cId != 0
                 && GameFunctions.GetFriends().Any(f => f.ContentId == cId);
 
@@ -348,9 +343,7 @@ public sealed partial class ContextMenuHandler : IDisposable
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════
     // 辅助方法
-    // ═══════════════════════════════════════════════════════════════
 
     private static IPlayerCharacter? FindCharacter(string playerName, ushort worldId)
     {

@@ -12,11 +12,11 @@ public static class ChunkUtil
 {
     // public static IEnumerable<Chunk> ToChunks(ReadOnlySeString msg, ChunkSource source, ChatType? defaultColour)
     // {
-    // var chunks = new List<Chunk>();
+    // var chunks = new List<Chunk>;
     //
     // var italic = false;
-    // var foreground = new Stack<uint>();
-    // var glow = new Stack<uint>();
+    // var foreground = new Stack<uint>;
+    // var glow = new Stack<uint>;
     // Payload? link = null;
     //
     // void Append(string text)
@@ -24,8 +24,8 @@ public static class ChunkUtil
     // chunks.Add(new TextChunk(source, link, text)
     // {
     // FallbackColour = defaultColour,
-    // Foreground = foreground.Count > 0 ? foreground.Peek() : null,
-    // Glow = glow.Count > 0 ? glow.Peek() : null,
+    // Foreground = foreground.Count > 0 ? foreground.Peek : null,
+    // Glow = glow.Count > 0 ? glow.Peek : null,
     // Italic = italic,
     // });
     // }
@@ -35,7 +35,7 @@ public static class ChunkUtil
     // if (payload.Type == ReadOnlySePayloadType.Text)
     // {
     // // We don't want to parse any null string
-    // var str = payload.ToString();
+    // var str = payload.ToString;
     // var nulIndex = str.IndexOf('\0');
     // if (nulIndex > 0)
     // str = str[..nulIndex];
@@ -58,7 +58,7 @@ public static class ChunkUtil
     // if (eColor.TryGetPlaceholderExpression(out var ph) && ph == (int)ExpressionType.StackColor)
     // {
     // if (foreground.Count > 0)
-    // foreground.Pop();
+    // foreground.Pop;
     // }
     // else if (TryResolveUInt(eColor, out var eColorVal))
     // {
@@ -67,7 +67,7 @@ public static class ChunkUtil
     // if (color > 0)
     // foreground.Push(color);
     // else if (foreground.Count > 0) // Push the previous color as we don't want invisible text
-    // foreground.Push(foreground.Peek());
+    // foreground.Push(foreground.Peek);
     // }
     // }
     // break;
@@ -77,7 +77,7 @@ public static class ChunkUtil
     // if (eColor.TryGetPlaceholderExpression(out var ph) && ph == (int)ExpressionType.StackColor)
     // {
     // if (glow.Count > 0)
-    // glow.Pop();
+    // glow.Pop;
     // }
     // else if (TryResolveUInt(eColor, out var eColorVal))
     // {
@@ -89,14 +89,14 @@ public static class ChunkUtil
     // if (!payload.TryGetExpression(out var eColorType) || !eColorType.TryGetUInt(out var eColorTypeVal))
     // {
     // if (foreground.Count > 0)
-    // foreground.Pop();
+    // foreground.Pop;
     // break;
     // }
     //
     // if (eColorTypeVal == 0)
     // {
     // if (foreground.Count > 0)
-    // foreground.Pop();
+    // foreground.Pop;
     // }
     // else if (Sheets.UIColorSheet.TryGetRow(eColorTypeVal, out var row))
     // {
@@ -107,14 +107,14 @@ public static class ChunkUtil
     // if (!payload.TryGetExpression(out var eEdgeColor) || !eEdgeColor.TryGetUInt(out var eEdgeColorVal))
     // {
     // if (glow.Count > 0)
-    // glow.Pop();
+    // glow.Pop;
     // break;
     // }
     //
     // if (eEdgeColorVal == 0)
     // {
     // if (glow.Count > 0)
-    // glow.Pop();
+    // glow.Pop;
     // }
     // else if (Sheets.UIColorSheet.TryGetRow(eEdgeColorVal, out var row))
     // {
@@ -128,15 +128,15 @@ public static class ChunkUtil
     // if (expr1.TryGetUInt(out var group) && expr2.TryGetUInt(out var key))
     // {
     // chunks.Add(new IconChunk(source, null, BitmapFontIcon.AutoTranslateBegin));
-    // using var rssb = new RentedSeStringBuilder();
+    // using var rssb = new RentedSeStringBuilder;
     // var translatePayload = rssb.Builder
     // .BeginMacro(MacroCode.Fixed)
     // .AppendUIntExpression(group - 1)
     // .AppendUIntExpression(key)
-    // .EndMacro()
-    // .ToReadOnlySeString();
+    // .EndMacro
+    // .ToReadOnlySeString;
     //
-    // Append(Plugin.Evaluator.Evaluate(translatePayload).ToString());
+    // Append(Plugin.Evaluator.Evaluate(translatePayload).ToString);
     // chunks.Add(new IconChunk(source, null, BitmapFontIcon.AutoTranslateEnd));
     // }
     // break;
@@ -233,7 +233,7 @@ public static class ChunkUtil
     // {
     // if (glow.Count > 0)
     // {
-    // glow.Pop();
+    // glow.Pop;
     // }
     // else if (rawPayload.Data.Length > 6 && rawPayload.Data[2] == 0x05 && rawPayload.Data[3] == 0xF6)
     // {
@@ -363,7 +363,7 @@ public static class ChunkUtil
                         Append(" ");
                     }
                     // NOTE: no URIPayload because it originates solely from
-                    // new Message(). The game doesn't have a URI payload type.
+                    // new Message. The game doesn't have a URI payload type.
                     else if (Equals(rawPayload, RawPayload.LinkTerminator))
                     {
                         link = null;

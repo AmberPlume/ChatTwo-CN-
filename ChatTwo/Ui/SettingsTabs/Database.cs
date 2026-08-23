@@ -84,7 +84,7 @@ public sealed class Database : ISettingsTab
             ImGui.Spacing();
         }
 
-        // ═══════════════ 存储路径设置 ═══════════════
+        // 存储路径设置
         ImGui.TextUnformatted(Language.Options_Database_Path_Heading);
         using (ImRaii.PushIndent(ImGui.GetStyle().IndentSpacing, false))
         {

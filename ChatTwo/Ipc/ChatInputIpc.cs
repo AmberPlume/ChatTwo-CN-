@@ -19,14 +19,14 @@ public sealed class ChatInputIpc : IDisposable
     {
         Plugin = plugin;
 
-        GetGate = Plugin.Interface.GetIpcProvider<string>("ChatTwo.Input.Get");
+        GetGate = Plugin.Interface.GetIpcProvider<string>("ChatTwoCN.Input.Get");
         GetGate.RegisterFunc(GetText);
 
-        SendGate = Plugin.Interface.GetIpcProvider<bool>("ChatTwo.Input.Send");
+        SendGate = Plugin.Interface.GetIpcProvider<bool>("ChatTwoCN.Input.Send");
         SendGate.RegisterFunc(Send);
 
         // 聊天主窗口屏幕矩形（ImGui 坐标），供第三方面板（如 DR QuickChatPanel）跟随定位
-        WindowRectGate = Plugin.Interface.GetIpcProvider<(float, float, float, float)>("ChatTwo.GetChatWindowRect");
+        WindowRectGate = Plugin.Interface.GetIpcProvider<(float, float, float, float)>("ChatTwoCN.GetChatWindowRect");
         WindowRectGate.RegisterFunc(GetWindowRect);
     }
 

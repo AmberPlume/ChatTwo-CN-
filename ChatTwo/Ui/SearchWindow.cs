@@ -230,7 +230,7 @@ public class SearchWindow : Window
         }
     }
 
-    // ================= 右上角控制（锁 + 关闭 + 状态） =================
+    // 右上角控制（锁 + 关闭 + 状态）
 
     /// <summary>底部状态行（布局重构：原顶栏状态整体沉底，位于底部搜索栏之下）。</summary>
     private void DrawStatusRow()
@@ -303,7 +303,7 @@ public class SearchWindow : Window
         // 右侧留白（消息区右上角是缩放手柄，本行不再放按钮）
     }
 
-    // ================= 底部搜索栏（频道Tab + 搜索框 + 按钮） =================
+    // 底部搜索栏（频道Tab + 搜索框 + 按钮）
 
     private void DrawBottomBar()
     {
@@ -325,7 +325,7 @@ public class SearchWindow : Window
         var iconTop = rowTop + (searchBoxHeight - iconButtonHeight) / 2f;
 
         // !!! 布局模仿主窗口输入行（纯流式，从不出错）：
-        // 先精确计算搜索框宽度（给所有按钮预留空间），然后流式 SameLine 排布。
+        // 先精确计算搜索框宽度（给所有按钮预留空间），再流式 SameLine 排布。
         // !!! 删除 tab 旁的 ChevronDown 小箭头（无意义），tab 按钮自身即可弹选择。
         var tabText = ChannelTabName.Length > 0 ? ChannelTabName : "频道";
         var tabTextW = ImGui.CalcTextSize(tabText).X + ImGui.GetStyle().FramePadding.X * 2 + 14f;
@@ -403,7 +403,7 @@ public class SearchWindow : Window
             IsOpen = false;
     }
 
-    // ================= 消息区（原生渲染 + 右键 Tab 频道选择） =================
+    // 消息区（原生渲染 + 右键 Tab 频道选择）
 
     private void DrawMessageArea(float height)
     {
@@ -432,7 +432,7 @@ public class SearchWindow : Window
 
         // !!! 滚轮接管（与 DrawChatLog 一致）：SearchWindow 不经过 DrawChatLog，
         // 而 DrawMessageLog 的 HandleWheelScrollLineByLine 只读 PendingWheel——
-        // 不在这里记录滚轮并清零 IO，滚轮会被窗口的 NoScrollWithMouse 吞掉 → 无法滚动
+        // 不在此处记录滚轮并清零 IO，滚轮会被窗口的 NoScrollWithMouse 吞掉 → 无法滚动
         State.UserScrolled = false;
         if (ImGui.IsWindowHovered(ImGuiHoveredFlags.RootAndChildWindows))
         {
@@ -450,8 +450,8 @@ public class SearchWindow : Window
             PendingScrollTo = null;
 
         // 无限滚动（默认滚动模式）：滚轮向上 + 消息区已在顶部 → 加载上一天并合并。
-        // !!! 用 State.AtTop（滚轮消费处更新）而非 ImGui.GetScrollY()——后者读的是外层
-        // child（恒 0，真实滚动在内层 ##chat2-messages），曾导致检测失效（实测）。
+        // !!! 用 State.AtTop（滚轮消费处更新）而非 ImGui.GetScrollY——后者读的是外层
+        // child（恒 0，真实滚动在内层 ##chat2-messages），曾导致检测失效。
         // 搜索模式（有搜索词）为全量快照，不参与无限滚动。
         if (!DateLocked && !IsLoading && SearchTerm.Length == 0
             && State.PendingWheel > 0 && State.AtTop && LoadStartDate > MinimalDate.Date)
@@ -464,9 +464,9 @@ public class SearchWindow : Window
         // SetScrollHereY 无效——若清空则永远定位不到。保留到定位成功或滚动/切换。
     }
 
-    // ================= 搜索结果列表 =================
+    // 搜索结果列表
 
-    // ================= 右侧筛选面板 =================
+    // 右侧筛选面板
 
     private void DrawSidePanel(float height)
     {
@@ -649,7 +649,7 @@ public class SearchWindow : Window
         }
     }
 
-    // ================= 模式切换与查询 =================
+    // 模式切换与查询
 
     private void ShowBrowse(DateTime date, bool lockDate = false)
     {
@@ -766,7 +766,7 @@ public class SearchWindow : Window
         });
     }
 
-    // ================= 缩放手柄（消息区右上角，仿 PopOut） =================
+    // 缩放手柄（消息区右上角，仿 PopOut）
     // !!! 手柄从窗口右上角移到消息区右上角（锚点 = ##history-area 容器矩形）。
 
     private void DrawTopRightResizeHandle()
@@ -818,10 +818,10 @@ public class SearchWindow : Window
                 IsResizingTopRight = false;
         }
 
-        // !!! 绘制已移至 PostDraw（前台 dl 置顶）；这里只保留 hit-test + resize 交互
+        // !!! 绘制已移至 PostDraw（前台 dl 置顶）；此处只保留 hit-test + resize 交互
     }
 
-    // ================= 工具 =================
+    // 工具
 
     /// <summary>套用当前 Tab 频道设定；空（=全部）时用全部频道。</summary>
     private byte[] GetChannels()

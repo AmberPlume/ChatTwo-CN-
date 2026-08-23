@@ -1,23 +1,20 @@
-// ═══════════════════════════════════════════════════════════════════════
 // 右键菜单逆向诊断（可选编译）
-// ═══════════════════════════════════════════════════════════════════════
-// 本文件集中存放 ChatTwoCN 开发过程中的逆向验证代码（hook + dump）。
+// 本文件集中存放逆向诊断代码（hook + dump）。
 //
 // 启用方法：csproj 的 <DefineConstants> 加 ENABLE_CTX_DIAG（或 Debug 构建自动启用）。
 // 平时 Release 构建不包含本文件任何代码（零开销、零日志噪音）。
 //
-// 为什么保留而不是删除（决定）：
+// 为什么保留而不是删除：
 // 游戏版本更新后，以下逆向结论需要重新验证，这些 hook/dump 就是现成工具：
-// 1. handler 身份是否仍 = AgentChatLog.Instance()（HandlerID 诊断）
+// 1. handler 身份是否仍 = AgentChatLog.Instance（HandlerID 诊断）
 // 2. AddMenuItem 调用参数（AMDI hook）——生成层是否变化
 // 3. eventId/hParam 语义（MenuDump）——玩家/道具菜单项是否变化
 // 4. AgentContext 关键字段（B2Diag/CtxDiag）——0x1418/0x1430/0x12D0 偏移是否变化
 // 5. 二级菜单 addon 名（AllAddonDiag）——AddonContextSub 是否仍是容器
 //
 // !!! 已知崩溃源（勿重新启用）：
-// GenHook（0xed6060）：delegate 已补第 5 栈参数但 Original 后仍崩（实测），
+// GenHook（0xed6060）：delegate 已补第 5 栈参数但 Original 后仍崩，
 // 禁用。需要抓生成器时用 [AMDI]（AddMenuItem hook）代替。
-// ═══════════════════════════════════════════════════════════════════════
 #if ENABLE_CTX_DIAG
 using System;
 using Dalamud.Game.Addon.Lifecycle;
@@ -65,7 +62,7 @@ public sealed partial class ContextMenuHandler
     // !!! GenHook（0xed6060）= 崩溃源，禁用。留注释记录签名与坑。
     // [Signature("48 89 5C 24 20 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 30 FA FF FF 48 81 EC D0 06 00 00", DetourName = nameof(GenDetour))]
     // private Hook<GenDelegate>? GenHook = null!;
-    // // !!! 必须有第 5 参数（栈参数，入口读 [rbp+0x630]）！只声明 4 参数 → Original 丢栈参 → 崩溃（实测）
+    // // !!! 必须有第 5 参数（栈参数，入口读 [rbp+0x630]）！只声明 4 参数 → Original 丢栈参 → 崩溃
     // private delegate void GenDelegate(nint self, nint a2, nint a3, nint a4, nint a5);
 
     // ────────────────────────────────────────────────────────────────────
@@ -75,7 +72,7 @@ public sealed partial class ContextMenuHandler
     public unsafe void InitDiagnostics()
     {
         Plugin.GameInteropProvider.InitializeFromAttributes(this);
-        // 0x4b0e70 = 统一 handler 的 ReceiveEvent（事实 5）。delegate 已补全 5 参（07:30），
+        // 0x4b0e70 = 统一 handler 的 ReceiveEvent（事实 5）。delegate 已补全 5 参，
         // 重新启用——抓"游戏真实点击菜单项"时 handler 收到的 eventKind/values 参数。
         if (MenuGenHook != null)
         {
@@ -200,8 +197,8 @@ public sealed partial class ContextMenuHandler
     // OnMenuOpened 诊断 dump（OnMenuOpened 开头调用）
     // ────────────────────────────────────────────────────────────────────
 
-    // !!! ：不再每次打开菜单自动 dump（反馈日志刷屏）。
-    // 手动触发开关（DumpNextMenu）随 /ct2poc 命令一并移除（清理）。
+    // !!! 不再每次打开菜单自动 dump（避免日志刷屏）。
+    // 手动触发开关（DumpNextMenu）随 /ct2poc 命令一并移除。
     // 需要完整 dump 时：临时把此方法改为无条件调用即可。
     public void DumpOnMenuOpened(IMenuOpenedArgs args)
     {
@@ -260,8 +257,8 @@ public sealed partial class ContextMenuHandler
 
             // [BP+ItemID] 专项：AddonName 机制验证
             // Dalamud OnMenuOpened 的 AddonName = GetAddonById(ContextMenu->BlockedParentId)，
-            // 我们 OpenContextMenu 前设 BlockedParentId=ChatLog，实测它是否被游戏覆盖；
-            // AgentChatLog.ContextItemId 是 DR HandleChatLog 的读取源，确认触发时是否有效。
+            // OpenContextMenu 前设 BlockedParentId=ChatLog，看它是否被游戏覆盖；
+            // AgentChatLog.ContextItemId 是 DR HandleChatLog 的读取源，看触发时是否有效。
             unsafe
             {
                 try
