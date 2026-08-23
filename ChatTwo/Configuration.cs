@@ -48,7 +48,7 @@ public class Configuration : IPluginConfiguration
     public HashSet<Guid> InactivityHideExtraChatChannels = [];
     public bool ShowHideButton = true;
     public bool NativeItemTooltips = true;
-    // !!! v1.40.17 清理：原作者"现代化布局"（PrettierTimestamps 表格渲染 / MoreCompactPretty）
+    // !!! 清理：原作者"现代化布局"（PrettierTimestamps 表格渲染 / MoreCompactPretty）
     // 已移除，时间戳统一走 DrawTimestampInline 行内渲染；HideSameTimestamps 已回归为
     // MergeSameTimestamps（合并相同时间，见 DrawMessages）
     public bool ShowNoviceNetwork = true; // ：锁定开启（不再显示在设置中）
@@ -79,16 +79,16 @@ public class Configuration : IPluginConfiguration
     public bool KeepInputFocus = true;
     public int MaxLinesToRender = 10_000; // 1-10000
     public bool Use24HourClock;
-    // 全局"显示时间戳"开关（v1.40.11+，与各 tab 的 DisplayTimestamp 叠加）
+    // 全局"显示时间戳"开关（与各 tab 的 DisplayTimestamp 叠加）
     public bool ShowTimestamp = true;
-    // ═══ 时间戳子选项（v1.40.17+，替代旧"现代化布局"表格逻辑，见 DrawTimestampInline）═══
+    // 时间戳子选项（替代旧"现代化布局"表格逻辑，见 DrawTimestampInline）
     /// <summary>去除时间戳方括号：[12:34] → 12:34（更短）。</summary>
     public bool RemoveTimestampBrackets;
     /// <summary>紧凑排布：压缩时间戳字符间距，让时间戳最短。</summary>
     public bool CompactTimestampSpacing;
     /// <summary>
     /// 时间戳字间距自由调整（px，负值更紧凑，正值更疏松）。只作用于时间戳，
-    /// 与正文字间距（MessageLetterSpacing）相互独立（v1.40.17+）。
+    /// 与正文字间距（MessageLetterSpacing）相互独立。
     /// </summary>
     public float TimestampLetterSpacing = 0f;
     /// <summary>
@@ -116,7 +116,7 @@ public class Configuration : IPluginConfiguration
     public uint TabBgColor = ColourUtil.ComponentsToRgba(96, 96, 96);
     /// <summary>
     /// 正文（消息内容）字间距自由调整（px，负值更紧凑，正值更疏松）。
-    /// 只作用于消息正文，不影响时间戳/发送者名（v1.40.17+）。
+    /// 只作用于消息正文，不影响时间戳/发送者名。
     /// </summary>
     public float MessageLetterSpacing = 0f;
     /// <summary>
@@ -142,11 +142,11 @@ public class Configuration : IPluginConfiguration
 
     /// <summary>
     /// 输入区缩放（1.0 = 100%）。只影响输入区：输入框、输入框左右图标按钮、频道名行。
-    /// tab 区由 TabScale 独立控制（v1.40.17+ 拆分）。
+    /// tab 区由 TabScale 独立控制（拆分）。
     /// </summary>
     public float InputAreaScale = 1.0f;
     /// <summary>
-    /// 标签页缩放（1.0 = 100%）。影响标签页文字、标签栏高度、末尾 + 按钮（v1.40.17+ 新增）。
+    /// 标签页缩放（1.0 = 100%）。影响标签页文字、标签栏高度、末尾 + 按钮。
     /// 与输入区缩放（InputAreaScale）相互独立。
     /// </summary>
     public float TabScale = 1.0f;
@@ -171,7 +171,7 @@ public class Configuration : IPluginConfiguration
     /// </summary>
     public bool ModifyImeCandidate = false;
     /// <summary>
-    /// 未读消息的频道过滤（v1.40.17+）：为空 = 全部频道的新消息都计入未读；
+    /// 未读消息的频道过滤：为空 = 全部频道的新消息都计入未读；
     /// 非空 = 仅选中频道（含来源/目标细分）计入未读。
     /// </summary>
     public Dictionary<ChatType, (ChatSource Source, ChatSource Target)> UnreadChannels = [];
@@ -204,7 +204,7 @@ public class Configuration : IPluginConfiguration
     };
 
     public float WindowAlpha = 100f;
-    // 四透明度分离（v1.40.9+）：WindowAlpha=消息区透明度；新增背景/标签页/输入框透明度。
+    // 四透明度分离：WindowAlpha=消息区透明度；新增背景/标签页/输入框透明度。
     // 哨兵 -1：首次加载时复制 WindowAlpha（旧配置无缝迁移，见 EnsureAlphaMigration）
     public float BackgroundAlpha = -1f;
     public float TabAlpha = -1f;
@@ -406,7 +406,7 @@ public class Tab
 
     public UnreadMode UnreadMode = UnreadMode.Unseen;
     /// <summary>
-    /// 该标签页的新消息是否计入未读（v1.40.17+ 全局"未读消息设置"控制，默认 true）。
+    /// 该标签页的新消息是否计入未读（全局"未读消息设置"控制，默认 true）。
     /// false = 本标签页收到匹配消息也不累积未读数（也不计入跨 tab 未读同步）。
     /// </summary>
     public bool UnreadEnabled = true;
@@ -486,7 +486,7 @@ public class Tab
         if (!unread)
             return;
 
-        // !!! v1.40.17+ 未读消息设置（全局过滤，见"消息设置"页顶部"未读消息设置"区）：
+        // !!! 未读消息设置（全局过滤，见"消息设置"页顶部"未读消息设置"区）：
         // ① 标签页维度：本标签页被取消勾选 → 不计未读
         // ② 频道维度：UnreadChannels 为空 = 全部频道；非空 = 仅选中频道（含来源/目标细分）
         if (!UnreadEnabled)

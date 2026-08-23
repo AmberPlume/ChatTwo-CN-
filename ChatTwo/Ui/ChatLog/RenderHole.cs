@@ -1,27 +1,19 @@
-// ═══════════════════════════════════════════════════════════════════════
-// 顶点挖洞（正式功能，正式化）——"原生菜单不被聊天框遮挡"的渲染层方案
-// ═══════════════════════════════════════════════════════════════════════
-// 思路：原生菜单（ContextMenu/AddonContextSub）画在 ImGui 之下（渲染管线决定）。
-// 要让聊天框不遮挡菜单，可在 ImGui draw data 生成后、D3D 提交前，把聊天框 draw list 中
-// "菜单圆角矩形区域"内的三角形剔除（顶点挖洞）→ 菜单完整透出。
-//
-// 唯一精确插入点：hook cimgui.dll 的 igRender（ImGui.Render 的 C 导出）——
-// Original() 执行后 draw data 已生成（ImGui.GetDrawData()），D3D 提交尚未发生。
+// 顶点挖洞：原生菜单（ContextMenu/AddonContextSub）画在 ImGui 之下，把聊天框 draw list 里
+// "菜单圆角矩形区域"内的三角形剔除，菜单即可透出。插入点 = hook cimgui 的 igRender：
+// Original 后 draw data 已生成、D3D 提交前。
 //
 // 三道工序（HoleDrawList）：
-// ① 文字退化：三角形三顶点都在菜单圆角矩形内 → 三索引同指（面积 0 不渲染）。
-// ② 背景拆分：大 cmd（bbox 面积≥1600）→ 拆成"背景−圆角矩形"矩形子 cmd（clip 裁剪镂空）。
-// ③ 跨边界字符：小 cmd 跨菜单边界 → 按"菜单内占比"分流（≥0.7 退化 / <0.7 拆分），预算耗尽退化兜底。
-// 每帧临时修改，下一帧 ImGui 重建 draw data 自动恢复（菜单关闭后文字正常显示）。
+// ① 文字退化：三顶点都在菜单圆角矩形内 → 三索引同指（面积 0 不渲染）。
+// ② 背景拆分：大 cmd（bbox 面积≥1600）→ 拆成"背景−圆角矩形"子 cmd（clip 裁剪镂空）。
+// ③ 跨边界字符：按"菜单内占比"分流（≥0.7 退化 / <0.7 拆分），预算耗尽退化兜底。
+// 每帧临时改，下一帧 ImGui 重建 draw data 自动恢复。
 //
-// !!! 稳定性铁律（勿重蹈，详见"挖洞与菜单跟手交接.md"）：
-// - 永不替换 CmdBuffer.Data 指针（AllocHGlobal 与 ImGui IM_FREE 分配器不匹配 → 堆损坏崩溃 0x12345679）
-// - 原地拆分，subs 总数必须 ≤ Capacity 余量；所有索引访问加越界保护
-// - draw data 修改后绝不按帧释放资源（Present detour 与 igRender 帧边界不可靠）
+// !!! 稳定性铁律（勿重蹈）：
+// - 永不替换 CmdBuffer.Data 指针（AllocHGlobal 与 IM_FREE 分配器不匹配 → 堆损坏 0x12345679）
+// - 原地拆分，subs 总数 ≤ Capacity 余量；索引访问加越界保护
+// - draw data 修改后不按帧释放资源
 //
-// 诊断部分（[Hole-Diag] dump / [Hole-Budget] 预算 / DumpNodeTree）保留在 #if ENABLE_CTX_DIAG 内
-//（可选编译，平时关闭）；毒药 UserCallback 防御是防崩溃安全网，随正式功能一起生效。
-// ═══════════════════════════════════════════════════════════════════════
+// 诊断（[Hole-Diag]/[Hole-Budget]/DumpNodeTree）在 #if ENABLE_CTX_DIAG 内，平时关闭。
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -54,12 +46,7 @@ public static class RenderHole
     private static readonly HashSet<string> _budgetDumpedDls = [];
 #endif
 
-    // !!! 稳定性重构：**永不扩容、永不替换 CmdBuffer.Data 指针**。
-    // 原地拆分 + subs 总数 ≤ Capacity 余量（阶梯动态降级）。无分配器所有权问题。
-    // 历史教训（勿重蹈）：
-    // - 每帧 AllocHGlobal 新 buffer + 下一帧释放 → Present 时序竞争 → 崩溃
-    // - 面积阈值 200 拆字符 → 负尺寸 clip → D3D 崩溃
-    // - AllocHGlobal 替换 Data → ImGui 用 IM_FREE 释放不匹配 → 未定义行为
+    // !!! 稳定性铁律：永不扩容、永不替换 CmdBuffer.Data 指针（见文件头），原地拆分。
 
     public static void Dispose()
     {
@@ -97,7 +84,7 @@ public static class RenderHole
     /// 在 PopOut 里右键玩家/道具打开原生菜单时，菜单下方的 PopOut 内容同样需要镂空。
     /// !!! 用 Contains("##popout") 而非 EndsWith：PopOut 内部的消息区/底部栏是 ImGui child，
     /// 其 OwnerName 带父窗口前缀（如 "{tab.Name}##popout##chat2-messages"），EndsWith 匹配不到
-    /// → 内容全画在 child 里，挖洞只命中主窗口 dl 无效（实测 ）。
+    /// → 内容全画在 child 里，挖洞只命中主窗口 dl 无效。
     /// </summary>
     private static bool IsChatTwoDrawList(string name) =>
         name.StartsWith("Chat 2###chat2") || name.Contains("##popout");
@@ -112,10 +99,9 @@ public static class RenderHole
             if (dd.IsNull || dd.CmdListsCount <= 0)
                 return;
 
-            // !!! PoC-1 结论（11:22）：chat2 窗口 cmd=10，所有 cmd 的 ClipRect 都是整个窗口矩形
-            //（cmd 按纹理/状态分组，非按区域）→ 改 ClipRect 会误伤整批 → 必须顶点/索引级剔除。
-            // PoC-2：退化三角形技巧——三角形完全在菜单矩形内 → 三索引指向同一顶点（面积0不渲染）。
-            // 原地改 IdxBuffer，零内存分配，菜单关闭时零开销（GetMenuRect 返回 null）。
+// cmd 按纹理/状态分组（非按区域），所有 cmd 的 ClipRect 都是整个窗口矩形，
+// 改 ClipRect 会误伤整批 → 必须顶点/索引级剔除（退化三角形：三索引同指，面积 0）。
+// 原地改 IdxBuffer，零分配，菜单关闭时零开销。
 #if ENABLE_CTX_DIAG
             // 前 30 帧 dump（诊断用，宏内）
             if (_frames++ < 30)
@@ -140,7 +126,7 @@ public static class RenderHole
             {
                 _diagDumped = true;
                 var scale0 = AtkStage.Instance()->ScreenSizeScale;
-                // 诊断：固定 dump 菜单 addon 的矩形（GetMenuRects 恒单矩形，这里额外看全调参）
+                // 诊断：固定 dump 菜单 addon 的矩形（GetMenuRects 恒单矩形）
                 var mgr0 = RaptureAtkModule.Instance()->RaptureAtkUnitManager;
                 var ctxD = mgr0.GetAddonByName("ContextMenu");
                 var subD = mgr0.GetAddonByName("AddonContextSub");
@@ -221,12 +207,9 @@ public static class RenderHole
     }
 
     /// <summary>当前可见菜单的屏幕矩形（逻辑坐标 × UI scale × RootNode 缩放），恒返回 0 或 1 个。</summary>
-    /// <remarks>!!! 修复（实测"圆角没了 + 二级文字进入"）：
-    /// 之前返回所有可见菜单（一级 ContextMenu + 二级 AddonContextSub，过渡帧可能 2 个），
-    /// 迭代减第二轮把第一轮圆角阶梯**直角化**（洞变直角），②b 字符迭代两次 overflow 跳过
-    /// （文字进入菜单）。二级展开时一级已自动关闭 → **恒单矩形最稳**：优先二级，其次一级。
-    /// !!! 放弃提示框挖洞（ItemDetail/ActionDetail 不再返回）——提示框位置
-    /// 由智能放置控制（避开聊天框），不再需要挖洞；挖洞只服务原生右键菜单。</remarks>
+    /// <remarks>!!! 恒单矩形：二级展开时一级已自动关闭，返回多个矩形会让迭代减
+    /// 直角化圆角阶梯、②b 字符迭代两次溢出（文字进入菜单）→ 优先二级，其次一级。
+    /// 提示框（ItemDetail/ActionDetail）由智能放置避开聊天框，不再挖洞。</remarks>
     private static unsafe List<Vector4> GetMenuRects()
     {
         var rects = new List<Vector4>(1);
@@ -250,7 +233,7 @@ public static class RenderHole
         return rects;
     }
 
-    /// <summary>菜单 addon → 屏幕矩形（含 RootNode 缩放； 实测漏乘导致挖洞只有 1/1.4）。
+    /// <summary>菜单 addon → 屏幕矩形（含 RootNode 缩放，漏乘会导致挖洞偏小）。
     /// 调用方：GetMenuRects（挖洞用）与 RenderDetour 的诊断 dump。</summary>
     private static unsafe Vector4 MenuRectOf(AtkUnitBase* addon, float scale)
     {
@@ -267,7 +250,7 @@ public static class RenderHole
     /// <summary>
     /// 挖洞：① 完全在任一菜单圆角矩形内的三角形退化（文字/小元素）→ ② 背景 cmd（大面积块）拆成
     /// "背景−所有菜单圆角矩形"的矩形子 cmd（复用原顶点+原索引，clip=子区域，渲染时裁剪）→ 背景精确镂空。
-    /// !!! ：菜单是圆角矩形（实测四角磨圆），洞不能是直角矩形（四角外多挖）。
+    /// !!! 菜单是圆角矩形，洞必须是圆角（直角会四角外多挖）。
     /// !!! ：支持多个菜单矩形（一级 ContextMenu + 二级 AddonContextSub）——
     /// ②/②b 用"迭代减"：subs 从 {bbox} 开始，逐个矩形减（bg − A − B 的矩形分解）。
     /// 新 cmd 插到背景 cmd 之后（保持渲染顺序：背景在文字前）。零分配（写在 Capacity 余量内）。
@@ -280,14 +263,14 @@ public static class RenderHole
         if (cmds == null || idx == null || vtx == null)
             return;
 
-        // 每个菜单的圆角矩形（内缩阴影，四边独立参数——14:07/ 实测微调值）。
-        // !!! 二级菜单暂用同一组参数，实测观感不同再单独调。
+        // 每个菜单的圆角矩形（内缩阴影，四边独立参数，微调值）。
+        // !!! 二级菜单暂用同一组参数，观感不同再单独调。
         var rrs = new List<Vector4>(menuRects.Count);
         foreach (var mr in menuRects)
             rrs.Add(MenuRoundRect(mr));
         var radius = 11f;
 
-        // ① 文字/小元素：三角形三个顶点都在**任一**菜单圆角矩形内 → 退化（面积 0 不渲染）
+        // ① 文字/小元素：三角形三个顶点都在任一菜单圆角矩形内 → 退化（面积 0 不渲染）
         var vtxCount = dl.VtxBuffer.Size;
         for (var i = 0; i + 2 < dl.IdxBuffer.Size; i += 3)
         {
@@ -313,10 +296,8 @@ public static class RenderHole
         }
 
         // ② 背景 cmd 拆分：先收集所有需要拆分的背景 cmd 与 subs，统一原地重建
-        // !!! 稳定性重构：**永不替换 CmdBuffer.Data 指针**——
-        // 扩容 AllocHGlobal 有分配器不匹配隐患（ImGui 每帧 Clear 后在新 Data 上 PushBack，
-        // draw list 销毁时 IM_FREE 释放 AllocHGlobal → 未定义行为）。
-        // 改为：subs 总数严格 ≤ Capacity 余量（原地拆分），圆角阶梯动态降级适配。
+        // !!! 稳定性铁律：永不替换 CmdBuffer.Data 指针（AllocHGlobal 与 IM_FREE 分配器不匹配）。
+        // subs 总数 ≤ Capacity 余量（原地拆分），圆角阶梯动态降级。
         var cmdSize = dl.CmdBuffer.Size;
         var availCmd = Math.Max(0, dl.CmdBuffer.Capacity - cmdSize);   // 可用 cmd 槽位（原地拆分上限）
         var splitPlan = new List<(int c, List<Vector4> subs)>();
@@ -333,7 +314,7 @@ public static class RenderHole
             {
                 var vi = idx[cmd->IdxOffset + k];
                 if (vi >= vtxCount)
-                    continue;   // !!! 越界保护（14:38）
+                    continue;   // !!! 越界保护
                 var p = vtx[vi].Pos;
                 bbox.X = Math.Min(bbox.X, p.X);
                 bbox.Y = Math.Min(bbox.Y, p.Y);
@@ -366,9 +347,7 @@ public static class RenderHole
         // !!! ：字符 cmd（elem=6，27x27）跨圆角矩形边界时，①退化不生效
         //（三顶点不全在内）→ 字体进入菜单。改为：把字符 clip 缩到"字符∩菜单外"的矩形
         //（1-4 个简单矩形，不做圆角阶梯，避免小 bbox 生成负尺寸）。
-        // !!! 预算重构：先收集字符候选 → **②b 优先分配预算（保底 availCmd/3，
-        // 文字排开最重要）** → 背景② 用剩余预算。此前② 占满 availCmd → ②b 跳过 → 文字
-        // 进入菜单（实测"偶尔排不开文字"）。
+        // !!! 预算：②b（跨边界字符）优先分配（文字排开最重要），背景②用剩余预算。
         var charCandidates = new List<(int c, Vector4 bbox)>();
         for (var c = 0; c < cmdSize; c++)
         {
@@ -381,7 +360,7 @@ public static class RenderHole
             {
                 var vi = idx[cmd->IdxOffset + k];
                 if (vi >= vtxCount)
-                    continue;   // !!! 越界保护（14:38）
+                    continue;   // !!! 越界保护
                 var p = vtx[vi].Pos;
                 bbox.X = Math.Min(bbox.X, p.X);
                 bbox.Y = Math.Min(bbox.Y, p.Y);
@@ -411,23 +390,17 @@ public static class RenderHole
         }
 
         // ── ②b 优先分配（文字排开保底）──
-        // !!! 实测（[Hole-Budget]）：messages avail=651，跨边界字符 317 个，
-        // charBudget=avail/3=217 只够拆 208 个 → charSkip=109 → 文字大量进入菜单。
-        // 背景反而占 223 槽（steps=7 圆角饱满）。提为 **avail/2**：文字优先，背景 steps 降级
-        //（7→~5，圆角略粗但可接受；文字排开是第一优先级）。
-        // !!! 追加：预算耗尽时**剩余跨边界字符直接退化**（不拆、不进入菜单；
-        // 代价：菜单边缘的字符整字消失——比"文字压在菜单上"视觉干净）。
-        // !!! 方案3（确认）：字符按"菜单内占比"分流——占比 ≥70% → **直接退化**
-        //（丢 ≤30% 视觉无感，0 槽省预算给真正需要的字符）；占比 <70% → **拆分**（保留大部分）。
-        // !!! ：提示框场景 ②b 不保底（保底 1/4，背景优先——提示框大、跨边界字符 2 倍，
-        // 保底 1/2 会把背景预算挤没）；菜单场景保底 1/2。
-        // !!! 放弃提示框挖洞 → 不再区分提示框/菜单场景，②b 统一保底 1/2（文字优先）
+        // ②b（跨边界字符）优先分配，保底 availCmd/2：文字排开是第一优先级，
+        // 背景②用剩余预算、steps 降级适配。
+        // !!! 预算耗尽时剩余跨边界字符直接退化（整字消失，比压进菜单干净）。
+        // !!! 字符按"菜单内占比"分流：占比 ≥0.7 → 退化（丢 ≤30% 视觉无感）；
+        // 占比 <0.7 → 拆分（保留大部分）。提示框挖洞已废弃，统一保底 1/2。
         var charBudget = Math.Max(4, availCmd / 2);
         var charUsed = 0;      // ②b 实际消耗槽位
         var charAllocated = 0; // ②b 成功拆分的字符数
         foreach (var (c, bbox) in charCandidates)
         {
-            // 方案3：字符大部分在菜单内 → 整字退化（省预算，丢的小部分视觉无感）
+            // 字符大部分在菜单内 → 整字退化（省预算，丢的小部分视觉无感）
             if (MenuInsideRatio(bbox, rrs) >= 0.7f)
             {
                 DegenerateCharCmd(c, cmds, idx, dl.IdxBuffer.Size);
@@ -524,7 +497,7 @@ public static class RenderHole
         }
 
 #if ENABLE_CTX_DIAG
-        // !!! [Hole-Budget] 预算诊断（16:05）：每菜单会话每 dl 打印一次真实消耗。
+        // !!! [Hole-Budget] 预算诊断：每菜单会话每 dl 打印一次真实消耗。
         // availCmd=Capacity−Size 是硬上限；bg/char 消耗看清后按需调 charBudget 比例或 steps 策略。
         try
         {
@@ -580,11 +553,8 @@ public static class RenderHole
         }
         dl.CmdBuffer = new ImVector<ImDrawCmd>(finalSize, dl.CmdBuffer.Capacity, dl.CmdBuffer.Data);
 
-        // !!! [Hole-Diag] 崩溃防御（诊断 + 清零）：
-        // 崩溃地址 0x12345679 固定 = 某处写入的"毒药"UserCallback 指针被 D3D 当回调调用
-        //（RenderDrawDataInternal switch：非 0(Empty)/-8(ResetRenderState)/-1(blur) → 直接 call）
-        // → 跳转非法地址 AccessViolation（实测 4 次，栈完全相同）。
-        // 防御：修改后扫描，UserCallback 落在"绝不可能是合法代码指针"的范围 → 清零（宁可少画不崩）。
+        // !!! 崩溃防御：非法的 UserCallback 指针会被 D3D 当回调调用（合法值仅 0/-1/-8），
+        // 跳转非法地址 AccessViolation。防御：扫描落在非法范围的 UserCallback → 清零。
         try
         {
             for (var k = 0; k < finalSize; k++)
@@ -602,14 +572,14 @@ public static class RenderHole
         catch { /* 防御失败忽略 */ }
     }
 
-    /// <summary>菜单 addon 矩形 → 挖洞用的圆角矩形（内缩阴影，四边独立参数——实测微调值）。</summary>
-    /// <remarks>!!! ：二级菜单（AddonContextSub）暂用同一组参数，实测观感不同再单独调。</remarks>
+    /// <summary>菜单 addon 矩形 → 挖洞用的圆角矩形（内缩阴影，四边独立参数）。</summary>
+    /// <remarks>!!! 二级菜单（AddonContextSub）暂用同一组参数，观感不同再单独调。</remarks>
     private static Vector4 MenuRoundRect(Vector4 menuRect)
     {
         var insetTop = 7f;
         var insetLeft = 8f;
         var insetRight = 7f;
-        var insetBottom = 11f;   // 确认：下方向上 0.5px（10.5→11）
+        var insetBottom = 11f;   // 下方向上 0.5px（10.5→11）
         return new Vector4(menuRect.X + insetLeft, menuRect.Y + insetTop, menuRect.Z - insetRight, menuRect.W - insetBottom);
     }
 
@@ -638,7 +608,7 @@ public static class RenderHole
     }
 
     /// <summary>字符 bbox 落在菜单内的面积占比（0~1）。字符小（27x27），用菜单外接矩形近似交集，圆角忽略。
-    /// 方案3（17:51）：占比 ≥0.7 → 整字退化（丢 ≤30% 视觉无感）；&lt;0.7 → 拆分。</summary>
+    /// 占比 ≥0.7 → 整字退化（丢 ≤30% 视觉无感）；&lt;0.7 → 拆分。</summary>
     private static float MenuInsideRatio(Vector4 bbox, List<Vector4> rrs)
     {
         var bboxArea = (bbox.Z - bbox.X) * (bbox.W - bbox.Y);
@@ -716,7 +686,7 @@ public static class RenderHole
 
         // 四角圆弧外侧的小三角区（圆弧外、外接矩形内）→ 阶梯矩形近似
         // !!! 修复：每段用"近圆心端"的 yArc（圆弧 y 最大值，高估）
-        // 作为矩形边界，确保覆盖整个段圆弧外区域（实测：段中点低估导致右上/右下出现"尖角矩形"）
+        // 作为矩形边界，确保覆盖整个段圆弧外区域（段中点低估会出"尖角矩形"）
         for (var i = 0; i < steps; i++)
         {
             // 左半边 x ∈ [rr.X, rr.X+r]，圆心 (rr.X+r)，近圆心端 = x1（更大 x）
@@ -765,7 +735,7 @@ public static class RenderHole
 #if ENABLE_CTX_DIAG
     /// <summary>递归 dump 菜单节点树（本地坐标 + 全局坐标估算），找可见背景/列表区。</summary>
     /// <remarks>!!! AtkResNode.Type：普通节点=NodeType 枚举（1..10）；组件节点 Type 是 ≥1000 的编码（如 1001），
-    /// 判断组件用 GetNodeType()==Component(10000) 或 Type>=1000。RootNode.X/Y 已是全局坐标（=addon X/Y），
+    /// 判断组件用 GetNodeType==Component(10000) 或 Type>=1000。RootNode.X/Y 已是全局坐标（=addon X/Y），
     /// 子节点 X/Y 是相对父偏移 → 全局 = RootNode.X + Σ(沿父链偏移)。</remarks>
     private static unsafe void DumpNodeTree(AtkUnitBase* addon, AtkResNode* node, int depth, int maxDepth)
     {

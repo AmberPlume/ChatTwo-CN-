@@ -137,7 +137,7 @@ public class FontManager
         var baseSizePt = Plugin.Config.FontSizeV2;
         // 输入区缩放（与卫月全局字体比例同逻辑：重建字体时字号乘比例，
         // 这样 drawList 手动渲染的文字（tab 文字）也自然缩放）
-        // !!! v1.40.17+ 拆分：输入区缩放只管输入区（图标/频道名），标签页独立用 TabScale
+        // !!! 拆分：输入区缩放只管输入区（图标/频道名），标签页独立用 TabScale
         var inputScale = Plugin.Config.InputAreaScale;
         var tabScale = Plugin.Config.TabScale;
 
@@ -260,7 +260,7 @@ public class FontManager
             ));
 
         // 标签页字体：基准字号由"标签页名称字号"设置控制（默认 12pt）× TabScale
-        //（不随"字体大小"变化；v1.40.17+ 由"标签页缩放"独立控制）
+        //（不随"字体大小"变化；由"标签页缩放"独立控制）
         var tabFontSizePt = Plugin.Config.TabFontSizePt * tabScale;
         TabFont = Plugin.Interface.UiBuilder.FontAtlas.NewDelegateFontHandle(
             e => e.OnPreBuild(

@@ -17,8 +17,8 @@ namespace ChatTwo.Util;
 ///
 /// 资源命名：EmbeddedResource 按 <c>RootNamespace.相对路径</c> 嵌入——本项目 RootNamespace=ChatTwo
 /// （AssemblyName=ChatTwoCN），实际资源名是 <c>ChatTwo.images.toolbar_*.png</c>。
-/// !!! 不能硬编码 ChatTwoCN 前缀：GetManifestResourceStream 找不到 → 返回 null → 按钮悄悄回退 FontAwesome
-/// （实测"没看到变化"的根因）。这里按文件名后缀动态匹配，杜绝该问题。
+/// !!! 不能硬编码 ChatTwoCN 前缀：GetManifestResourceStream 找不到 → 返回 null → 按钮悄悄回退 FontAwesome。
+/// 按文件名后缀动态匹配，杜绝该问题。
 /// </summary>
 internal static class NativeIcons
 {
@@ -75,7 +75,7 @@ internal static class NativeIcons
 
     /// <summary>[锁定] 上锁（实心锁体+钥匙孔）— actionbar_hr1 r3c4（提供素材）</summary>
 
-    // ============ 底部 tab 栏三段式（提供 chatlog_extracted） ============
+    // 底部 tab 栏三段式（提供 chatlog_extracted）
     /// <summary>tab 栏最左侧装饰左帽（可拖动聊天框）43x50</summary>
     public static IDalamudTextureWrap? TabCapLeft => EnsureLoaded(_tabCapLeft);
     /// <summary>tab 栏中间真正的 tab（写名称）56x51，每加一个 tab 拼一个</summary>
@@ -93,7 +93,7 @@ internal static class NativeIcons
     public static IDalamudTextureWrap? ResizeHandleHighlighted => EnsureLoaded(_resizeHandleHighlighted);
 
     /// <summary>绘制缩放手柄：常态/高亮两图按"图形内容"统一尺寸（UV 裁剪内容 bbox），
-    /// 否则高亮图 42x42 拉伸后内容比常态小（实测"常态比亮起大太多"根因）。</summary>
+    /// 否则高亮图 42x42 拉伸后内容比常态小。</summary>
     public static void DrawResizeHandle(ImDrawListPtr dl, Vector2 pos, Vector2 size, bool highlighted)
     {
         var wrap = highlighted ? ResizeHandleHighlighted : ResizeHandleNormal;
@@ -113,14 +113,14 @@ internal static class NativeIcons
     /// <summary>缩放手柄 X 内缩：默认 3px / 仿原生 8px（落在消息区背景内）</summary>
     public static float ResizeHandleInsetX(bool nativeBg) => nativeBg ? 8f : 3f;
 
-    /// <summary>缩放手柄 Y 内缩：默认 3px / 仿原生 4px + 下移 5px（实测校准）</summary>
+    /// <summary>缩放手柄 Y 内缩：默认 3px / 仿原生 4px + 下移 5px</summary>
     public static float ResizeHandleInsetY(bool nativeBg) => (nativeBg ? 4f : 3f) + 5f;
 
     private static T? EnsureLoaded<T>(T? value) where T : class
     {
         // !!! 修复：懒加载曾因 _tp 永远为 null 从未触发（Load 只在构造函数调用，
-        // 但懒加载改版时把构造函数调用删了）→ wrap 全 null → 按钮全部回退 FontAwesome。
-        // 这里兜底：未加载且未失败时，直接从 Plugin.TextureProvider 取一次。
+        // 但懒加载重构时把构造函数调用删了）→ wrap 全 null → 按钮全部回退 FontAwesome。
+        // 兜底：未加载且未失败时，直接从 Plugin.TextureProvider 取一次。
         if (!_loaded && !_loadFailed && _tp == null)
             Load(Plugin.TextureProvider);
         else if (!_loaded && !_loadFailed)
@@ -184,7 +184,7 @@ internal static class NativeIcons
         s.CopyTo(ms);
         var bytes = ms.ToArray();
         // 同步加载路径：ImageSharp 解码 PNG → Rgba32 原始像素 → CreateFromRaw。
-        // !!! 不要用 CreateFromImageAsync + .Wait()：其 continuation 需回到主线程，
+        // !!! 不要用 CreateFromImageAsync + .Wait：其 continuation 需回到主线程，
         // 在插件构造函数（主线程）里同步等待会死锁，图标永远加载不出来。
         // !!! 保持原生 UI 原样，不做颜色处理（之前转白是为了
         // 在深色 ImGui 背景上可见；原生图标保持原生原样。

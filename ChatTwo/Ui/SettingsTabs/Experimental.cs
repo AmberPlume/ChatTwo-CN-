@@ -7,7 +7,7 @@ using Dalamud.Interface.Utility.Raii;
 namespace ChatTwo.Ui.SettingsTabs;
 
 /// <summary>
-/// 实验功能设置页（新增）。
+/// 实验功能设置页。
 /// 存放处于实验阶段的开关；每个开关附"可能导致的问题"说明，方便自行权衡/回退。
 /// </summary>
 public sealed class Experimental : ISettingsTab

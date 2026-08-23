@@ -84,8 +84,8 @@ public static class ChatTypeExt
             ChatType.Alarm,
             ChatType.GlamourNotifications
         ])
-        // Note: ExtraChat linkshells are handled separately in the tab settings
-        // UI.
+    // Note: ExtraChat linkshells are handled separately in the tab settings
+    // UI.
     ];
 
     public static string Name(this ChatType type)

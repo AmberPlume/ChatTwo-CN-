@@ -42,7 +42,7 @@ public static class ChatTwoMigrator
             return;
         }
 
-        // ═══ 两版共有且语义一致的标量/枚举（白名单）═══
+        // 两版共有且语义一致的标量/枚举（白名单）
         CopyBool(root, "HideChat", v => target.HideChat = v);
         CopyBool(root, "HideDuringCutscenes", v => target.HideDuringCutscenes = v);
         CopyBool(root, "HideWhenNotLoggedIn", v => target.HideWhenNotLoggedIn = v);
@@ -80,12 +80,12 @@ public static class ChatTwoMigrator
 
         CopyString(root, "ChosenStyle", v => target.ChosenStyle = v);
 
-        // ═══ 字体（IFontId 接口字段，需 TypeNameHandling 还原 $type 具体实现类）═══
+        // 字体（IFontId 接口字段，需 TypeNameHandling 还原 $type 具体实现类）
         CopyFont(root, "GlobalFontV2", v => target.GlobalFontV2 = v);
         CopyFont(root, "JapaneseFontV2", v => target.JapaneseFontV2 = v);
         CopyFont(root, "ItalicFontV2", v => target.ItalicFontV2 = v);
 
-        // ═══ 集合 ═══
+        // 集合
         if (root["ChatColours"] is { Type: JTokenType.Object } colours)
         {
             try { target.ChatColours = colours.ToObject<Dictionary<ChatType, uint>>() ?? []; }
@@ -98,7 +98,7 @@ public static class ChatTwoMigrator
             catch { }
         }
 
-        // ═══ 标签页：原版 ChatCodes（只看 Source）→ CN SelectedChannels（Source+Target）═══
+        // 标签页：原版 ChatCodes（只看 Source）→ CN SelectedChannels（Source+Target）
         // CN 的匹配逻辑只判断 Source（HasFlag），因此 Target 置 None 即等价原版语义。
         if (root["Tabs"] is { Type: JTokenType.Array } tabs)
         {

@@ -40,10 +40,10 @@ public sealed class Display : ISettingsTab
         ImGui.Separator();
         ImGui.Spacing();
 
-        // ═══════════════ 窗口 ═══════════════
+        // 窗口
         // 以下项从"窗口调整"页挪入（基础设置统一管窗口行为）
-        // 显示时间戳：已移至"消息设置"页的时间戳菜单（v1.40.17+）
-        // 仿原生窗口：已移至"窗口调整"页（v1.40.17+，改名"仿原生窗口"）
+        // 显示时间戳：已移至"消息设置"页的时间戳菜单
+        // 仿原生窗口：已移至"窗口调整"页（改名"仿原生窗口"）
 
         // 锁定窗口移动（锁按钮从工具栏移除，改回设置项；
         // 开启后只有消息区不可拖动（选字防误拖），窗口其他区域仍可拖）
@@ -106,11 +106,11 @@ public sealed class Display : ISettingsTab
         ImGui.Separator();
         ImGui.Spacing();
 
-        // 字体相关设置已拆分到独立"字体设置"页（v1.40.11+）
+        // 字体相关设置已拆分到独立"字体设置"页
 
         ImGui.Spacing();
 
-        // ═══════════════ 从原版 Chat Two 迁移 ═══════════════
+        // 从原版 Chat Two 迁移
         ImGui.Separator();
         ImGui.Spacing();
         ImGui.TextUnformatted("从原版 Chat Two 迁移");
