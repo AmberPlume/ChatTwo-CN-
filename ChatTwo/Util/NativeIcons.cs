@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Numerics;
 using System.Reflection;
 using Dalamud.Bindings.ImGui;
@@ -14,10 +14,9 @@ namespace ChatTwo.Util;
 /// <summary>
 /// 原生 UI 图标加载器：从嵌入资源读取 PNG 字节，通过 <see cref="ITextureProvider.CreateFromImageAsync"/>
 /// 创建 <see cref="IDalamudTextureWrap"/>。
-///
-/// 资源命名：EmbeddedResource 按 <c>RootNamespace.相对路径</c> 嵌入——本项目 RootNamespace=ChatTwo
+/// /// 资源命名：EmbeddedResource 按 <c>RootNamespace.相对路径</c> 嵌入——本项目 RootNamespace=ChatTwo
 /// （AssemblyName=ChatTwoCN），实际资源名是 <c>ChatTwo.images.toolbar_*.png</c>。
-/// !!! 不能硬编码 ChatTwoCN 前缀：GetManifestResourceStream 找不到 → 返回 null → 按钮悄悄回退 FontAwesome。
+/// 不能硬编码 ChatTwoCN 前缀：GetManifestResourceStream 找不到 → 返回 null → 按钮悄悄回退 FontAwesome。
 /// 按文件名后缀动态匹配，杜绝该问题。
 /// </summary>
 internal static class NativeIcons
@@ -105,7 +104,7 @@ internal static class NativeIcons
         dl.AddImage(wrap.Handle, pos, pos + size, uv0, uv1);
     }
 
-    // !!! 缩放手柄几何统一（三窗口 × 绘制/hit-test/置顶共 9 处之前各写魔法数字，
+    // 统一（三窗口 × 绘制/hit-test/置顶共 9 处之前各写魔法数字，
     // 改过 4 次尺寸/位置——抽成统一方法防漏改）。
     /// <summary>缩放手柄尺寸（10px × UI scale）</summary>
     public static float ResizeHandleSize() => 10f * ImGuiHelpers.GlobalScale;
@@ -118,9 +117,9 @@ internal static class NativeIcons
 
     private static T? EnsureLoaded<T>(T? value) where T : class
     {
-        // !!! 修复：懒加载曾因 _tp 永远为 null 从未触发（Load 只在构造函数调用，
+        // _tp 永远为 null 从未触发（Load 只在构造函数调用，
         // 但懒加载重构时把构造函数调用删了）→ wrap 全 null → 按钮全部回退 FontAwesome。
-        // 兜底：未加载且未失败时，直接从 Plugin.TextureProvider 取一次。
+        // ，直接从 Plugin.TextureProvider 取一次。
         if (!_loaded && !_loadFailed && _tp == null)
             Load(Plugin.TextureProvider);
         else if (!_loaded && !_loadFailed)
@@ -184,9 +183,9 @@ internal static class NativeIcons
         s.CopyTo(ms);
         var bytes = ms.ToArray();
         // 同步加载路径：ImageSharp 解码 PNG → Rgba32 原始像素 → CreateFromRaw。
-        // !!! 不要用 CreateFromImageAsync + .Wait：其 continuation 需回到主线程，
+        // CreateFromImageAsync + .Wait：其 continuation 需回到主线程，
         // 在插件构造函数（主线程）里同步等待会死锁，图标永远加载不出来。
-        // !!! 保持原生 UI 原样，不做颜色处理（之前转白是为了
+        // 保持原生 UI 原样，不做颜色处理（之前转白是为了
         // 在深色 ImGui 背景上可见；原生图标保持原生原样。
         using var image = Image.Load<Rgba32>(bytes);
         var raw = image.ImageToRaw();

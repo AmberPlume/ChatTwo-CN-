@@ -1,4 +1,4 @@
-using ChatTwo.Code;
+﻿using ChatTwo.Code;
 using ChatTwo.Resources;
 using ChatTwo.Util;
 using Dalamud.Interface;
@@ -31,7 +31,7 @@ public sealed class Tabs : ISettingsTab
         WriteIndented = true,
     };
 
-    // !!! 标签页列表只保留一行操作按钮 + 名称，
+    // 只保留一行操作按钮 + 名称，
     // 点击名称弹出独立编辑窗口（PopupModal），设置页不再出现超长展开树。
     private int EditingTab = -1;   // 正在编辑的标签页索引（-1 = 无）
     private bool EditPopupOpen;    // 编辑弹窗打开状态（ref bool 用，点 X 关闭自动置 false）
@@ -259,7 +259,7 @@ public sealed class Tabs : ISettingsTab
         ImGui.Separator();
         ImGui.Spacing();
 
-        // 标签页列表（一行 = 操作按钮 + 名称，点名称开独立编辑窗）
+        // （一行 = 操作按钮 + 名称，点名称开独立编辑窗）
         for (var i = 0; i < Mutable.Tabs.Count; i++)
         {
             var tab = Mutable.Tabs[i];

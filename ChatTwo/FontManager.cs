@@ -1,4 +1,4 @@
-using System.Net.Http;
+﻿using System.Net.Http;
 using Dalamud;
 using Dalamud.Interface;
 using Dalamud.Interface.FontIdentifier;
@@ -137,7 +137,7 @@ public class FontManager
         var baseSizePt = Plugin.Config.FontSizeV2;
         // 输入区缩放（与卫月全局字体比例同逻辑：重建字体时字号乘比例，
         // 这样 drawList 手动渲染的文字（tab 文字）也自然缩放）
-        // !!! 拆分：输入区缩放只管输入区（图标/频道名），标签页独立用 TabScale
+        // 输入区缩放只管输入区（图标/频道名），标签页独立用 TabScale
         var inputScale = Plugin.Config.InputAreaScale;
         var tabScale = Plugin.Config.TabScale;
 
@@ -183,7 +183,7 @@ public class FontManager
         ItalicFont = null;
 
         // 小号字体：当前输入频道名（默认 12pt，字号由"当前输入频道字号"设置独立控制）
-        // !!! 频道名缩放比率降低：按钮/图标全量跟随输入区缩放（+100% 就 +100%），
+        // 比率降低：按钮/图标全量跟随输入区缩放（+100% 就 +100%），
         // 频道名只按 25% 比率缓变（输入区缩放 2.0 时频道名仅 +25%），避免频道名过度放大
         var smallFontSizePt = Plugin.Config.ChannelNameFontSizePt * (1f + (inputScale - 1f) * 0.25f) * 0.9f;  // ×0.9 缩小
         SmallFont = Plugin.Interface.UiBuilder.FontAtlas.NewDelegateFontHandle(

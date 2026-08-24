@@ -1,4 +1,4 @@
-using ChatTwo.Code;
+﻿using ChatTwo.Code;
 using Dalamud.Interface.FontIdentifier;
 using Microsoft.Data.Sqlite;
 using Newtonsoft.Json;
@@ -98,7 +98,7 @@ public static class ChatTwoMigrator
             catch { }
         }
 
-        // 标签页：原版 ChatCodes（只看 Source）→ CN SelectedChannels（Source+Target）
+        // ChatCodes（只看 Source）→ CN SelectedChannels（Source+Target）
         // CN 的匹配逻辑只判断 Source（HasFlag），因此 Target 置 None 即等价原版语义。
         if (root["Tabs"] is { Type: JTokenType.Array } tabs)
         {

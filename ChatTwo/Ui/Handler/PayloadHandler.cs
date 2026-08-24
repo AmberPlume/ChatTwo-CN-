@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using System.Numerics;
 using System.Text;
 using ChatTwo.Code;
@@ -57,7 +57,7 @@ public sealed class PayloadHandler
     public void Draw()
     {
         VerifyNativeMenuFallback();
-        CheckPendingMenu();   // !!! 左键延迟打开菜单（松开后触发）
+        CheckPendingMenu();   // 左键延迟打开菜单（松开后触发）
 
         if (HandleTooltips && ++HoverCounter - LastHoverCounter > 1)
         {
@@ -319,7 +319,7 @@ public sealed class PayloadHandler
             case UriPayload uri:
                 WrapperUtil.TryOpenUri(uri.Uri);
                 break;
-            // !!! 未知 payload 静默（不弹原版 ImGui 菜单）
+            // 未知 payload 静默（不弹原版 ImGui 菜单）
             default:
                 break;
         }
@@ -332,7 +332,7 @@ public sealed class PayloadHandler
     /// <summary>左键"延迟打开菜单"的触发入口（每帧由 Draw 调用）。
     /// 关联：Click(Left) → HandlePayloadClick(delayMenu:true) 记录 PendingMenu + 按下位置；
     /// 本方法在左键松开时检查：按下→松开距离 < 5px（未拖拽选字）才真正打开菜单。
-    /// 原因：左键按下即打开会让松开落在菜单上触发菜单项/关闭 → 闪没（游戏原生即松开才开）。
+    /// 左键按下即打开会让松开落在菜单上触发菜单项/关闭 → 闪没（游戏原生即松开才开）。
     /// 右键不走此路径（delayMenu:false 直接打开）。
     /// </summary>
     private void CheckPendingMenu()
@@ -422,7 +422,7 @@ public sealed class PayloadHandler
         var start = source.Payloads.IndexOf(payload);
         if (start == -1)
         {
-            // !!! 历史消息（SQLite 加载）的 chunk.Link 是 MessagePack 反序列化实例，
+            // 历史消息（SQLite 加载）的 chunk.Link 是 MessagePack 反序列化实例，
             // 与 ContentSource.Payloads 的元素不是同一引用，而 DalamudLinkPayload 未重写
             // Equals（引用比较）→ IndexOf 返回 -1 → 点击无效。
             // 回退：按 Plugin+CommandId 语义匹配链接起点。
@@ -446,10 +446,10 @@ public sealed class PayloadHandler
 
         try
         {
-            // !!! 传完整消息而非链接段：原生点击时 handler 收到整条 SeString，而 OmniToolbox 的
+            // 传完整消息而非链接段：原生点击时 handler 收到整条 SeString，而 OmniToolbox 的
             // 传送点链接结构是 [MapLink(坐标@消息开头) ... DalamudLink(传送点)]——坐标在链接段外，
             // 上游只传段导致 handler 解析不到坐标 → 传送不发起。
-            // !!! try 必须包在 RunOnTick 回调内部：RunOnTick 只是注册回调，value.Invoke 在下一帧执行，
+            // try 必须包在 RunOnTick 回调内部：RunOnTick 只是注册回调，value.Invoke 在下一帧执行，
             // 包在外面捕获不到 handler 异常（上游 bug，异常会被吞掉）。
             Plugin.Framework.RunOnTick(() =>
             {
@@ -514,7 +514,7 @@ public sealed class PayloadHandler
             // 清除上次道具菜单的 ContextItemId 残留，防止 OnMenuOpened 误判为道具菜单
             // 同时清除 LinkedItem.LinkedItemQuality：DR 检查 *(uint*)(agent + 0x950)==3 跳过玩家菜单，
             // 0x950 即 LinkedItemQuality，残留 3（收藏品）会导致 DR 误判。
-            // !!! 还要清 [0x9C8]：道具菜单写入 *(uint*)(agent+0x9c8)=3，InventoryTools 用
+            // 还要清 [0x9C8]：道具菜单写入 *(uint*)(agent+0x9c8)=3，InventoryTools 用
             // GetObjectItemId("ChatLog",2504)==3 判断是否道具菜单，残留 3 会让玩家菜单被误判。
             unsafe
             {
@@ -535,7 +535,7 @@ public sealed class PayloadHandler
             Plugin.Log.Debug($"[NativeCtxMenu] Menu position: ({gameX}, {gameY}), mouse=({mousePos.X:F0},{mousePos.Y:F0})");
 
             // 标记菜单激活，ChatLog.MoveContextMenu 会在 PreDraw 中移动菜单
-            // !!! 记录激活时刻（FrameworkUpdate 兜底复位用）
+            // （FrameworkUpdate 兜底复位用）
             Plugin.ContextMenuActive = true;
             Plugin.ContextMenuActivatedAt = Environment.TickCount64;
             // ChatTwo 菜单会话开始（二级菜单 MoveContextSubMenu 用它区分聊天框/背包等来源）
@@ -545,11 +545,11 @@ public sealed class PayloadHandler
             // 设置菜单位置提示
             agent->SetPosition(gameX, gameY);
 
-            // !!! 不调用 SetChatInteractable(true)：原生聊天框必须始终隐藏，
+            // SetChatInteractable(true)：原生聊天框必须始终隐藏，
             // 菜单在隐藏状态下可正常打开
 
             // 清除上次菜单的残留原生菜单项，防止显示缓存内容。
-            // !!! ClearMenu 会顺带清掉 AgentContext 的 TargetContentId/TargetHomeWorldId！
+            // 顺带清掉 AgentContext 的 TargetContentId/TargetHomeWorldId！
             // 所以目标字段必须在 ClearMenu 之后设置。
             agent->ClearMenu();
 
@@ -579,7 +579,7 @@ public sealed class PayloadHandler
                 }
             }
 
-            // !!! 填充 ContextMenuTarget（InfoProxyCommonList.CharacterData）。
+            // ContextMenuTarget（InfoProxyCommonList.CharacterData）。
             // 游戏过滤读"右键目标内部状态"（原生右键链写入，插件触发缺失），ContextMenuTarget 对过滤无帮助也无害。
             var ctxTarget = &agent->ContextMenuTarget;
             ctxTarget->ContentId = chunk.Message?.ContentId ?? 0;
@@ -597,23 +597,23 @@ public sealed class PayloadHandler
                     Buffer.MemoryCopy(ptr, (byte*)ctxTarget + 0x32, 32, Math.Min(nameBytes.Length, 32));
                 }
             }
-            // !!! OwnerAddon 时分复用：
+            // ：
             // 触发时设 ChatLog → OnMenuOpened 时 AddonName="ChatLog"（DR/Allagan 的 switch 靠它
             // 识别聊天框菜单，缺失则"物品搜索/市场搜索"等道具项不注入）。
             // 但 owner=ChatLog 会让插件二级菜单在 OpenAddon 时绑定 ChatLog → 隐藏即关。
             // 解法：MoveContextMenu（一级菜单 PreDraw）在注入完成后每帧清零 OwnerAddon →
             // 点二级菜单时 owner 已是 0 → 不绑定 → 显示正常。
-            // 返回重开一级菜单时 ContextMenuHandler 会重新设回 ChatLog（保证重开也能注入）。
+            // 重开一级菜单时 ContextMenuHandler 会重新设回 ChatLog（保证重开也能注入）。
             agent->OwnerAddon = GameFunctions.GameFunctions.GetChatLogAddonId();
 
             // 完整复刻原生玩家菜单（eventId 来自 CurrentContextMenu+0x448 反汇编）。
             // eventId 对照：1=发送悄悄话 102=切换频道回复 12=组队邀请 75=好友申请 70=邀请新人
             // 48=队员招募 68=选中 69=从新人频道移除 8=查看铭牌。
-            // !!! 玩家菜单 eventId 是语义型，游戏按 eventId+目标状态自动过滤不适用项。
+            // eventId 是语义型，游戏按 eventId+目标状态自动过滤不适用项。
             agent->AddContextMenuItem(1, Language.Context_SendTell);
             agent->AddContextMenuItem(102, Language.Context_ReplyInSelectedChatMode);
             agent->AddContextMenuItem(12, Language.Context_InviteToParty);
-            // !!! 好友申请：游戏过滤在插件场景不生效 → 自己判断目标 ContentId 是否在好友列表（在则不显示）。
+            // ：游戏过滤在插件场景不生效 → 自己判断目标 ContentId 是否在好友列表（在则不显示）。
             var friendCid = chunk.Message?.ContentId ?? 0;
             var isFriend = friendCid != 0
                 && GameFunctions.GameFunctions.GetFriends().Any(f => f.ContentId == friendCid);
@@ -629,14 +629,14 @@ public sealed class PayloadHandler
             agent->AddContextMenuItem(8, Language.Context_AdventurerPlate);
 
             // 打开菜单：用 OpenContextMenu（游戏原生流程），不用 OpenContextMenuForAddon（事件端字段被清）。
-            // !!! 打开前设 BlockedParentId=ChatLog：OnMenuOpened 里 AddonName=GetAddonById(BlockedParentId)，
+            // BlockedParentId=ChatLog：OnMenuOpened 里 AddonName=GetAddonById(BlockedParentId)，
             // ChatTwo 模拟不经过右键链需手动设，否则 AddonName≠"ChatLog" → 菜单项不注入。
             SetContextMenuBlockedParentToChatLog();
-            // !!! bindToOwner 必须为 false：原生聊天框全程隐藏，绑定到 owner(ChatLog) 会被游戏立即关闭。
+            // bindToOwner 必须为 false：原生聊天框全程隐藏，绑定到 owner(ChatLog) 会被游戏立即关闭。
             agent->OpenContextMenu(false, false);
 
             // 立即设置菜单位置，防止闪烁（PreDraw 要到下一帧才执行）。
-            // !!! 边缘检查（菜单会超出屏幕）：读 addon 渲染尺寸（×RootNode 缩放），按开关模式设置。
+            // （菜单会超出屏幕）：读 addon 渲染尺寸（×RootNode 缩放），按开关模式设置。
             try
             {
                 var ctxAddon = RaptureAtkModule.Instance()->RaptureAtkUnitManager.GetAddonByName("ContextMenu");
@@ -709,9 +709,9 @@ public sealed class PayloadHandler
                 agent->TargetName.SetString(emptyPtr);
             }
 
-            // !!! OwnerAddon 时分复用（同玩家菜单）：触发时设 ChatLog 供 OnMenuOpened 识别，
+            // （同玩家菜单）：触发时设 ChatLog 供 OnMenuOpened 识别，
             // MoveContextMenu 每帧清零防二级菜单绑定。
-            // !!! 必须在 ClearMenu 之后设置！ClearMenu 会清掉目标字段区（含 OwnerAddon），
+            // 必须在 ClearMenu 之后设置！ClearMenu 会清掉目标字段区（含 OwnerAddon），
             // 先设会被清 0 → OnMenuOpened 时 AddonName 不是 ChatLog → DR 道具项不注入。
 
             // 计算菜单位置（跟随鼠标 vs 聊天框右侧固定）。
@@ -722,7 +722,7 @@ public sealed class PayloadHandler
             Plugin.Log.Debug($"[NativeCtxMenu] Item menu position: ({gameX}, {gameY}), mouse=({mousePos.X:F0},{mousePos.Y:F0})");
 
             // 标记菜单激活，ChatLog.MoveContextMenu 会在 PreDraw 中移动菜单
-            // !!! 记录激活时刻（FrameworkUpdate 兜底复位用）
+            // （FrameworkUpdate 兜底复位用）
             Plugin.ContextMenuActive = true;
             Plugin.ContextMenuActivatedAt = Environment.TickCount64;
             // ChatTwo 菜单会话开始（二级菜单 MoveContextSubMenu 用它区分聊天框/背包等来源）
@@ -732,16 +732,16 @@ public sealed class PayloadHandler
             // 设置菜单位置提示
             agent->SetPosition(gameX, gameY);
 
-            // !!! 不调用 SetChatInteractable(true)：原生聊天框必须始终隐藏
+            // SetChatInteractable(true)：原生聊天框必须始终隐藏
 
             // 清除上次菜单的残留原生菜单项（同玩家菜单逻辑）
             agent->ClearMenu();
 
-            // !!! OwnerAddon 必须在 ClearMenu 之后设置（ClearMenu 会清掉它，见上方注释）
+            // 在 ClearMenu 之后设置（ClearMenu 会清掉它，见上方注释）
             agent->OwnerAddon = GameFunctions.GameFunctions.GetChatLogAddonId();
 
             // 用 AddMenuItem + AgentChatLog 本体作 handler（根除快照）。
-            // !!! AgentChatLog 是游戏常驻 agent，永远非空 → 无需快照/缓存/预热。
+            // 是游戏常驻 agent，永远非空 → 无需快照/缓存/预热。
             // 字段：ACL[0x20]=0x51(addon id) ACL[0x9c0]=道具ID ACL[0x9c8]=0x3(类型) ACL[0x860]=0x6
             // 命令 ID 语义：0=属性对比 1=试穿 2=持有情况 3=展示 5=复制名 6=制作 9=幻影化
             var itemNativeAdded = false;
@@ -781,7 +781,7 @@ public sealed class PayloadHandler
 
                 if (items.Count > 0)
                 {
-                    // !!! 游戏"复制名"动作读"道具上下文"对象的 [self+0x9c0]（道具 ID），而非 ChatLog.ContextItemId。
+                    // 读"道具上下文"对象的 [self+0x9c0]（道具 ID），而非 ChatLog.ContextItemId。
                     // self = AgentChatLog；[0x9c0] 存道具 ID。把 [0x9c0] 写 RawItemId，[0x9c8] 写类型=3
                     //（反汇编 0xed8bdd：类型必须 ==3 才走复制路径）。
                     *(uint*)((byte*)handlerSnapshot + 0x9c0) = item.RawItemId;
@@ -795,14 +795,14 @@ public sealed class PayloadHandler
 
             GameFunctions.ContextMenuHandler.NativeItemMenuAdded = itemNativeAdded;
 
-            // !!! 不能用 OpenContextMenuForAddon！它内部强制 closeExisting=true，会调 [vtable+0x28]
+            // OpenContextMenuForAddon！它内部强制 closeExisting=true，会调 [vtable+0x28]
             // 清空手动加的项 → 占位符。改用 OpenContextMenu(false,false)（closeExisting=false 不清项）。
-            // !!! 打开前设 BlockedParentId=ChatLog（同玩家菜单，DR/Allagan 注入识别用）
+            // BlockedParentId=ChatLog（同玩家菜单，DR/Allagan 注入识别用）
             SetContextMenuBlockedParentToChatLog();
             agent->OpenContextMenu(false, false);
 
             // 立即设置菜单位置，防止闪烁
-            // !!! 边缘检查（菜单会超出屏幕）+ 开关模式
+            // （菜单会超出屏幕）+ 开关模式
             try
             {
                 var ctxAddon = RaptureAtkModule.Instance()->RaptureAtkUnitManager.GetAddonByName("ContextMenu");

@@ -1,4 +1,4 @@
-using ChatTwo.Resources;
+﻿using ChatTwo.Resources;
 using ChatTwo.Util;
 using Dalamud.Interface.Style;
 using Dalamud.Interface.Utility.Raii;
@@ -48,7 +48,7 @@ public sealed class ChatLogConfig : ISettingsTab
             ImGui.Spacing();
 
             // 四透明度分离：消息区 / 标签页 / 输入框。
-            // !!! 背景透明度移除：窗口背景永远透明 0（NativeBackground 改为素材开关）。
+            // 背景透明度移除：窗口背景永远透明 0（NativeBackground 改为素材开关）。
             // PopOut 统一跟随（独立透明度已移除）
             ImGuiUtil.DragFloatVertical(Language.Options_MessageAlpha_Name, Language.Options_MessageAlpha_Description, ref Mutable.WindowAlpha, .25f, 0f, 100f, $"{Mutable.WindowAlpha:N2}%%", ImGuiSliderFlags.AlwaysClamp);
             ImGui.Spacing();
@@ -88,7 +88,7 @@ public sealed class ChatLogConfig : ISettingsTab
                 ImGui.Spacing();
             }
 
-            // !!! 仿原生界面（NativeBackground）下标签页用三段式贴图，透明度由素材自带，
+            // 仿原生界面（NativeBackground）下标签页用三段式贴图，透明度由素材自带，
             // TabAlpha 无效 → 隐藏设置项
             if (!Mutable.NativeBackground)
             {

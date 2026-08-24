@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using System.Text;
 using ChatTwo.Code;
 using ChatTwo.GameFunctions.Types;
@@ -49,7 +49,7 @@ public static class ImGuiUtil
         var payload = chunk.Link;
         if (payload != null)
         {
-            // !!! 链接 hover 用手动矩形检测（GetItemRectMin/Max + 鼠标坐标）——
+            // 链接 hover 用手动矩形检测（GetItemRectMin/Max + 鼠标坐标）——
             // ImGui 文本 item（TextUnformatted）不设置 HoveredId，IsItemHovered 恒 false，
             // 导致链接高亮 + 手指光标从未触发；矩形检测后两者都恢复。
             var mp = ImGui.GetIO().MousePos;
@@ -117,7 +117,7 @@ public static class ImGuiUtil
 
     /// <summary>在指定位置画 8 方向 0.5px 半透明黑色文字（描边底层）。0.5px 为实用下限，再小会模糊。
     /// 半透明灰（0x80000000）更接近 FFXIV Axis 原生观感（柔和灰而非纯黑）。
-    /// !!! 8 方向描边；4 方向视觉较差。</summary>
+    /// 8 方向描边；4 方向视觉较差。</summary>
     private static void DrawOutline(Vector2 pos, string text)
     {
         var font = ImGui.GetFont();
@@ -137,7 +137,7 @@ public static class ImGuiUtil
 
     public static unsafe void WrapText(string csText, Chunk chunk, PayloadHandler? handler, Vector4 defaultText, float lineWidth, float letterSpacing = 0f)
     {
-        // !!! 正文字间距：非零且是消息内容时走自绘逐字符路径。
+        // 正文字间距：非零且是消息内容时走自绘逐字符路径。
         // 换行/描边/点击命中/选字全部按间距补偿；时间戳与发送者名不受影响（调用方只给 Content 传间距）。
         if (letterSpacing != 0f && chunk.Source == ChunkSource.Content)
         {
@@ -233,13 +233,23 @@ public static class ImGuiUtil
                     continue;
 
                 var firstSpace = FindFirstSpace(text, textEnd);
-                // !!! 修复：无空格文本（纯 CJK/连续字符）视为"按字符断行"。
-                // 原版 firstSpace == textEnd（整个文本是一个"词"）时，若文本 ≤ 整行宽度但 > 当前
-                // 剩余宽度（如 Sender 占宽后画 Content），会误判"词放不下整行 → 空一行再画"，
-                // 导致"第一行空、全部内容挤到第二行"。中文没有空格分词，应直接按
-                // 字符断行（properBreak=true → 正常 Text + while 推进），不触发空行分支。
-                var properBreak = firstSpace <= endPrevLine || firstSpace == textEnd;
-                if (properBreak)
+                // properBreak=true：直接按字符断行（正常显示本行，再推进到下一行）。
+                // properBreak=false：英文"整词放不下 → 先空一行再把词放第二行"逻辑。
+                // 触发 properBreak=true 的场景：
+                // 1) 空格在本行剩余宽度内（firstSpace <= endPrevLine）→ 正常断在空格后
+                // 2) 文本没有空格（firstSpace == textEnd，纯 CJK/连续长串）→ 之前已修复
+                // 3) （新增）空格前的前缀 [text..firstSpace) 内含有 CJK 字符 → 这是"中文 +
+                // 空格 + 后续中文"的场景，不应套用英文整词前移策略，否则会把中文字
+                // （如"没有"）当作短词判定为"整词 ≤ 整行宽度 → 先空一行"，出现
+                // "没有 发现刚刚..."这种"从空格处空一行再显示"的 Bug。
+                var properBreak = firstSpace <= endPrevLine
+                                  || firstSpace == textEnd
+                                  || (firstSpace > text && ContainsCjk(text, firstSpace));
+                // 块修正：断点在不可断块内（含 CJK/数字的空格两侧）且块放得下 → 断点移到块结束（整块显示，不拆）
+                var blockEnd = FindBlockEnd(text, textEnd);
+                if (endPrevLine < blockEnd && MeasureClusterWidth(text, blockEnd, 0f) <= widthLeft)
+                    endPrevLine = blockEnd;
+                if (properBreak && endPrevLine > text)
                 {
                     Text(text, endPrevLine);
                 }
@@ -271,6 +281,10 @@ public static class ImGuiUtil
                         ++text;
 
                     var newEnd = ImGuiNative.CalcWordWrapPositionA(ImGui.GetFont().Handle, ImGuiHelpers.GlobalScale, text, textEnd, widthLeft);
+                    // 块修正（同初始）：断点在不可断块内且块放得下 → 断点移到块结束
+                    var blockEnd2 = FindBlockEnd(text, textEnd);
+                    if (newEnd < blockEnd2 && MeasureClusterWidth(text, blockEnd2, 0f) <= widthLeft)
+                        newEnd = blockEnd2;
                     if (properBreak && newEnd == endPrevLine)
                         break;
 
@@ -301,6 +315,44 @@ public static class ImGuiUtil
                 return i;
 
         return textEnd;
+    }
+
+    /// <summary>
+    /// 判断 [start, end) 字节段内是否含 CJK 中日韩字符（含扩展 A/B、假名、谚文、
+    /// CJK 符号标点、全角 ASCII）。用于区分"空格是英文分词符"还是"中文中的分隔
+    /// 空格"——后者不应触发英文的"整词放不下 → 整词提前换行"策略，否则会出现
+    /// "没有 发现刚刚..."这种中文字后紧跟空格时，从空格开始空一行再显示的 Bug。
+    /// </summary>
+    private static unsafe bool ContainsCjk(byte* start, byte* end)
+    {
+        var p = start;
+        while (p < end)
+        {
+            var len = Utf8CharLen(p, end);
+            var ch = Encoding.UTF8.GetString(p, len);
+            if (ch.Length > 0)
+            {
+                var c = ch[0];
+                // 常用 CJK 统一汉字 + 扩展 A
+                if (c >= '\u4E00' && c <= '\u9FFF') return true;
+                if (c >= '\u3400' && c <= '\u4DBF') return true;
+                // 假名 + CJK 标点符号 + 全角 ASCII
+                if (c >= '\u3000' && c <= '\u303F') return true;
+                if (c >= '\u3040' && c <= '\u309F') return true;
+                if (c >= '\u30A0' && c <= '\u30FF') return true;
+                if (c >= '\uFF00' && c <= '\uFFEF') return true;
+                // 谚文
+                if (c >= '\uAC00' && c <= '\uD7AF') return true;
+                // 代理对（CJK 扩展 B/C/D 等，位于 U+20000 以上）
+                if (ch.Length >= 2 && char.IsHighSurrogate(c) && char.IsLowSurrogate(ch[1]))
+                {
+                    var cp = char.ConvertToUtf32(ch, 0);
+                    if (cp >= 0x20000 && cp <= 0x3134F) return true;
+                }
+            }
+            p += len;
+        }
+        return false;
     }
 
     // 正文字间距（自绘逐字符路径，仅 Content chunk 且间距非零时启用）
@@ -360,72 +412,72 @@ public static class ImGuiUtil
         }
     }
 
-    /// <summary>按 (字宽+间距) 累计找断行点：优先断在最后一个可容纳的空格后；否则按字符断行（至少推进 1 字符）。
-    /// 颜文字簇（(...) 包裹的短序列）整体测量，放不下整簇换行不拆开。</summary>
+    /// <summary>按块断行：块 = 到第一个可断空格为止（块内含 CJK/数字的不可断空格、颜文字、数字对整体不拆）。
+    /// 块整体测量，放不下断在块前（保底推进 1 字符）；可断空格单独吃下，放不下断在空格前。</summary>
     private static unsafe byte* FindBreakSpaced(byte* text, byte* textEnd, float maxWidth, float spacing)
     {
         var p = text;
         var w = 0f;
-        byte* lastSpace = null;   // 位置 = 最后一个可容纳的空格之后（含尾随空格在行尾）
         while (p < textEnd)
         {
-            var chLen = Utf8CharLen(p, textEnd);
-            var chStr = Utf8CharString(p, chLen);
-
-            // 颜文字簇保护：扫描到 (起始的短序列时整体测量，放不下 → 断在簇前（整簇换行）
-            var clusterEnd = FindKaomojiClusterAt(p, textEnd);
-            if (clusterEnd != null)
+            var blockEnd = FindBlockEnd(p, textEnd);
+            if (blockEnd > p)
             {
-                var clusterWidth = MeasureClusterWidth(p, clusterEnd, spacing);
-                if (w + clusterWidth > maxWidth)
-                    return p == text ? text + Utf8CharLen(text, textEnd) : p;  // 断在簇前，保底推进
-                w += clusterWidth;
-                p = clusterEnd;
+                var blockWidth = MeasureClusterWidth(p, blockEnd, spacing);
+                if (w + blockWidth > maxWidth)
+                    return p == text ? text + Utf8CharLen(text, textEnd) : p;  // 断在块前，保底推进
+                w += blockWidth;
+                p = blockEnd;
                 continue;
             }
-
-            var cw = ImGui.CalcTextSize(chStr).X;
-            if (w + cw > maxWidth)
-                break;
-            w += cw + spacing;
-            p += chLen;
-            if (chStr == " ")
-                lastSpace = p;
+            // p 处是可断空格：吃下（词间空格），放不下断行
+            var spaceW = ImGui.CalcTextSize(" ").X + spacing;
+            if (w + spaceW > maxWidth)
+                return p;
+            w += spaceW;
+            p += 1;
         }
-
-        if (lastSpace != null && lastSpace < textEnd)
-            return lastSpace;
-
-        // 无空格（纯 CJK/超长单字符）：按字符断行；保证至少推进一个字符
-        if (p == text)
-            p = text + Utf8CharLen(text, textEnd);
         return p;
     }
 
-    /// <summary>若 p 处是半角 (起始的颜文字簇（(...) 包裹、≤ 12 字符），返回簇结束指针；否则 null。</summary>
-    private static unsafe byte* FindKaomojiClusterAt(byte* p, byte* textEnd)
+    /// <summary>空格是否可断：两侧都是 ASCII 字母/标点才可断；任一侧数字或非 ASCII（CJK/emoji）→ 不可断（词对整体）。</summary>
+    private static unsafe bool IsBreakableSpace(byte* text, byte* spacePos, byte* textEnd)
     {
-        if (p >= textEnd || *p != (byte)'(')
-            return null;
-
-        var scan = p + 1;
-        var chars = 1;
-        while (scan < textEnd)
+        var prev = spacePos - 1;
+        if (prev >= text)
         {
-            var len = Utf8CharLen(scan, textEnd);
-            var ch = Utf8CharString(scan, len);
-            if (ch == ")")
-                return chars + 1 <= 12 ? scan + len : null;
-
-            chars++;
-            if (chars > 12)
-                return null;   // 过长，不是颜文字
-            scan += len;
+            var b = *prev;
+            if (b >= (byte)'0' && b <= (byte)'9')
+                return false;
+            if (b >= 0x80)
+                return false;
         }
-        return null;           // 无闭合括号
+        var next = spacePos + 1;
+        if (next < textEnd)
+        {
+            var b = *next;
+            if (b >= (byte)'0' && b <= (byte)'9')
+                return false;
+            if (b >= 0x80)
+                return false;
+        }
+        return true;
     }
 
-    /// <summary>测量 [start, end) 的累计宽度（含间距）。</summary>
+    /// <summary>从 text 扫描到第一个可断空格（或行尾）：块结束位置。块内不可断空格/颜文字/数字对整体。</summary>
+    private static unsafe byte* FindBlockEnd(byte* text, byte* textEnd)
+    {
+        var p = text;
+        while (p < textEnd)
+        {
+            if (*p == ' ' && IsBreakableSpace(text, p, textEnd))
+                return p;
+            p += Utf8CharLen(p, textEnd);
+        }
+        return textEnd;
+    }
+
+    /// <summary>累计簇宽度（含每字符间距）。</summary>
     private static unsafe float MeasureClusterWidth(byte* start, byte* end, float spacing)
     {
         var w = 0f;
@@ -434,7 +486,7 @@ public static class ImGuiUtil
         return w;
     }
 
-    /// <summary>逐字符绘制一行（8 方向描边 + 正文，间距推进），Dummy 注册 item，随后处理 payload 点击/选字/hover 高亮。</summary>
+    /// <summary>逐字符绘制一行：描边+正文+Dummy 注册，处理 payload 点击/选字/hover。</summary>
     private static unsafe void DrawLineSpaced(byte* text, byte* textEnd, Chunk chunk, PayloadHandler? handler, Vector4 defaultText, float spacing)
     {
         var font = ImGui.GetFont();
@@ -576,7 +628,7 @@ public static class ImGuiUtil
         BtnSfx sfx = BtnSfx.Open)
     {
         // 资源未到位：用 FontAwesome 兜底，保证布局不变（FontAwesome 路径不播声音，保持原行为）
-        // !!! 大工程：NativeBackground=false（非原生模式）→ 强制 FontAwesome 素材
+        // 大工程：NativeBackground=false（非原生模式）→ 强制 FontAwesome 素材
         if (wrap == null || !Plugin.Config.NativeBackground)
             return IconButton(fallbackIcon, id, tooltip, Plugin.FontManager.FontAwesomeSmall);
 
@@ -587,17 +639,17 @@ public static class ImGuiUtil
         var dl = ImGui.GetWindowDrawList();
 
         // 状态反馈（无方形底框）：按下下沉 1px；hover/按下"亮起"用半透明白雾叠加在图标区域。
-        // !!! 修复：原实现 tint=1.25/1.15 + ColorConvertFloat4ToU32——ImU32 每通道仅 8bit，
+        // =1.25/1.15 + ColorConvertFloat4ToU32——ImU32 每通道仅 8bit，
         // 1.25×255=318 被钳制回 255(=1.0) → hover/active 从未生效。
         var hovered = ImGui.IsItemHovered();
         var active = ImGui.IsItemActive();
         float pressOffset = active ? 1f : 0f;
-        // !!! 可点击元素 hover → 帧末切游戏手指光标（Plugin.UpdateCursorDecision）
+        // 可点击元素 hover → 帧末切游戏手指光标（Plugin.UpdateCursorDecision）
         if (hovered)
             Plugin.AnyInteractiveHovered = true;
 
         // 图标绘制区：保持宽高比（contain）居中，不拉伸。
-        // !!! 修复：之前直接拉伸到整个按钮 → 宽>高的符号（如放大镜 21x32）
+        // 到整个按钮 → 宽>高的符号（如放大镜 21x32）
         // 被横向压扁。改为按 wrap 原始宽高比等比缩放居中。
         var avail = max - min;
         var texSize = wrap.Size;  // 原始纹理尺寸
@@ -629,7 +681,7 @@ public static class ImGuiUtil
     public static bool OptionCheckbox(ref bool value, string label, string? description = null)
     {
         var ret = ImGui.Checkbox(label, ref value);
-        // !!! 说明悬浮在选项本身上（勾选框/文字），无独立 ? 标记
+        // 说明悬浮在选项本身上（勾选框/文字），无独立 ? 标记
         if (!string.IsNullOrEmpty(description) && ImGui.IsItemHovered())
             Tooltip(description);
 
@@ -683,11 +735,11 @@ public static class ImGuiUtil
     {
         ImGui.TextUnformatted(label);
         if (!string.IsNullOrEmpty(description) && ImGui.IsItemHovered())
-            Tooltip(description);   // 悬浮标签名
+            Tooltip(description);
         ImGui.SetNextItemWidth(-1);
         var r = ImGui.DragFloat($"##{label}", ref value, vSpeed, vMin, vMax, format, flags);
         if (!string.IsNullOrEmpty(description) && ImGui.IsItemHovered())
-            Tooltip(description);   // 悬浮滑条本身
+            Tooltip(description);
 
         return r;
     }
@@ -696,11 +748,11 @@ public static class ImGuiUtil
     {
         ImGui.TextUnformatted(label);
         if (!string.IsNullOrEmpty(description) && ImGui.IsItemHovered())
-            Tooltip(description);   // 悬浮标签名
+            Tooltip(description);
         ImGui.SetNextItemWidth(-1);
         var r = ImGui.InputInt($"##{label}", ref value, step, stepFast, flags: flags);
         if (!string.IsNullOrEmpty(description) && ImGui.IsItemHovered())
-            Tooltip(description);   // 悬浮输入框本身
+            Tooltip(description);
 
         return r;
     }
@@ -749,7 +801,7 @@ public static class ImGuiUtil
         if (!combo.Success)
             return;
 
-        // 每 2pt 一级（8~48），去掉 Axis 字体特有的零散数值（9.6/18.4/23/34 等）
+        // 字号 8~48pt 每 2pt 一级（规整化，去除 Axis 零散小数）。
         for (var size = 8f; size <= 48f; size += 2f)
             if (ImGui.Selectable($"{size:###.##}pt", currentSize.Equals(size)))
                 currentSize = size;
@@ -942,7 +994,7 @@ public static class ImGuiUtil
         if (!channelNode.Success)
             return;
 
-        // !!! 说明悬浮在标题上（如"计入未读的频道"），hover 标题即显示，不占版面
+        // 说明悬浮在标题上（如"计入未读的频道"），hover 标题即显示，不占版面
         if (tooltip != null && ImGui.IsItemHovered())
             Tooltip(tooltip);
 

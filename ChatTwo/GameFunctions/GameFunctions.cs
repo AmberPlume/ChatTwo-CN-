@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Runtime.InteropServices;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Text.SeStringHandling;
@@ -112,7 +112,7 @@ public unsafe class GameFunctions : IDisposable
     // ChatTwo 的 FrameworkUpdate 每帧隐藏 ChatLog（SetAddonInteractable(name,false)），
     // 二级菜单展开时主菜单自动关闭 → ContextMenuActive=false → 下帧 ChatLog 被隐藏
     // → 游戏检测 OwnerAddon 不可见 → 立即 Hide AddonContextSub。
-    // 修复：二级菜单展开期间，ChatLog 保持 IsVisible=true 但移到屏幕外（游戏看到"可见"
+    // ，ChatLog 保持 IsVisible=true 但移到屏幕外（游戏看到"可见"
     // 通过检查，看不到任何闪现）；二级菜单关闭后恢复原位并交还正常隐藏逻辑。
     private static bool _chatOffscreen;
     private static short _chatSavedX;
@@ -194,7 +194,7 @@ public unsafe class GameFunctions : IDisposable
 
         // Skips early return
         atkStage->TooltipManager.TooltipType |= 2;
-        // !!! 提示框位置由 ChatLog.Tooltip 的 SetPosDetour/MoveTooltip（智能放置：避开聊天框）控制。
+        // 由 ChatLog.Tooltip 的 SetPosDetour/MoveTooltip（智能放置：避开聊天框）控制。
         // 此处还原为原版 addon->Show(false, 15)，不再做"打开时定位"。
         addon->Show(false, 15);
     }

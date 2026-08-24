@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using ChatTwo.Resources;
 using ChatTwo.Ui.SettingsTabs;
 using ChatTwo.Util;
@@ -39,7 +39,7 @@ public sealed class SettingsWindow : Window
             new ChatColours(Plugin, Mutable),
             new Tabs(Plugin, Mutable),
             new Database(Plugin, Mutable),
-            new Experimental(Mutable),   // !!! 实验功能设置页（菜单跟随鼠标开关等）
+            new Experimental(Mutable),   // 设置页（菜单跟随鼠标开关等）
         // 偏好页已删除：语言/命令帮助方向/热键模式选项已移除（频道切换策略固定"灵活"，见 Plugin.cs）
         // 字体页已合并到显示页
         ];
@@ -169,7 +169,7 @@ public sealed class SettingsWindow : Window
                           || Mutable.JapaneseFontV2.FontId.EnglishName != Plugin.Config.JapaneseFontV2.FontId.EnglishName
                           || Mutable.FontsEnabled != Plugin.Config.FontsEnabled;
 
-        // !!! 消息重载条件化：只有影响消息内容/过滤/布局的设置变化才清空重载
+        // 条件化：只有影响消息内容/过滤/布局的设置变化才清空重载
         //（字体变化→消息高度缓存失效必须重算；语言/会话范围/定型文排序→文本内容变化）。
         // 纯视觉设置（透明度/颜色/开关/缩放等）跳过 → 保存瞬间无加载感。
         var messagesNeedReload = fontSizeChanged

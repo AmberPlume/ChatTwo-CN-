@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using ChatTwo.Code;
 using ChatTwo.Util;
 using Dalamud.Bindings.ImGui;
@@ -87,8 +87,7 @@ public class ChunkHandler
         // Check for contains here as sometimes there are multiple
         // TextChunks with the same PlayerPayload but only one has the name.
         // E.g. party chat with cross world players adds extra chunks.
-        //
-        // Note: This has been null before, I'm guessing due to some issues with
+        // // Note: This has been null before, I'm guessing due to some issues with
         // other plugins. New TextChunks will now enforce empty string in ctor,
         // but old ones may still be null.
         // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
@@ -103,7 +102,7 @@ public class ChunkHandler
 
         if (wrap)
         {
-            // !!! 正文字间距：只给消息内容（Content）传间距，时间戳/发送者名保持原样
+            // 正文字间距：只给消息内容（Content）传间距，时间戳/发送者名保持原样
             var letterSpacing = chunk.Source == ChunkSource.Content
                 ? Plugin.Config.MessageLetterSpacing * ImGuiHelpers.GlobalScale
                 : 0f;

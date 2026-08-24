@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 
 namespace ChatTwo.Util;
 
@@ -31,7 +31,6 @@ public static class MathUtil
             => $"X: {X} Y: {Y} Width: {Width} Height: {Height}";
     }
 
-    // From: https://stackoverflow.com/a/306379
     /// <summary>
     /// Checks if two rectangles overlap at any point.
     /// </summary>

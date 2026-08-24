@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Text.Json.Serialization;
 using ChatTwo.Code;
 using ChatTwo.GameFunctions.Types;
@@ -48,7 +48,7 @@ public class Configuration : IPluginConfiguration
     public HashSet<Guid> InactivityHideExtraChatChannels = [];
     public bool ShowHideButton = true;
     public bool NativeItemTooltips = true;
-    // !!! 清理：原作者"现代化布局"（PrettierTimestamps 表格渲染 / MoreCompactPretty）
+    // 清理：原作者"现代化布局"（PrettierTimestamps 表格渲染 / MoreCompactPretty）
     // 已移除，时间戳统一走 DrawTimestampInline 行内渲染；HideSameTimestamps 已回归为
     // MergeSameTimestamps（合并相同时间，见 DrawMessages）
     public bool ShowNoviceNetwork = true; // ：锁定开启（不再显示在设置中）
@@ -59,7 +59,7 @@ public class Configuration : IPluginConfiguration
     public LanguageOverride LanguageOverride = LanguageOverride.None;
     public bool CanResize = true;
     public bool ShowTitleBar;
-    public bool ShowPopOutTitleBar; // ：关闭（不再显示在设置中）
+    public bool ShowPopOutTitleBar; // 锁定关闭，不出现在设置界面
     /// <summary>
     /// 对话历史数据库存放的文件夹路径。空 = 默认（ConfigDirectory）。
     /// </summary>
@@ -225,7 +225,7 @@ public class Configuration : IPluginConfiguration
     // Migration safety
     public MigrationStatus MigrationStatus = MigrationStatus.NotStarted;
 
-    // !!! 实验功能设置页：菜单位置模式开关。
+    // 设置页：菜单位置模式开关。
     // true（默认）= 菜单跟随鼠标（游戏原生跟手，当前方案）；false = 聊天框右侧固定（旧逻辑备份）。
     // 实验性功能：跟随鼠标时菜单可能压在聊天框内，挖洞预算不足时可能出现文字进入菜单/圆角降级/边缘字符消失。
     public bool ExperimentalMenuFollowMouse = true;
@@ -313,7 +313,7 @@ public class Configuration : IPluginConfiguration
         UnreadNotifyMode = other.UnreadNotifyMode;
         MoveLocked = other.MoveLocked;
         ChatColours = other.ChatColours.ToDictionary(entry => entry.Key, entry => entry.Value);
-        // !!! Clone 不拷贝 Messages（内存消息列表，非配置字段）——若直接替换列表，
+        // Clone 不拷贝 Messages（内存消息列表，非配置字段）——若直接替换列表，
         // 每次保存（UpdateFrom）都会把消息区清空（旧 Tab 的 Messages 全丢，只有
         // 重载插件/新消息才能恢复）。按 Identifier 从旧列表转移 Messages 引用。
         var oldTabs = Tabs;
@@ -486,7 +486,7 @@ public class Tab
         if (!unread)
             return;
 
-        // !!! 未读消息设置（全局过滤，见"消息设置"页顶部"未读消息设置"区）：
+        // 未读消息设置（全局过滤，见"消息设置"页顶部"未读消息设置"区）：
         // ① 标签页维度：本标签页被取消勾选 → 不计未读
         // ② 频道维度：UnreadChannels 为空 = 全部频道；非空 = 仅选中频道（含来源/目标细分）
         if (!UnreadEnabled)

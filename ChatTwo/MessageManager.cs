@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using ChatTwo.Code;
@@ -30,8 +30,7 @@ public class MessageManager : IAsyncDisposable
     // Messages go into the PendingSync queue first, which will be consumed one
     // at a time in the main thread. This is to delay the async processing until
     // after we've received the content ID from the ContentIdResolver hook.
-    //
-    // After that, the message is enqueued in the PendingAsync queue, which will
+    // // After that, the message is enqueued in the PendingAsync queue, which will
     // be consumed in a separate thread and perform more processing (emotes,
     // URLs) as well as inserting the message into the database.
     private Queue<PendingMessage> PendingSync { get; } = [];

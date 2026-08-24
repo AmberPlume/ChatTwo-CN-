@@ -76,7 +76,7 @@ public class SendHandler
 
                     var reason = target.Reason;
                     var world = Sheets.WorldSheet.GetRow(target.World);
-                    // !!! 原来用 IsPublic 判断：CN 世界行 IsPublic=false 会导致悄悄话被静默丢弃。
+                    // 原来用 IsPublic 判断：CN 世界行 IsPublic=false 会导致悄悄话被静默丢弃。
                     // 意图只是"世界有效"，改用 RowId > 0 判断
                     if (world is { RowId: > 0 })
                     {

@@ -1,4 +1,4 @@
-using ChatTwo.Resources;
+﻿using ChatTwo.Resources;
 using ChatTwo.Util;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Bindings.ImGui;
@@ -51,7 +51,7 @@ public sealed class Display : ISettingsTab
         ImGui.Spacing();
 
         // 标签页位置：仿原生窗口（NativeBackground）下固定底部（三段式贴图只支持底部），选项置灰。
-        // !!! Disabled 必须限制在块级作用域——用 using var 会延到方法末尾，把下面所有设置项一起置灰
+        // Disabled 必须限制在块级作用域——用 using var 会延到方法末尾，把下面所有设置项一起置灰
         using (ImRaii.Disabled(Mutable.NativeBackground))
         {
             using (var tabCombo = ImGuiUtil.BeginComboVertical(Language.Options_TabPosition_Name, Mutable.TabPosition.Name()))
@@ -106,7 +106,7 @@ public sealed class Display : ISettingsTab
         ImGui.Separator();
         ImGui.Spacing();
 
-        // 字体相关设置已拆分到独立"字体设置"页
+// 字体设置 → 独立字体设置页
 
         ImGui.Spacing();
 
@@ -139,7 +139,7 @@ public sealed class Display : ISettingsTab
                     ? "已从原版 Chat Two 迁移设置。"
                     : "设置已迁移。聊天历史将在重启游戏后自动导入。");
 
-            // 补救入口（防重复仍有效：重新迁移需二次确认；取消待导入用于放弃失败重试）
+// 重新迁移二次确认；取消待导入用于放弃失败重试
             if (ImGui.Button("重新迁移"))
                 ImGui.OpenPopup("chat2-re-migrate");
             if (!string.IsNullOrEmpty(pending))

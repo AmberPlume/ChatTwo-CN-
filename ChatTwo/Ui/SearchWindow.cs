@@ -65,7 +65,7 @@ public class SearchWindow : Window
     private string ChannelTabName = "";   // 频道来源 Tab 名（右键选择，空=当前 Tab）
     private DateTime BrowseDate = DateTime.Today;
     private DateTime CalendarMonth = DateTime.Today;
-    // !!! 锁按钮移除，MoveLocked 从设置页读取（Config.MoveLocked）
+    // 锁按钮移除，MoveLocked 从设置页读取（Config.MoveLocked）
     private bool MoveLocked => Plugin.Config.MoveLocked;
 
     // 消息区屏幕矩形（上一帧 DrawMessageLog 回调记录，本窗口自己的——不污染 ChatLog 字段）
@@ -127,10 +127,10 @@ public class SearchWindow : Window
         Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar
               | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoFocusOnAppearing
               | ImGuiWindowFlags.NoResize;
-        BgAlpha = 0f; // !!! float? null=不透明，必须显式 0
+        BgAlpha = 0f; // float? null=不透明，必须显式 0
 
 
-        // !!! 消息区任何情况下都不可拖（不依赖锁定开关），
+        // 消息区任何情况下都不可拖（不依赖锁定开关），
         // 未锁定时其余区域可拖；锁定时整个窗口锁死。缩放手柄的 NoMove 由下方 CanResize 分支处理。
         if (IsMouseOverMessageArea() || MoveLocked)
             Flags |= ImGuiWindowFlags.NoMove;
@@ -140,7 +140,7 @@ public class SearchWindow : Window
         if (Plugin.Config.CanResize)
         {
             var st = ImGui.GetStyle();
-            var hSize = NativeIcons.ResizeHandleSize();  // !!! 原生手柄素材尺寸
+            var hSize = NativeIcons.ResizeHandleSize();  // 原生手柄素材尺寸
             var insetX = NativeIcons.ResizeHandleInsetX(Plugin.Config.NativeBackground);
             var insetY = NativeIcons.ResizeHandleInsetY(Plugin.Config.NativeBackground);
             var areaMin = MsgAreaMax.X > 0f ? MsgAreaMin : ImGui.GetWindowPos();
@@ -174,10 +174,10 @@ public class SearchWindow : Window
 
     public override void Draw()
     {
-        // !!! 鼠标在聊天窗口内 → 帧末光标决策（保持游戏指针；按钮/tab 上手指）
+        // 鼠标在聊天窗口内 → 帧末光标决策（保持游戏指针；按钮/tab 上手指）
         Plugin.MarkCursorInChatWindow();
 
-        // !!! 布局重构：顶栏完全移除（原 DrawCornerControls 状态行沉底
+        // ：顶栏完全移除（原 DrawCornerControls 状态行沉底
         // 到 DrawStatusRow）；缩放手柄从窗口右上角移到消息区右上角。顶部只留消息区。
 
         // 消息区高度 = 剩余高度 - 底部搜索栏 - 底部状态行
@@ -312,7 +312,7 @@ public class SearchWindow : Window
         var btnW = ImGuiUtil.CalcIconButtonSize().X;
         var avail = ImGui.GetContentRegionAvail().X;
 
-        // !!! 统一主窗口输入行逻辑：
+        // 统一主窗口输入行逻辑：
         // 搜索框 = 输入框大小（InputFont + FramePadding.Y=0 → 高度 = FontSize）；
         // 频道按钮 + [搜索][玩家][日期]× = 输入框旁边按钮逻辑（FontAwesomeSmall 高度，垂直居中于搜索框行）
         float searchBoxHeight;
@@ -324,9 +324,9 @@ public class SearchWindow : Window
         var rowTop = ImGui.GetCursorPosY();
         var iconTop = rowTop + (searchBoxHeight - iconButtonHeight) / 2f;
 
-        // !!! 布局模仿主窗口输入行（纯流式，从不出错）：
+        // 主窗口输入行（纯流式，从不出错）：
         // 先精确计算搜索框宽度（给所有按钮预留空间），再流式 SameLine 排布。
-        // !!! 删除 tab 旁的 ChevronDown 小箭头（无意义），tab 按钮自身即可弹选择。
+        // 删除 tab 旁的 ChevronDown 小箭头（无意义），tab 按钮自身即可弹选择。
         var tabText = ChannelTabName.Length > 0 ? ChannelTabName : "频道";
         var tabTextW = ImGui.CalcTextSize(tabText).X + ImGui.GetStyle().FramePadding.X * 2 + 14f;
         var tabTotalW = tabTextW;
@@ -363,7 +363,7 @@ public class SearchWindow : Window
 
         // [搜索] 搜索（不清 PlayerFilter：可与玩家筛选叠加）
         // 原生图标：新素材 icon_34；wrap 未加载时回退 Search FontAwesome。
-        // !!! 无按钮音（排除项"搜索按钮"——回车提交搜索时 InputText 也无声音，保持一致）
+        // 无按钮音（排除项"搜索按钮"——回车提交搜索时 InputText 也无声音，保持一致）
         ImGui.SameLine(0, spacing);
         ImGui.SetCursorPosY(iconTop);
         var searchClicked = ImGuiUtil.NativeIconButton(NativeIcons.SearchGo, "search-go", Language.Search_Go, FontAwesomeIcon.Search, sfx: ImGuiUtil.BtnSfx.None);
@@ -396,7 +396,7 @@ public class SearchWindow : Window
             Panel = calActive ? SidePanel.None : SidePanel.Calendar;
 
         // × 关闭（原生图标：新素材 icon_24 粗X；wrap 未加载时回退 Times）
-        // !!! SFX 25 关闭音（方案：关闭/重置筛选按钮统一 25）
+        // SFX 25 关闭音（方案：关闭/重置筛选按钮统一 25）
         ImGui.SameLine(0, spacing);
         ImGui.SetCursorPosY(iconTop);
         if (ImGuiUtil.NativeIconButton(NativeIcons.Close, "window-close", Language.Search_Close, FontAwesomeIcon.Times, sfx: ImGuiUtil.BtnSfx.Dismiss))
@@ -430,7 +430,7 @@ public class SearchWindow : Window
             }
         }
 
-        // !!! 滚轮接管（与 DrawChatLog 一致）：SearchWindow 不经过 DrawChatLog，
+        // （与 DrawChatLog 一致）：SearchWindow 不经过 DrawChatLog，
         // 而 DrawMessageLog 的 HandleWheelScrollLineByLine 只读 PendingWheel——
         // 不在此处记录滚轮并清零 IO，滚轮会被窗口的 NoScrollWithMouse 吞掉 → 无法滚动
         State.UserScrolled = false;
@@ -445,12 +445,12 @@ public class SearchWindow : Window
             }
         }
 
-        // !!! 手动滚动后取消"定位到目标"（避免抢滚动）
+        // 手动滚动后取消"定位到目标"（避免抢滚动）
         if (State.UserScrolled)
             PendingScrollTo = null;
 
         // 无限滚动（默认滚动模式）：滚轮向上 + 消息区已在顶部 → 加载上一天并合并。
-        // !!! 用 State.AtTop（滚轮消费处更新）而非 ImGui.GetScrollY——后者读的是外层
+        // 用 State.AtTop（滚轮消费处更新）而非 ImGui.GetScrollY——后者读的是外层
         // child（恒 0，真实滚动在内层 ##chat2-messages），曾导致检测失效。
         // 搜索模式（有搜索词）为全量快照，不参与无限滚动。
         if (!DateLocked && !IsLoading && SearchTerm.Length == 0
@@ -460,7 +460,7 @@ public class SearchWindow : Window
         Plugin.ChatLog.DrawMessageLog(DisplayTab, Plugin.ChatLog.InputHandler.PayloadHandler,
             ImGui.GetContentRegionAvail().Y, false, State, PendingScrollTo, onMessageClick: ShowContext,
             onMessageArea: (min, max) => { LastMessageAreaMin = min; LastMessageAreaMax = max; });
-        // !!! 不在此清空 PendingScrollTo：首帧消息刚注入、child 滚动范围未建立，
+        // 不在此清空 PendingScrollTo：首帧消息刚注入、child 滚动范围未建立，
         // SetScrollHereY 无效——若清空则永远定位不到。保留到定位成功或滚动/切换。
     }
 
@@ -471,7 +471,7 @@ public class SearchWindow : Window
     private void DrawSidePanel(float height)
     {
         var w = 220f * ImGuiHelpers.GlobalScale;
-        // !!! 背景与消息区统一：默认 Child 背景透明 → 面板"完全透明"。
+        // 消息区统一：默认 Child 背景透明 → 面板"完全透明"。
         // 与 ChatLog.DrawMessageLog 同款条件——NativeBackground（窗口透明）时 push WindowBg 色背景，
         // 非 Native 时透出窗口背景（行为完全一致）；透明度跟随 WindowAlpha 设置。
         var bgColor = SidePanelBgColor();
@@ -623,7 +623,7 @@ public class SearchWindow : Window
                     ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudOrange);
                     styleColor++;
                 }
-                // !!! 去按钮内边距：两位数日期（10~31）在窄列里被 FramePadding 挤掉
+                // 去按钮内边距：两位数日期（10~31）在窄列里被 FramePadding 挤掉
                 using var cellPad = ImRaii.PushStyle(ImGuiStyleVar.FramePadding, Vector2.Zero);
                 if (ImGui.Button(day.ToString(), new Vector2(-1, cellH)))
                 {
@@ -767,14 +767,14 @@ public class SearchWindow : Window
     }
 
     // 缩放手柄（消息区右上角，仿 PopOut）
-    // !!! 手柄从窗口右上角移到消息区右上角（锚点 = ##history-area 容器矩形）。
+    // 窗口右上角移到消息区右上角（锚点 = ##history-area 容器矩形）。
 
     private void DrawTopRightResizeHandle()
     {
         var windowPos = ImGui.GetWindowPos();
         var windowSize = ImGui.GetWindowSize();
         var style = ImGui.GetStyle();
-        var hSize = NativeIcons.ResizeHandleSize();  // !!! 原生手柄素材尺寸
+        var hSize = NativeIcons.ResizeHandleSize();  // 原生手柄素材尺寸
 
         // 锚点 = 消息区容器右上角（上一帧 DrawMessageArea 记录；窗口刚打开第一帧为 Zero 则退化到窗口）
         var areaMin = MsgAreaMax.X > 0f ? MsgAreaMin : windowPos;
@@ -818,7 +818,7 @@ public class SearchWindow : Window
                 IsResizingTopRight = false;
         }
 
-        // !!! 绘制已移至 PostDraw（前台 dl 置顶）；此处只保留 hit-test + resize 交互
+        // 至 PostDraw（前台 dl 置顶）；此处只保留 hit-test + resize 交互
     }
 
     // 工具
@@ -839,7 +839,7 @@ public class SearchWindow : Window
 
     private void StartLoad(Action loadAction)
     {
-        // !!! 版本号：IsLoading 时不 return（快速连续点击会导致后一次操作被忽略 → 消息区不更新）。
+        // IsLoading 时不 return（快速连续点击会导致后一次操作被忽略 → 消息区不更新）。
         // 只有最新一次加载能结束 IsLoading，旧任务结果被覆盖。
         var ver = ++LoadVersion;
         IsLoading = true;
@@ -862,7 +862,7 @@ public class SearchWindow : Window
         });
     }
 
-    // !!! 缩放手柄置顶（前台 dl；锚点 = 消息区矩形 MsgAreaMin/Max，与 DrawTopRightResizeHandle 一致）
+    // （前台 dl；锚点 = 消息区矩形 MsgAreaMin/Max，与 DrawTopRightResizeHandle 一致）
     public override void PostDraw()
     {
         if (!Plugin.Config.CanResize)

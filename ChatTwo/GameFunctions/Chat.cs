@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using ChatTwo.Code;
 using ChatTwo.GameFunctions.Types;
 using ChatTwo.Resources;
@@ -442,8 +442,7 @@ public sealed unsafe class Chat : IDisposable
     {
         // ExtraChat linkshells aren't supported in game so we never want to
         // call the ChangeChatChannel function with them.
-        //
-        // Callers should call ChatLogWindow.SetChannel which handles
+        // // Callers should call ChatLogWindow.SetChannel which handles
         // ExtraChat channels
         if (channel.IsExtraChatLinkshell())
             return;

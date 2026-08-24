@@ -1,4 +1,4 @@
-using ChatTwo.Code;
+﻿using ChatTwo.Code;
 using Dalamud.Plugin.Ipc;
 
 namespace ChatTwo.Ipc;
@@ -22,7 +22,7 @@ public sealed class TypingIpc : IDisposable
         StateQueryGate = Plugin.Interface.GetIpcProvider<ChatInputState>("ChatTwoCN.GetChatInputState");
         StateChangedGate = Plugin.Interface.GetIpcProvider<ChatInputState, object?>("ChatTwoCN.ChatInputStateChanged");
 
-        StateQueryGate.RegisterFunc(GetState);
+        StateQueryGate.RegisterFunc(BuildState);
     }
 
     private ChatInputState BuildState()

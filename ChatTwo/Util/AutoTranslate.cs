@@ -53,8 +53,7 @@ public static class AutoTranslate
     /// Preloads auto-translate entries into the cache for the current game
     /// language. Without this, the first message will take a long time to send
     /// (which causes a hitch in the main thread).
-    ///
-    /// This spawns a new thread.
+    /// /// This spawns a new thread.
     /// </summary>
     public static void PreloadCache()
     {

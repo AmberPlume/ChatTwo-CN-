@@ -141,8 +141,7 @@ public static class Tokenizer
     /// - https://sub.example.com
     /// - example.com
     /// - sub.example.com
-    ///
-    /// It matches URLs with www. or https:// prefix, and also matches URLs
+    /// /// It matches URLs with www. or https:// prefix, and also matches URLs
     /// without a prefix on specific TLDs.
     /// </summary>
     private static readonly Regex UrlRegex = new(

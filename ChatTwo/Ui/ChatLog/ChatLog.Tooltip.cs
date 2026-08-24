@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using ChatTwo.GameFunctions;
 using ChatTwo.Util;
 using Dalamud.Bindings.ImGui;
@@ -47,7 +47,7 @@ public partial class ChatLog
     {
         try
         {
-            // !!! 会话残留防护（诊断 [SubSession] 实锤）：ChatTwo 菜单关闭路径
+            // 会话残留防护（诊断 [SubSession] 实锤）：ChatTwo 菜单关闭路径
             // 不总是触发 MoveContextMenu 的 PreDraw（ContextMenu addon 可能被销毁），导致
             // ChatTwoMenuSession 残留 → 背包二级菜单误移。此处是所有菜单打开的必经点：
             // 非 ChatTwo 会话（ContextMenuActive=false）的菜单打开 → 强制复位会话标志。
@@ -68,7 +68,7 @@ public partial class ChatLog
         catch (Exception ex) { Plugin.Log.Debug($"[OpenAddonByAgent] error {ex.Message}"); }
         var result = _openAddonByAgentHook!.Original(module, addonName, valueCount, values, agent, a7, a8);
 
-        // !!! 注入完成（OnMenuOpened 已触发，DR 项已加）后立即清 BlockedParentId：
+        // 注入完成（OnMenuOpened 已触发，DR 项已加）后立即清 BlockedParentId：
         // 游戏对"阻塞父"的检查在菜单打开时立即执行（PreDraw 清零来不及，当帧闪没），
         // 必须在 Original 返回后、游戏后续检查前清成 0，否则隐藏的 ChatLog 持续阻塞菜单。
         // MoveContextMenu 的 PreDraw 清零保留作兜底。
@@ -115,7 +115,7 @@ public partial class ChatLog
                 var name = addon->NameString;
                 if (name == "ItemDetail" || name == "ActionDetail")
                 {
-                    // !!! 恒走智能放置：游戏每帧 SetPosition 覆盖 tooltip 位置（跟随鼠标），
+                    // 恒走智能放置：游戏每帧 SetPosition 覆盖 tooltip 位置（跟随鼠标），
                     // detour 把坐标替换为"避开聊天框"位置，当帧渲染即零闪帧。
                     if (TryComputeTooltipPos(addon, out var nx, out var ny))
                     {
@@ -269,7 +269,7 @@ public partial class ChatLog
             if (!Plugin.ContextMenuActive)
                 return;
 
-            // !!! 不调用 SetChatInteractable(true)：原生聊天框必须始终隐藏。
+            // SetChatInteractable(true)：原生聊天框必须始终隐藏。
             // bindToOwner 子菜单无需访问聊天框，隐藏状态下可正常打开。
 
             // 菜单来源判断：不再依赖 OwnerAddon（根治：ChatTwo 触发菜单时
@@ -287,13 +287,13 @@ public partial class ChatLog
                 // 重置激活状态，防止后续非聊天框触发的菜单被错误移动
                 Plugin.ContextMenuActive = false;
                 // 一级菜单关闭：若二级菜单（AddonContextSub）也不可见 → ChatTwo 会话结束。
-                // !!! 展开二级时一级也会被游戏 Hide，但此时二级可见 → 保留会话（不误清）。
+                // 展开二级时一级也会被游戏 Hide，但此时二级可见 → 保留会话（不误清）。
                 if (!IsAddonContextSubVisible())
                     Plugin.ChatTwoMenuSession = false;
                 return;
             }
 
-            // !!! OwnerAddon 时分复用：注入阶段（OnMenuOpened）由 PayloadHandler
+            // ：注入阶段（OnMenuOpened）由 PayloadHandler
             // 设为 ChatLog（DR/Allagan 靠 AddonName="ChatLog" 识别注入），此处（渲染阶段，注入已完成）
             // 每帧清零 → 点二级菜单时 OpenAddon 读到 owner=0 → 不绑定 ChatLog → 二级菜单正常显示。
             // 仅清 ChatLog 来源，不影响小队/背包等其他来源（那些来源 OwnerAddon 本就是其他 addon 或 0）。
@@ -305,7 +305,7 @@ public partial class ChatLog
             }
             catch (Exception ex) { Plugin.Log.Debug($"[NativeCtxMenu] owner-clear error {ex.Message}"); }
 
-            // !!! BlockedParentId 时分复用：OpenAddonByAgent detour 为 DR/Allagan
+            // BlockedParentId 时分复用：OpenAddonByAgent detour 为 DR/Allagan
             // 注入设 BlockedParentId=ChatLog（OnMenuOpened 的 AddonName 来源），但它同时是"阻塞父"
             // 字段——ChatLog 隐藏（ChatTwo 常态）会持续阻塞菜单 → 一级菜单闪没。
             // 此处（渲染阶段，注入已完成）清 0 → 显示期间不被阻塞。
@@ -316,7 +316,7 @@ public partial class ChatLog
             }
             catch (Exception ex) { Plugin.Log.Debug($"[NativeCtxMenu] blockedparent-clear error {ex.Message}"); }
 
-            // !!! 位置控制已移除（恢复游戏原生跟手）；点击穿透由 PreOpenCheck 的 NoMouseInputs 解决。
+            // 位置控制已移除（恢复游戏原生跟手）；点击穿透由 PreOpenCheck 的 NoMouseInputs 解决。
         }
         catch (Exception ex)
         {
@@ -327,7 +327,7 @@ public partial class ChatLog
 
     /// <summary>
     /// AddonContextSub（二级菜单）的 PreDraw/PostShow 回调，每帧执行。
-    /// !!! 不再控制二级菜单位置（恢复游戏原生跟手）。保留逻辑：OwnerAddon 清零——原生聊天框隐藏
+    /// 不再控制二级菜单位置（恢复游戏原生跟手）。保留逻辑：OwnerAddon 清零——原生聊天框隐藏
     /// （ChatTwo 常态）时游戏检查 owner(ChatLog) 可见性失败会关闭 AddonContextSub（闪一下消失）；
     /// 清零后游戏 owner 检查必读到 0。仅 ChatTwoMenuSession 期间执行，背包等原生场景不干预。
     /// 二级菜单是独立 addon（非 ContextMenu 子节点），展开时一级自动关闭。
@@ -336,7 +336,7 @@ public partial class ChatLog
     {
         try
         {
-            // !!! 仅 ChatTwo 触发的菜单会话才干预二级菜单（背包原生右键
+            // 仅 ChatTwo 触发的菜单会话才干预二级菜单（背包原生右键
             // 的二级菜单不该被处理）。ChatTwo 会话标志由 PayloadHandler 触发时置 true，一级菜单关闭
             // 且二级不可见时清 false（且 OpenAddonByAgent detour 对非 ChatTwo 会话强制复位，防残留）；
             // 背包等原生场景该标志恒 false → 二级菜单保持游戏原生位置（跟随一级菜单旁）。
@@ -348,13 +348,13 @@ public partial class ChatLog
                 return;
 
             // 检查菜单来源：仅聊天框触发的菜单才跟随位置。
-            // !!! ：ChatTwo 触发菜单时 OwnerAddon 恒为 0（最终方案，见 MEMORY.md），
+            // ：ChatTwo 触发菜单时 OwnerAddon 恒为 0（最终方案，见 MEMORY.md），
             // OwnerAddon 为 0（解绑态）或 ChatLog 都是聊天框来源 → 允许；其他来源（小队/背包）停止跟随。
             var agent = AgentContext.Instance();
             if (agent != null)
             {
                 var chatLogAddonId = GameFunctions.GameFunctions.GetChatLogAddonId();
-                // !!! 二级菜单显示期间清零 OwnerAddon。
+                // 二级菜单显示期间清零 OwnerAddon。
                 // 原生聊天框隐藏（ChatTwo 常态）会让游戏检查 owner(ChatLog) 可见性失败并关闭
                 // AddonContextSub —— 对 ChatTwo 自己以及 DR 等任何插件 OpenSubmenu 的二级菜单都生效。
                 // 本回调注册在 PostShow + PreDraw（每帧触发），清零后游戏后续 owner 检查必读到 0。
@@ -365,7 +365,7 @@ public partial class ChatLog
                     return;
             }
 
-            // !!! 二级菜单恢复游戏原生位置（跟随一级菜单展开）；上方 OwnerAddon 清零保留
+            // 二级菜单恢复游戏原生位置（跟随一级菜单展开）；上方 OwnerAddon 清零保留
             //（原生聊天框隐藏会让游戏 owner 检查失败关闭 AddonContextSub，清零后必读到 0）。
         }
         catch (Exception ex)

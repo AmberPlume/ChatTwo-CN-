@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using ChatTwo.Code;
 using ChatTwo.GameFunctions.Types;
 using ChatTwo.Resources;
@@ -119,10 +119,10 @@ public class Popout : Window, IChatWindow
         if (!Plugin.Config.ShowPopOutTitleBar)
             Flags |= ImGuiWindowFlags.NoTitleBar;
 
-        // !!! 消息区任何情况下都不可拖（不依赖锁定开关），
+        // 消息区任何情况下都不可拖（不依赖锁定开关），
         // NoMove 只禁窗口拖动、不影响文本选取；未锁定时其余区域可拖；
         // 打开"锁定窗口移动"后整个窗口锁死。
-        // !!! 矩形用 PopOut 自己的（不能读 Plugin.ChatLog 的——共享 DrawMessageLog，
+        // 矩形用 PopOut 自己的（不能读 Plugin.ChatLog 的——共享 DrawMessageLog，
         // 主窗口最后画会覆盖 PopOut 的矩形）。
         // MoveLocked 从设置页读取（Config.MoveLocked，锁按钮移除后改设置项）。
         if (IsMouseOverMessageAreaPublic() || Plugin.Config.MoveLocked)
@@ -136,7 +136,7 @@ public class Popout : Window, IChatWindow
             // 原生缩放手柄 hit-test（偏移与 DrawTopRightResizeHandle 绘制一致）：
             // 手柄上时阻止窗口移动（拖手柄 = 缩放，不拖动）
             var st = ImGui.GetStyle();
-            var hSize = NativeIcons.ResizeHandleSize();  // !!! 原生手柄素材尺寸
+            var hSize = NativeIcons.ResizeHandleSize();  // 原生手柄素材尺寸
             var insetX = NativeIcons.ResizeHandleInsetX(Plugin.Config.NativeBackground);
             var insetY = NativeIcons.ResizeHandleInsetY(Plugin.Config.NativeBackground);
             var handleMin = new Vector2(
@@ -153,13 +153,13 @@ public class Popout : Window, IChatWindow
         if (!Plugin.ChatLog.PopOutDocked[Idx])
         {
             // 背景透明度独立（BackgroundAlpha，四透明度之一）；PopOut 统一跟随主窗口。
-            // !!! 修复：BgAlpha 是可空 float?，null=不透明背景——必须显式 0（停靠时保持不透明）
+            // float?，null=不透明背景——必须显式 0（停靠时保持不透明）
             BgAlpha = 0f;
             // 仿原生：窗口整体透明（背景只画在消息区，与主窗口一致）
 
         }
 
-        // !!! [CtxClickPass] 菜单打开期间：PopOut 窗口也不捕获鼠标（NoMouseInputs）→
+        // [CtxClickPass] 菜单打开期间：PopOut 窗口也不捕获鼠标（NoMouseInputs）→
         // 与主窗口一致：菜单若在 PopOut 上打开，鼠标穿透到游戏原生菜单可点击。
         // （child 的 NoMouseInputs 由共享的 DrawMessageLog 内部逻辑覆盖，无需在此处理。）
         if (Plugin.ContextMenuActive || Plugin.ChatTwoMenuSession)
@@ -168,7 +168,7 @@ public class Popout : Window, IChatWindow
 
     public override void Draw()
     {
-        // !!! 鼠标在聊天窗口内 → 帧末光标决策（保持游戏指针；按钮/tab 上手指）
+        // 鼠标在聊天窗口内 → 帧末光标决策（保持游戏指针；按钮/tab 上手指）
         Plugin.MarkCursorInChatWindow();
 
         // 弹出的聊天窗口内容与主窗口一致：默认 Axis，选了自定义字体后改 RegularFont
@@ -178,7 +178,7 @@ public class Popout : Window, IChatWindow
         LastWindowSize = ImGui.GetWindowSize();
         LastWindowPos = ImGui.GetWindowPos();
 
-        // 滚轮接管（与主窗口一致）：记录滚轮值并清零 IO，消息区 child 手动按 1 行滚
+        // （与主窗口一致）：记录滚轮值并清零 IO，消息区 child 手动按 1 行滚
         MsgState.UserScrolled = false;
         if (ImGui.IsWindowHovered(ImGuiHoveredFlags.RootAndChildWindows))
         {
@@ -239,7 +239,7 @@ public class Popout : Window, IChatWindow
     // 底部 tab 栏高度（一行，与主窗口 tab 同尺寸基准）
     private float PopOutTabBarHeight()
     {
-        // !!! 原生模式：与主窗口 tab 高度一致（17px×scale×TabScale，拆分）
+        // 原生模式：与主窗口 tab 高度一致（17px×scale×TabScale，拆分）
         if (Plugin.Config.NativeBackground)
             return 17f * ImGuiHelpers.GlobalScale * Plugin.Config.TabScale;
 
@@ -251,10 +251,10 @@ public class Popout : Window, IChatWindow
         // 底部行：左下角 tab 名（像 tab 标签）+ 右侧 关闭 按钮。
         // 锁定按钮已移除（锁定改到设置页，且只锁消息区）。
         // 关闭是窗口级按钮，放此处两种模式（有无输入区）都可见。
-        // !!! 无 Separator：分割线会让 tab 行下移被底部截断
+        // 无 Separator：分割线会让 tab 行下移被底部截断
         private void DrawPopOutTabBar()
         {
-            // !!! 原生模式：tab 也用左帽+中段+右帽（与主窗口一致），关闭按钮换原生图片
+            // 原生模式：tab 也用左帽+中段+右帽（与主窗口一致），关闭按钮换原生图片
             if (Plugin.Config.NativeBackground)
             {
                 DrawPopOutTabBarNative();
@@ -289,7 +289,7 @@ public class Popout : Window, IChatWindow
             using var tabFont = Plugin.FontManager.TabFont.Push();
 
             var scale = ImGuiHelpers.GlobalScale;
-            var cfgTabScale = Plugin.Config.TabScale;  // !!! 标签页缩放与输入区缩放拆分
+            var cfgTabScale = Plugin.Config.TabScale;  // 标签页缩放与输入区缩放拆分
             var tabHeight = 17f * scale * cfgTabScale;
             var tabScale = tabHeight / 48f;  // 素材原始高 48px → 目标高度
             var capLeftSize = new Vector2(39f, 48f) * tabScale;
@@ -299,7 +299,7 @@ public class Popout : Window, IChatWindow
             var oneCharW = effectiveFontSize * 0.5f;   // 左右留白 = 半字（一个字母）
             var dl = ImGui.GetWindowDrawList();
             var tabTextColor = ImGui.GetColorU32(new Vector4(238f / 255f, 236f / 255f, 215f / 255f, 1f));
-            // !!! 完整行宽必须在画 tab 组装前取（GetContentRegionAvail 是"光标到右缘"的剩余量）
+            // 完整行宽必须在画 tab 组装前取（GetContentRegionAvail 是"光标到右缘"的剩余量）
             var availWidth = ImGui.GetContentRegionAvail().X;
 
             // 左帽：装饰
@@ -329,7 +329,7 @@ public class Popout : Window, IChatWindow
                     dl.AddRectFilled(glowMin, glowMax, ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.16f)), 3f);
                 }
                 // 文字（与主窗口同公式：AddText pos=顶，几何居中 + 右移 5px×scale×cfgTabScale）
-                // !!! v2：去掉 baseline 的 Ascent 项（版文字被压到 tab 下方）
+                // v2：去掉 baseline 的 Ascent 项（版文字被压到 tab 下方）
                 var activeFont = ImGui.GetFont();
                 var textSize = ImGui.CalcTextSize(Tab.Name);
                 var fontScale = effectiveFontSize / activeFont.FontSize;
@@ -369,7 +369,7 @@ public class Popout : Window, IChatWindow
         var windowPos = ImGui.GetWindowPos();
         var windowSize = ImGui.GetWindowSize();
         var style = ImGui.GetStyle();
-        var hSize = NativeIcons.ResizeHandleSize();  // !!! 原生手柄素材尺寸
+        var hSize = NativeIcons.ResizeHandleSize();  // 原生手柄素材尺寸
         var insetX = NativeIcons.ResizeHandleInsetX(Plugin.Config.NativeBackground);
         var insetY = NativeIcons.ResizeHandleInsetY(Plugin.Config.NativeBackground);
         var localPos = new Vector2(
@@ -385,7 +385,7 @@ public class Popout : Window, IChatWindow
         if (hovered || IsResizingTopRight)
             ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
 
-        // !!! 绘制已移至 PostDraw（前台 dl 置顶）；此处只保留 hit-test（否则出现双手柄）
+        // 至 PostDraw（前台 dl 置顶）；此处只保留 hit-test（否则出现双手柄）
     }
 
     public override void PostDraw()
@@ -395,7 +395,7 @@ public class Popout : Window, IChatWindow
         if (Plugin.Config is { OverrideStyle: true, ChosenStyle: not null })
             StyleModel.GetConfiguredStyles()?.FirstOrDefault(style => style.Name == Plugin.Config.ChosenStyle)?.Pop();
 
-        // !!! 缩放手柄置顶（前台 dl；!!! End 后 GetWindowPos 不可靠 → 用 LastWindowPos）
+        // （前台 dl；End 后 GetWindowPos 不可靠 → 用 LastWindowPos）
         if (Tab.CanResize)
         {
             var style = ImGui.GetStyle();
@@ -412,7 +412,7 @@ public class Popout : Window, IChatWindow
 
     public override void OnClose()
     {
-        // !!! 长按拖出 v2：HashSet → Dictionary（PopOutInstances）
+        // v2：HashSet → Dictionary（PopOutInstances）
         Plugin.ChatLog.PopOutInstances.Remove(Tab.Identifier);
         Plugin.WindowSystem.RemoveWindow(this);
 

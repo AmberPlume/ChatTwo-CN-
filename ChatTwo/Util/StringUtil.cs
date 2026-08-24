@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 
 namespace ChatTwo.Util;
 
@@ -13,7 +13,7 @@ public static class StringUtil
         return bytes;
     }
 
-    // Taken from https://stackoverflow.com/a/4975942
+
     public static string BytesToString(long byteCount)
     {
         string[] suf = ["B", "KB", "MB", "GB", "TB", "PB", "EB"]; // Longs run out around EB

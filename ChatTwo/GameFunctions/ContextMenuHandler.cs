@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using ChatTwo.Code;
 using ChatTwo.Resources;
@@ -22,8 +22,7 @@ namespace ChatTwo.GameFunctions;
 
 /// <summary>
 /// 通过 Dalamud ContextMenu API 向 ChatLog 右键菜单注入自定义菜单项。
-///
-/// 工作原理：
+/// /// 工作原理：
 /// PayloadHandler.TryShowNativePlayerContextMenu / TryShowNativeItemContextMenu
 /// 设置 AgentContext 目标字段后调用 OpenContextMenuForAddon，内部触发
 /// Dalamud 的 OnMenuOpened 事件。本处理器在事件回调中通过 args.AddMenuItem
@@ -266,8 +265,6 @@ public sealed partial class ContextMenuHandler : IDisposable
         });
     }
 
-    // 玩家菜单
-
     private void HandlePlayerMenu(IMenuOpenedArgs args, MenuTargetDefault target)
     {
         // 屏蔽机能子菜单：Dalamud OpenSubmenu 直接打开 AddonContextSub，绕开右键事件流。
@@ -314,7 +311,7 @@ public sealed partial class ContextMenuHandler : IDisposable
                 });
             }
 
-            // !!! 删除"← 返回"子项（不必要的按钮，徒增代码复杂度）。
+            // 删除"← 返回"子项（不必要的按钮，徒增代码复杂度）。
             // 二级菜单通过点击菜单项/点击菜单外（游戏原生）关闭。
 
             if (blockItems.Count > 0)
