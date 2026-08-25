@@ -425,7 +425,24 @@ public static class ImGuiUtil
             {
                 var blockWidth = MeasureClusterWidth(p, blockEnd, spacing);
                 if (w + blockWidth > maxWidth)
-                    return p == text ? text + Utf8CharLen(text, textEnd) : p;  // 断在块前，保底推进
+                {
+                    // 行首块超宽：块内逐字符填满（否则无空格长段每字一行）；非行首 → 断在块前（块整体下一行）
+                    if (p == text)
+                    {
+                        while (p < blockEnd)
+                        {
+                            var chLen = Utf8CharLen(p, blockEnd);
+                            var cw = ImGui.CalcTextSize(Utf8CharString(p, chLen)).X;
+                            if (w + cw > maxWidth)
+                                break;
+                            w += cw + spacing;
+                            p += chLen;
+                        }
+                        if (p == text)
+                            p = text + Utf8CharLen(text, textEnd);
+                    }
+                    return p;
+                }
                 w += blockWidth;
                 p = blockEnd;
                 continue;
