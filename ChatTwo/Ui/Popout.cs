@@ -72,11 +72,22 @@ public class Popout : Window, IChatWindow
     private Tab? _draggingTab;                                     // 拖拽中的 tab（幽灵/EndTabDrag 用）
     private bool DragHighlight;                                    // 本窗口是命中目标（高亮）
 
-    // 首帧定位（拖出/分离后跟手）：PositionCondition=Once 对曾用过的窗口名失效
-    //（ImGui WindowSettings 有记录 → 回落旧位置），改用首帧 SetWindowPos 强制定位
+    // 窗口组 id（跨会话）：同组 tab 共享同值，重载后 AddPopOutsToDraw 按组分窗恢复合并。
+    // 合并（AddTabFrom）把迁入 tab 置同值；分离建新窗分配新 Guid；收回（RecallTab）置 Empty
+    public Guid GroupId { get; private set; }
+
+    // 首帧定位/定尺寸（拖出跟手或恢复记忆）：PositionCondition/SizeCondition 只对
+    // ImGui 从未用过的窗口名生效——窗口名静态自增且重启归零，ini 同名记录会让条件失效，
+    // 回落 ini 旧值 → 必须首帧 SetWindowPos/SetWindowSize 无条件覆盖（per-tab 记忆不依赖 ini）
     private Vector2? _pendingInitialPos;
+    private Vector2? _pendingInitialSize;
     private Vector2? _pendingReleasePos; // 首帧重算用：实际尺寸 ≠ 计划尺寸时按实际重算位置
     private bool _closed; // OnClose 幂等：DrawInternal 状态机 + CloseImmediate 双路径防重复清理
+
+    // 几何记忆写回（跨会话）：窗口名每次启动归零 → ImGui ini 尺寸记忆不可靠，
+    // 尺寸/位置必须自己持久化到 Tab；变化稳定后写全部 Tabs（合并窗口同几何）
+    private (Vector2 size, Vector2 pos)? _persistedGeo; // 最近基线（首帧取实际值）
+    private long _geoChangeAt;                          // 上次几何变化时刻（稳定超时才写回）
 
     // 窗口名实例唯一（自增序号）：不可用 tab.Identifier——多 tab 窗口名 = 第一个 tab 的 id，
     // 分离该 tab 时新窗口与源窗口同名 → AddWindow 撞名崩溃 + 防御检查误杀源窗（tab 被收回）
@@ -88,12 +99,31 @@ public class Popout : Window, IChatWindow
         Plugin = plugin;
         AddTabInternal(tab);
 
-        Size = new Vector2(350, 350);
-        SizeCondition = ImGuiCond.FirstUseEver;
+        // 窗口组：拖出/分离（有释放点）= 新窗口 → 新组；恢复（无释放点）沿用主 tab 持久组
+        //（多 tab 合并窗重载后按组分窗恢复）；首次弹出（无组）→ 新组
+        GroupId = releasePos.HasValue || tab.PopOutGroup == Guid.Empty
+            ? Guid.NewGuid()
+            : tab.PopOutGroup;
+        tab.PopOutGroup = GroupId;
 
-        // 释放点 → 窗口位置：按 tab 条实际位置对齐（Top/Side 不在底部，见 PosFromReleasePoint）
+        // 尺寸单位换算：Tab.PopOutSize 存 ImGui 实际单位（= GetWindowSize 所见），
+        // 但基类 Size 是逻辑单位——WindowHost 会 SetNextWindowSize(Size × GlobalScale) 再应用
+        //（反编译 WindowHost.cs:615）→ 记忆值必须 ÷GlobalScale 还原逻辑，否则每轮 ×scale 膨胀。
+        // 默认 350 = 逻辑单位（×scale 后 = v1.41.4.0 固定 350 的观感，兼容）。
+        var planned = tab.PopOutSize ?? new Vector2(350, 350);
+        Size = tab.PopOutSize.HasValue ? planned / ImGuiHelpers.GlobalScale : planned;
+        SizeCondition = ImGuiCond.FirstUseEver;
+        _pendingInitialSize = Size;
+
+        // 位置：拖出/分离（有释放点）→ 按释放点跟手定位；
+        // 自动恢复/按钮弹出（无释放点）→ 套记忆位置（钳制视口防屏幕外）
+        // 注：内部几何（GetWindowSize/Pos/鼠标）均为实际单位 → 估算实际尺寸 = Size × scale
+        var actualSize = Size!.Value * ImGuiHelpers.GlobalScale;
         _pendingReleasePos = releasePos;
-        _pendingInitialPos = releasePos.HasValue ? PosFromReleasePoint(releasePos.Value, Size!.Value) : null;
+        if (releasePos.HasValue)
+            _pendingInitialPos = PosFromReleasePoint(releasePos.Value, actualSize);
+        else if (tab.PopOutPos is { } savedPos)
+            _pendingInitialPos = ClampToViewport(savedPos, actualSize);
 
         IsOpen = true;
         RespectCloseHotkey = false;
@@ -135,6 +165,7 @@ public class Popout : Window, IChatWindow
     {
         if (Tabs.Any(t => t.Identifier == tab.Identifier))
             return; // 防重复（重复合并/残留映射）：tab 已在目标窗口时不重复插入
+        tab.PopOutGroup = GroupId; // 迁入本窗口组（合并后同组，重载同窗恢复）
         handler.MainWindow = this;  // handler 归属窗口更新（原 handler.MainWindow 是源窗口）
         var tabGlobalIdx = Plugin.Config.Tabs.IndexOf(tab);
         var insertAt = Tabs.Count;
@@ -149,6 +180,13 @@ public class Popout : Window, IChatWindow
         Tabs.Insert(insertAt, tab);
         Handlers[tab.Identifier] = handler;
         MsgStates[tab.Identifier] = state;
+        // 合并后同窗几何一致：迁入成员继承目标窗当前几何（否则重载恢复时成员
+        // 仍带合并前自己的旧位置）。目标已 Draw → _persistedGeo 必有值。
+        if (_persistedGeo is { } geo)
+        {
+            tab.PopOutSize = geo.size;
+            tab.PopOutPos = geo.pos;
+        }
         if (insertAt <= CurrentTabIdx)
             CurrentTabIdx++;
     }
@@ -186,12 +224,13 @@ public class Popout : Window, IChatWindow
     /// <summary>本窗口是否包含该 tab（主窗口 AddPopOutsToDraw 自愈用）。</summary>
     public bool ContainsTab(Guid id) => Tabs.Any(t => t.Identifier == id);
 
-    /// <summary>收回 tab 到主窗口（PopOut=false + 设置 Mutable 同步）。</summary>
+    /// <summary>收回 tab 到主窗口（PopOut=false + 清组 + 设置 Mutable 同步）。</summary>
     private void RecallTab(Tab tab)
     {
         if (!tab.PopOut)
             return;
         tab.PopOut = false;
+        tab.PopOutGroup = Guid.Empty;
         Plugin.SettingsWindow.SyncTabPopOut(tab.Identifier, false);
     }
 
@@ -272,6 +311,19 @@ public class Popout : Window, IChatWindow
         if (Tabs.Count == 0)
             return;
 
+        // 首帧无条件应用构造 Size（覆盖 ini 同名记录）：基类 Begin 前按 SizeCondition
+        // SetNextWindowSize——FirstUseEver 对 ini 有记录的窗口名失效 → 尺寸回落 ini 旧值
+        //（Draw 内 SetWindowSize 无效）→ 首帧临时 Always，消费后回 FirstUseEver 可自由缩放。
+        if (_pendingInitialSize is { })
+        {
+            SizeCondition = ImGuiCond.Always; // 本帧基类无条件应用构造 Size（覆盖 ini）
+            _pendingInitialSize = null;
+        }
+        else
+        {
+            SizeCondition = ImGuiCond.FirstUseEver; // 之后用户可自由缩放（几何由 persist 记忆）
+        }
+
         if (Plugin.Config is { OverrideStyle: true, ChosenStyle: not null })
             StyleModel.GetConfiguredStyles()?.FirstOrDefault(style => style.Name == Plugin.Config.ChosenStyle)?.Push();
 
@@ -336,12 +388,12 @@ public class Popout : Window, IChatWindow
         // 同名窗口曾存在过（ImGui WindowSettings 记录）→ Once 失效回落旧位置
         if (_pendingInitialPos is { } initPos)
         {
-            // 尺寸记忆（同名窗口曾存在 → FirstUseEver 失效 → 实际尺寸 ≠ 计划 350）
-            // 会使计划位置（按 350 算）偏离 → 用实际尺寸重算，指针仍落在 tab 条
+            // 拖出/分离：位置按首帧实际尺寸重算（无条件——构造计划为估算值，
+            // 首帧 Begin 后 GetWindowSize 才是真实渲染尺寸 → 计划可能偏离 → 指针不落 tab 条）
             if (_pendingReleasePos is { } rp)
             {
                 var actualSize = ImGui.GetWindowSize();
-                if (actualSize.X >= 100f && actualSize.Y >= 100f && actualSize != Size!.Value)
+                if (actualSize.X >= 100f && actualSize.Y >= 100f)
                     initPos = PosFromReleasePoint(rp, actualSize);
             }
             ImGui.SetWindowPos(initPos);
@@ -390,6 +442,14 @@ public class Popout : Window, IChatWindow
             ImGui.SetCursorPosY(barTopY + PopOutTabBarHeight());
         }
 
+        // tab 栏交互（拖拽合并/收回关闭）可能在本帧清空 Tabs → 后续 CurrentTab 越界崩（防御）
+        if (CurrentTabIdx >= Tabs.Count)
+        {
+            if (Tabs.Count == 0)
+                CloseImmediate();
+            return;
+        }
+
         if (place == TabPosition.Side)
         {
             // 侧边模式：左 tab 列表 + 右消息区（Table 两列，与主窗口 DrawTabSidebar 同构）
@@ -401,6 +461,12 @@ public class Popout : Window, IChatWindow
 
                 ImGui.TableNextColumn();
                 DrawPopOutTabBarSide();
+                if (CurrentTabIdx >= Tabs.Count)
+                {
+                    if (Tabs.Count == 0)
+                        CloseImmediate();
+                    return;
+                }
 
                 ImGui.TableNextColumn();
                 var sideH = ImGui.GetContentRegionAvail().Y;
@@ -417,6 +483,14 @@ public class Popout : Window, IChatWindow
 
             if (place == TabPosition.Bottom)
                 DrawPopOutTabBar();
+        }
+
+        // tab 栏交互（拖拽合并/收回）可能已清空 Tabs → 手柄区 CurrentTab 越界崩（防御）
+        if (CurrentTabIdx >= Tabs.Count)
+        {
+            if (Tabs.Count == 0)
+                CloseImmediate();
+            return;
         }
 
         // 仿原生金字塔缩放手柄（右上角，与主窗口一致）
@@ -459,6 +533,48 @@ public class Popout : Window, IChatWindow
         {
             UpdateDragTarget();
             DrawTabDragGhost();
+        }
+
+        PersistGeometry();
+    }
+
+    /// <summary>窗口几何记忆：变化时内存即时写回 tab 字段（退出/重载兜底落盘不丢最新值），
+    /// 落盘只在稳定 ~800ms 后调度一次（缩放/移动连续变化期间不写盘）。
+    /// 窗口名每次启动归零 → ini 尺寸记忆不可靠，必须自己持久化。</summary>
+    private void PersistGeometry()
+    {
+        var size = ImGui.GetWindowSize();
+        var pos = ImGui.GetWindowPos();
+        if (_persistedGeo is null)
+        {
+            _persistedGeo = (size, pos); // 首帧基线（构造 Size 可能被 ini/首帧覆盖，取实际值）
+            return;
+        }
+
+        var (lastSize, lastPos) = _persistedGeo.Value;
+        var moved = Math.Abs(size.X - lastSize.X) > 0.5f || Math.Abs(size.Y - lastSize.Y) > 0.5f
+                 || Math.Abs(pos.X - lastPos.X) > 0.5f || Math.Abs(pos.Y - lastPos.Y) > 0.5f;
+        if (moved)
+        {
+            _geoChangeAt = Environment.TickCount64;
+            _persistedGeo = (size, pos);
+            WriteGeoToTabs(size, pos); // 内存即时（任何时刻退出，Dispose SaveConfig 落盘即最新）
+            return;
+        }
+
+        if (_geoChangeAt != 0 && Environment.TickCount64 - _geoChangeAt > 800)
+        {
+            _geoChangeAt = 0;
+            Plugin.DeferredSaveFrames = 60; // 稳定后延迟 ~1s 落盘一次
+        }
+    }
+
+    private void WriteGeoToTabs(Vector2 size, Vector2 pos)
+    {
+        foreach (var t in Tabs)
+        {
+            t.PopOutSize = size;
+            t.PopOutPos = pos;
         }
     }
 
@@ -943,6 +1059,7 @@ public class Popout : Window, IChatWindow
             var state = MsgStates[tab.Identifier];
             target.AddTabFrom(tab, handler, state);
             Plugin.ChatLog.PopOutInstances[tab.Identifier] = target;
+            Plugin.SaveConfig(); // 组迁移 + 成员几何同步持久化
             if (RemoveTabInternal(tab.Identifier))
                 CloseImmediate(); // 源窗口空了 → 立即关闭（不等下一帧 OnClose，防残留撞名）
         }
@@ -1159,6 +1276,9 @@ public class Popout : Window, IChatWindow
         if (_closed)
             return;
         _closed = true;
+        // 几何兜底写回（节流未到期就关闭时也要记住；未 Draw 过则 _persistedGeo 为 null 不写）
+        if (_persistedGeo is { } g)
+            WriteGeoToTabs(g.size, g.pos);
         // 所有剩余 tab 收回主窗口（含拖拽合并后空窗关闭的情况——Tabs 为空则无操作）
         foreach (var t in Tabs)
         {

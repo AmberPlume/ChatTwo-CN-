@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Numerics;
 using System.Text.Json.Serialization;
 using ChatTwo.Code;
 using ChatTwo.GameFunctions.Types;
@@ -234,7 +235,10 @@ public class Configuration : IPluginConfiguration
     {
         if (backToOriginal)
             foreach (var tab in Tabs.Where(t => t.PopOut))
+            {
                 tab.PopOut = false;
+                tab.PopOutGroup = Guid.Empty;
+            }
 
         HideChat = other.HideChat;
         HideDuringCutscenes = other.HideDuringCutscenes;
@@ -417,6 +421,14 @@ public class Tab
     /// 不勾选则只在切换到本标签页时自动设置一次频道，之后可自由切换。</summary>
     public bool InputChannelLocked;
     public bool PopOut;
+    /// <summary>popout 窗口组（同组 tab 重载后合并恢复为同一窗口；Empty=未弹出/已收回）。
+    /// 合并同窗共享同值；分离/收回置 Empty。窗口名不能 per-tab（多 tab 分离撞名），
+    /// 跨会话合并靠此字段分组恢复。</summary>
+    public Guid PopOutGroup;
+    /// <summary>popout 窗口几何记忆（跨会话）：同一窗口内全部 tab 同步写同值；
+    /// 启动恢复/按钮弹出按首个 tab 记忆套用。窗口名每次启动归零 → 不能依赖 ImGui ini。</summary>
+    public Vector2? PopOutSize;
+    public Vector2? PopOutPos;
     public bool IndependentOpacity;
     public float Opacity = 100f;
     public bool InputDisabled;
@@ -520,6 +532,9 @@ public class Tab
             Channel = Channel,
             InputChannelLocked = InputChannelLocked,
             PopOut = PopOut,
+            PopOutGroup = PopOutGroup,
+            PopOutSize = PopOutSize,
+            PopOutPos = PopOutPos,
             IndependentOpacity = IndependentOpacity,
             Opacity = Opacity,
             Identifier = Identifier,

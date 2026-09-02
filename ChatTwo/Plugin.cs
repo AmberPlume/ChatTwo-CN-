@@ -221,6 +221,8 @@ public sealed partial class Plugin : IDalamudPlugin
     [SuppressMessage("ReSharper", "ConditionalAccessQualifierIsNonNullableAccordingToAPIContract")]
     public void Dispose()
     {
+        if (Config != null)
+            SaveConfig(); // 卸载/重载/退出兜底落盘（几何记忆等节流值必须在此刻保存）
         Interface.LanguageChanged -= LanguageChanged;
         Interface.UiBuilder.Draw -= Draw;
         Framework.Update -= FrameworkUpdate;

@@ -62,14 +62,18 @@ public sealed class SettingsWindow : Window
     /// <summary>
     /// 窗口操作（弹出/收回 tab）与设置窗口 Mutable 副本同步：
     /// 否则设置打开期间收回 tab，保存设置会把 PopOut 写回 true（tab 又弹出）。
+    /// PopOutGroup 一并同步（弹出 = 取 Config 当前组值；收回 = 清空），
+    /// 否则保存设置会用 mutable 旧组覆盖运行时的组分配，重载恢复错组。
     /// </summary>
     public void SyncTabPopOut(Guid tabIdentifier, bool popOut)
     {
+        var cfg = Plugin.Config.Tabs.FirstOrDefault(t => t.Identifier == tabIdentifier);
         foreach (var tab in Mutable.Tabs)
         {
             if (tab.Identifier == tabIdentifier)
             {
                 tab.PopOut = popOut;
+                tab.PopOutGroup = popOut && cfg != null ? cfg.PopOutGroup : Guid.Empty;
                 break;
             }
         }

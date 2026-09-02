@@ -2649,31 +2649,74 @@ public partial class ChatLog : Window, IChatWindow
 
     private void AddPopOutsToDraw()
     {
+        // 待建窗 tab（PopOut=true 且无窗口承载）
+        var pending = new List<Tab>();
         for (var i = 0; i < Plugin.Config.Tabs.Count; i++)
         {
             var tab = Plugin.Config.Tabs[i];
-            if (!tab.PopOut)
-                continue;
+            if (tab.PopOut && !PopOutInstances.ContainsKey(tab.Identifier))
+                pending.Add(tab);
+        }
 
-            if (PopOutInstances.ContainsKey(tab.Identifier))
-                continue;
-
-            // 窗口建在释放点（跟随指针拖出后松手定位，不突兀）：换算按 Popout 内部
-            // TabBarPlace 分支（Bottom=底部 tab 条、Top=顶部、Side=左侧，见
-            // Popout.PosFromReleasePoint），主窗口不需要知道 tab 条位置细节；
-            // 钳制视口内保证整体可见。修复：不再用 Position+Once——
-            // Once 对曾用过的窗口名失效（ImGui WindowSettings 有记录 → 回落旧位置），
-            // 改由 Popout 首帧 SetWindowPos 强制定位（_pendingInitialPos）
+        if (pending.Count > 0)
+        {
+            // 拖出刚发生（_popOutPlaceId 指向待建窗 tab）→ 该 tab 的窗口建在释放点
+            Tab? dragged = null;
             Vector2? placePos = null;
-            if (_popOutPlaceId == tab.Identifier)
+            if (_popOutPlaceId is { } pid)
             {
-                placePos = _popOutPlacePos;
-                _popOutPlaceId = null;
+                dragged = pending.FirstOrDefault(t => t.Identifier == pid);
+                if (dragged != null)
+                    placePos = _popOutPlacePos;
+                _popOutPlaceId = null; // 单次消费（命中与否都清，防重复建窗）
             }
 
-            var window = new Popout(Plugin, tab, placePos);
-            Plugin.WindowSystem.AddWindow(window);
-            PopOutInstances[tab.Identifier] = window;
+            // 建窗前先快照分组（构造会把 Empty 组改成新 Guid → 事后 Where 会二次命中 → 双窗）
+            var ungrouped = pending.Where(t => t.PopOutGroup == Guid.Empty).ToList();
+            var grouped = pending.Where(t => t.PopOutGroup != Guid.Empty)
+                .GroupBy(t => t.PopOutGroup).ToList();
+
+            // 无持久组（首次弹出/已分离）→ 各自独立单窗
+            foreach (var t in ungrouped)
+            {
+                var w = new Popout(Plugin, t, dragged == t ? placePos : null);
+                Plugin.WindowSystem.AddWindow(w);
+                PopOutInstances[t.Identifier] = w;
+                if (dragged == t)
+                    dragged = null;
+            }
+
+            // 同持久组 → 恢复为同一窗口（保持合并）：组内首个建窗，其余并入
+            foreach (var g in grouped)
+            {
+                var tabs = g.OrderBy(Plugin.Config.Tabs.IndexOf).ToList();
+                var main = dragged != null && tabs.Contains(dragged) ? dragged : tabs[0];
+                var w = new Popout(Plugin, main, main == dragged ? placePos : null);
+                Plugin.WindowSystem.AddWindow(w);
+                PopOutInstances[main.Identifier] = w;
+                if (main == dragged)
+                    dragged = null;
+                foreach (var t in tabs)
+                {
+                    if (t == main || w.ContainsTab(t.Identifier))
+                        continue;
+                    w.AddTabFromMain(t); // 同组并入（注册 PopOutInstances）
+                }
+            }
+
+            // 兜底：拖出 tab 未建窗（组异常/被占用）→ 单窗
+            if (dragged is { } leftover && leftover.PopOut
+                && !PopOutInstances.ContainsKey(leftover.Identifier))
+            {
+                var w = new Popout(Plugin, leftover, placePos);
+                Plugin.WindowSystem.AddWindow(w);
+                PopOutInstances[leftover.Identifier] = w;
+            }
+
+            // 组分配持久化 + mutable 同步（设置开着时保存不会用旧组覆盖运行时分配）
+            foreach (var t in pending)
+                Plugin.SettingsWindow.SyncTabPopOut(t.Identifier, true);
+            Plugin.SaveConfig();
         }
 
         // 弹出后主窗口切走：LastTab 指向的 tab 已弹出 → 显示第一个未弹出 tab
