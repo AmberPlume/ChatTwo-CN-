@@ -23,7 +23,7 @@ public class InputHandler
                                                    ImGuiInputTextFlags.CallbackCompletion | ImGuiInputTextFlags.CallbackHistory;
 
     public readonly Plugin Plugin;
-    public readonly IChatWindow MainWindow;
+    public IChatWindow MainWindow { get; set; }  // 可写：tab 跨窗口迁移（弹出合并）时更新归属
 
     public readonly SendHandler SendHandler;
     public readonly AutoCompleteHandler AutoCompleteHandler;
@@ -83,7 +83,6 @@ public class InputHandler
                 inputType = ChatType.Error;
         }
 
-        var normalColor = ImGui.GetColorU32(ImGuiCol.Text);
         var inputColour = Plugin.Config.ChatColours.TryGetValue(inputType, out var inputCol) ? inputCol : inputType.DefaultColor();
 
         if (!isCommand && Plugin.ExtraChat.ChannelOverride is var (_, overrideColour))
@@ -198,16 +197,6 @@ public class InputHandler
                 {
                     activeTab.CurrentChannel.ResetTempChannel();
                     Plugin.Functions.Chat.SetChannelWithExtraChat(Plugin.CurrentTab.CurrentChannel.Channel);
-                }
-            }
-
-            using (var context = ImRaii.ContextPopupItem("ChatInputContext"))
-            {
-                if (context)
-                {
-                    using var pushedColor = ImRaii.PushColor(ImGuiCol.Text, normalColor);
-                    if (ImGui.Selectable(Language.ChatLog_HideChat))
-                        MainWindow.CurrentHideState = HideState.User;
                 }
             }
         }

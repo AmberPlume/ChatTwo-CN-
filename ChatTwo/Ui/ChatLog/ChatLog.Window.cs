@@ -138,16 +138,16 @@ public partial class ChatLog : Window, IChatWindow
     private bool _anchorTop;  // true=锚上，false=锚下
     private float _marginY;
 
-    public readonly List<bool> PopOutDocked = [];
-    // v2：HashSet → Dictionary（需持有 Popout 实例用于拖拽时跟随指针）
+    // v2：HashSet → Dictionary（tabId → Popout 实例；多 tab 窗口多个 key 指向同实例）
     public readonly Dictionary<Guid, Popout> PopOutInstances = [];
 
-    // v2：tab 按下时间/位置（长按 ≥600ms 后移动才拖出）；
-    // _draggingTabOut = 拖出中的 tab 索引（拖拽期间画幽灵跟随指针，松手才建窗）；
+    // 拖拽命中目标（高亮）：弹出窗口拖 tab 时由源窗口写入，目标窗口 PostDraw 消费
+    public Popout? DragHighlightWindow;
+
+    // v2：tab 拖拽统一状态机（TabDragTracker，native/legacy/top/side 共用）；
+    // key = tab 索引；长按 ≥600ms 后移动 10px 才拖出，松手建窗/合并（见 CompleteMainTabDrag）；
     // _popOutPlaceId/_popOutPlacePos = 释放点（AddPopOutsToDraw 建窗时定位）
-    private readonly Dictionary<int, long> _tabPressStart = [];
-    private readonly Dictionary<int, Vector2> _tabPressPos = [];
-    private int? _draggingTabOut;
+    private readonly TabDragTracker<int> _tabDrag = new();
     private Guid? _popOutPlaceId;
     private Vector2 _popOutPlacePos;
 
@@ -449,7 +449,8 @@ public partial class ChatLog : Window, IChatWindow
 
     // 切换 tab 时同步未读：新 tab 的可见消息 → 其他 tab 同实例的未读一并清除。
     // 只处理 message.Seen=false 的（到达时被计数过的）；Seen=true 的本来就没计数，不减
-    private void SyncSeenAcrossTabs(Tab activeTab)
+    // public：弹出合并窗口切 tab 复用（Popout.SwitchTab）
+    public void SyncSeenAcrossTabs(Tab activeTab)
     {
         List<Message> msgs;
         using (var locked = activeTab.Messages.GetReadOnly(3))
@@ -716,8 +717,8 @@ public partial class ChatLog : Window, IChatWindow
                 {
                     var delta = mp - ResizeStartMousePos;
 
-                    // Top-right handle: keep BOTTOM-LEFT corner fixed.
-                    // Drag up-left → grow. Drag down-right → shrink.
+                    // 右上角手柄跟手（keep bottom-left：左/底边固定，右上角完全跟随鼠标）。
+                    // 手柄在哪个角就跟哪个角跑——所有布局统一，不随 tab 位置分叉（与 Popout 同规则）
                     var newPos = new Vector2(
                         ResizeStartWindowPos.X,
                         ResizeStartWindowPos.Y + delta.Y);
@@ -1687,12 +1688,14 @@ public partial class ChatLog : Window, IChatWindow
             // 会覆盖下面的 DrawMessageLog，导致消息文字被 12pt 字体渲染
             using var tabFont = Plugin.FontManager.TabFont.Push();
             // Bug 修复：按素材模式计算预留高度——
-            // 原生：17px×scale×TabScale + 下移 4px（tab 高度随"标签页缩放"等比例变；
-            // 与输入区缩放拆分）；
+            // 原生：17px×scale×TabScale + 下移 4px + FramePadding.Y×2（tab 高度随
+            // "标签页缩放"等比例变；与输入区缩放拆分）。FramePadding.Y×2 是行高撑起量：
+            // 中段 ImGui.Button/[+] InvisibleButton 的 rect 高 = size+FramePadding.Y×2，
+            // 缺它 → 预留 < 实际行高 → tab 栏底部被切（legacy 公式含 ×0.9 不切）
             // Legacy：旧公式（TabFont 12pt×tabScale 的 TextLineHeight）——之前固定 17px
             // 导致缩放后 Legacy tab 变高被底边切
             tabBarHeight = Plugin.Config.NativeBackground
-                ? 17f * ImGuiHelpers.GlobalScale * Plugin.Config.TabScale + 4f
+                ? 17f * ImGuiHelpers.GlobalScale * Plugin.Config.TabScale + 4f + style.FramePadding.Y * 2
                 : (ImGui.GetTextLineHeight() / (Plugin.Config.TabFontSizePt / 12f) + style.FramePadding.Y * 2) * 0.9f + 2f;
         }
         // separatorHeight（1+ItemSpacing*0.3）是历史"分隔线余量"——实际 DrawBottomTabBar 不画 separator
@@ -1900,47 +1903,22 @@ public partial class ChatLog : Window, IChatWindow
             var btnMin = ImGui.GetItemRectMin();
             var btnMax = ImGui.GetItemRectMax();
 
-            // v2：按住 ≥600ms 后移动鼠标才开始拖出
-            //（原 v1 松手即弹突兀）。拖拽期间画 tab 幽灵跟随指针（见循环后），
+            // v2：按住 ≥600ms 后移动鼠标才开始拖出（统一状态机 TabDragTracker，
+            // legacy/top/side 共用同一实例）。拖拽期间画 tab 幽灵跟随指针（见循环后），
             // 松手才创建 PopOut（定位在释放点）——期间不建窗，避免指针落在新窗口
             // 消息区上触发文本选中等干扰。
             var now = Environment.TickCount64;
             var leftDown = ImGui.IsMouseDown(ImGuiMouseButton.Left);
             var mousePos = ImGui.GetIO().MousePos;
             var tabDown = ImGui.IsItemActive();
-            var longPressed = false;
-
-            // 按下（按住 tab 的第一帧）→ 记录时间/位置
-            if (tabDown && !_tabPressStart.ContainsKey(tabI) && _draggingTabOut == null)
-            {
-                _tabPressStart[tabI] = now;
-                _tabPressPos[tabI] = mousePos;
-            }
-
-            // 长按达标 + 鼠标移动（拖拽手势）→ 开始拖出（幽灵跟随；松手才建窗）
-            if (_draggingTabOut == null
-                && _tabPressStart.TryGetValue(tabI, out var downAt)
-                && leftDown
-                && now - downAt >= 600
-                && (mousePos - _tabPressPos[tabI]).Length() > 10f * scale)
-            {
-                _draggingTabOut = tabI;
-                longPressed = true;
-            }
-
-            // 松开 → 清理按下记录；拖出中的 tab 松手 = 拖出完成（记录释放点，建窗定位用）
-            if (!leftDown && _tabPressStart.Remove(tabI))
-            {
-                _tabPressPos.Remove(tabI);
-                if (_draggingTabOut == tabI)
-                {
-                    _draggingTabOut = null;
-                    _popOutPlaceId = tab.Identifier;
-                    _popOutPlacePos = ImGui.GetIO().MousePos;
-                    tab.PopOut = true;  // AddPopOutsToDraw 下一帧创建 PopOut
-                    longPressed = true; // 拖出非点击，跳过本帧切换
-                }
-            }
+            _tabDrag.TrackPress(tabDown, tabI, now, mousePos);
+            var dragBegan = _tabDrag.TryBeginDrag(tabI, leftDown, now, mousePos, scale);
+            _tabDrag.UpdateActive(tabI, leftDown, now);
+            var dragEnded = _tabDrag.TryEndDrag(tabI, leftDown, now) == DragEndResult.Completed;
+            if (dragEnded)
+                CompleteMainTabDrag(tabI, tab, mousePos);
+            if (dragBegan)
+                _tabDrag.LastProcessed = now; // 拖出开始帧也计入活动（防首帧松手误判 stale）
 
             if (middle != null)
             {
@@ -1995,40 +1973,19 @@ public partial class ChatLog : Window, IChatWindow
             DrawDivider();
 
             // 重构：点击切换逻辑抽公共 HandleTabClick（原生/非原生共用）；
-            // 时（longPressed）跳过切换（只拖出不切 tab）
-            if (!longPressed && HandleTabClick(tabI, clicked, tab))
+            // 拖出开始/结束帧（dragBegan/dragEnded）跳过切换（只拖出不切 tab）
+            if (!dragBegan && !dragEnded && HandleTabClick(tabI, clicked, tab))
                 anyClicked = true;
         }
 
-        // 安全清理：tab 被删除/索引变化或鼠标已松开时清掉拖出状态（防残留卡住）
-        if (_draggingTabOut is { } staleIdx && (staleIdx >= tabs.Count || !ImGui.IsMouseDown(ImGuiMouseButton.Left)))
-            _draggingTabOut = null;
+        // 安全清理：tab 被删除/索引变化或鼠标已松开时清掉拖出状态（防残留卡住）。
+        // 按下记录一并清——残留会让下次按下同一 tab 时用旧时刻，长按判定立即通过
+        if (_tabDrag.Dragging is { } staleIdx && (staleIdx >= tabs.Count || !ImGui.IsMouseDown(ImGuiMouseButton.Left)))
+            _tabDrag.Clear();
 
         // 拖出幽灵：拖拽期间在指针处画 tab 三段式跟随（半透明；松手才建窗，见 AddPopOutsToDraw）
-        if (_draggingTabOut is { } ghostIdx && ghostIdx < tabs.Count && ImGui.IsMouseDown(ImGuiMouseButton.Left))
-        {
-            var ghostTab = tabs[ghostIdx];
-            var ghostPos = ImGui.GetIO().MousePos + new Vector2(8f * scale, 8f * scale);
-            var ghostTint = ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.75f));
-            var fg = ImGui.GetForegroundDrawList();
-            if (capLeft != null)
-            {
-                fg.AddImage(capLeft.Handle, ghostPos, ghostPos + capLeftSize, Vector2.Zero, Vector2.One, ghostTint);
-                ghostPos.X += capLeftSize.X;
-            }
-            if (middle != null)
-            {
-                var ghostNameW = ImGui.CalcTextSize(ghostTab.Name).X;
-                var ghostMidSize = new Vector2(Math.Max(middleBaseSize.X, ghostNameW + tabHeight * 0.6f * 0.5f * 2), tabHeight);
-                fg.AddImage(middle.Handle, ghostPos, ghostPos + ghostMidSize, Vector2.Zero, Vector2.One, ghostTint);
-                ghostPos.X += ghostMidSize.X;
-            }
-            if (capRight != null)
-            {
-                fg.AddImage(capRight.Handle, ghostPos, ghostPos + capRightSize, Vector2.Zero, Vector2.One, ghostTint);
-                ghostPos.X += capRightSize.X;
-            }
-        }
+        if (_tabDrag.Dragging is { } ghostIdx && ghostIdx < tabs.Count && ImGui.IsMouseDown(ImGuiMouseButton.Left))
+            DrawMainTabGhost(tabs[ghostIdx], ImGui.GetIO().MousePos + new Vector2(8f * scale, 8f * scale), scale);
 
         // 右帽：最右侧装饰（素材 47x51）
         if (capRight != null)
@@ -2246,6 +2203,20 @@ public partial class ChatLog : Window, IChatWindow
                 // 按钮只负责命中检测（隐藏文字），文字手动绘制并垂直居中（同顶部标签页）
                 var clicked = ImGui.Button($"##bottom-tab-{tabI}", size);
 
+                // 拖出判定（统一状态机，与原生 Bottom 同款：长按 600ms + 移动 10px；
+                // 松手合并/建窗见 CompleteMainTabDrag）
+                var now = Environment.TickCount64;
+                var leftDown = ImGui.IsMouseDown(ImGuiMouseButton.Left);
+                var mousePos = ImGui.GetIO().MousePos;
+                _tabDrag.TrackPress(ImGui.IsItemActive(), tabI, now, mousePos);
+                var dragBegan = _tabDrag.TryBeginDrag(tabI, leftDown, now, mousePos, ImGuiHelpers.GlobalScale);
+                _tabDrag.UpdateActive(tabI, leftDown, now);
+                var dragEnded = _tabDrag.TryEndDrag(tabI, leftDown, now) == DragEndResult.Completed;
+                if (dragEnded)
+                    CompleteMainTabDrag(tabI, tab, mousePos);
+                if (dragBegan)
+                    _tabDrag.LastProcessed = now; // 拖出开始帧也计入活动（防首帧松手误判 stale）
+
                 var btnMin = ImGui.GetItemRectMin();
                 var btnMax = ImGui.GetItemRectMax();
                 // 仿原生着色：每个 tab 独立背景块（active 高亮 / 非 active 深色）
@@ -2272,10 +2243,21 @@ public partial class ChatLog : Window, IChatWindow
 
                 ImGui.SameLine(0, 0);
 
-                // 重构：点击切换逻辑抽公共 HandleTabClick（原生/非原生共用）
-                if (HandleTabClick(tabI, clicked, tab))
+                // 重构：点击切换逻辑抽公共 HandleTabClick（原生/非原生共用）；
+                // 拖出开始/结束帧跳过切换（只拖出不切 tab）
+                if (!dragBegan && !dragEnded && HandleTabClick(tabI, clicked, tab))
                     anyClicked = true;
             }
+
+            // 拖出幽灵（非原生统一简化块，跟随指针；松手才建窗）
+            if (_tabDrag.Dragging is { } ghostIdx && ghostIdx < tabs.Count && ImGui.IsMouseDown(ImGuiMouseButton.Left))
+                DrawMainTabGhost(tabs[ghostIdx],
+                    ImGui.GetIO().MousePos + new Vector2(8f * ImGuiHelpers.GlobalScale, 8f * ImGuiHelpers.GlobalScale),
+                    ImGuiHelpers.GlobalScale);
+
+            // 安全清理：tab 被删除/索引变化或鼠标已松开时清掉拖出状态（防残留卡住）
+            if (_tabDrag.Dragging is { } staleIdx && (staleIdx >= tabs.Count || !ImGui.IsMouseDown(ImGuiMouseButton.Left)))
+                _tabDrag.Clear();
 
             // 末尾"+"：用 IconButton（无边框图标按钮，与输入框右侧齿轮/新人频道一致），
             // 字号 FontAwesomeTab（随"标签页缩放"字体重建，与输入区图标拆分）。
@@ -2451,17 +2433,41 @@ public partial class ChatLog : Window, IChatWindow
                 && Plugin.Config.UnreadNotifyMode != UnreadNotifyMode.None;
                         using var unreadCol = ImRaii.PushColor(ImGuiCol.Text, unreadGreen, hasUnread);
                         var clicked = ImGui.Selectable($"{tab.Name}###log-tab-{tabI}", Plugin.LastTab == tabI || Plugin.WantedTab == tabI);
-                    DrawTabContextMenu(tab, tabI);
 
-                    if (!clicked && Plugin.WantedTab != tabI)
-                        continue;
+                        // 拖出判定（统一状态机，与原生 Bottom 同款：长按 600ms + 移动 10px；
+                        // 松手合并/建窗见 CompleteMainTabDrag）
+                        var now = Environment.TickCount64;
+                        var leftDown = ImGui.IsMouseDown(ImGuiMouseButton.Left);
+                        var mousePos = ImGui.GetIO().MousePos;
+                        _tabDrag.TrackPress(ImGui.IsItemActive(), tabI, now, mousePos);
+                        var dragBegan = _tabDrag.TryBeginDrag(tabI, leftDown, now, mousePos, ImGuiHelpers.GlobalScale);
+                        _tabDrag.UpdateActive(tabI, leftDown, now);
+                        var dragEnded = _tabDrag.TryEndDrag(tabI, leftDown, now) == DragEndResult.Completed;
+                        if (dragEnded)
+                            CompleteMainTabDrag(tabI, tab, mousePos);
+                        if (dragBegan)
+                            _tabDrag.LastProcessed = now; // 拖出开始帧也计入活动（防首帧松手误判 stale）
 
-                    currentTab = tabI;
-                    hasTabSwitched = Plugin.LastTab != tabI;
-                    Plugin.LastTab = tabI;
-                    if (hasTabSwitched)
-                        TabSwitched(tab, previousTab);
-                }
+                        DrawTabContextMenu(tab, tabI);
+
+                        // 拖出开始/结束帧跳过切换（只拖出不切 tab）
+                        if ((!clicked && Plugin.WantedTab != tabI) || dragBegan || dragEnded)
+                            continue;
+
+                        currentTab = tabI;
+                        hasTabSwitched = Plugin.LastTab != tabI;
+                        Plugin.LastTab = tabI;
+                        if (hasTabSwitched)
+                            TabSwitched(tab, previousTab);
+                    }
+
+                    // 拖出幽灵（跟随指针；松手才建窗）+ 安全清理（tab 删除/索引变化/鼠标已松开）
+                    if (_tabDrag.Dragging is { } ghostIdx && ghostIdx < Plugin.Config.Tabs.Count && ImGui.IsMouseDown(ImGuiMouseButton.Left))
+                        DrawMainTabGhost(Plugin.Config.Tabs[ghostIdx],
+                            ImGui.GetIO().MousePos + new Vector2(8f * ImGuiHelpers.GlobalScale, 8f * ImGuiHelpers.GlobalScale),
+                            ImGuiHelpers.GlobalScale);
+                    if (_tabDrag.Dragging is { } staleIdx && (staleIdx >= Plugin.Config.Tabs.Count || !ImGui.IsMouseDown(ImGuiMouseButton.Left)))
+                        _tabDrag.Clear();
             }
         }
 
@@ -2567,14 +2573,82 @@ public partial class ChatLog : Window, IChatWindow
             Plugin.SaveConfig();
     }
 
+    /// <summary>主窗口 tab 拖出终点（native/legacy/top/side 共用）：直拖合并 → 并入目标窗口；
+    /// 否则记录释放点由 AddPopOutsToDraw 建窗；拖出持久化。</summary>
+    private void CompleteMainTabDrag(int tabI, Tab tab, Vector2 releasePos)
+    {
+        // 直拖合并：松手落在某弹出窗口 tab 栏附近 → 直接并入，不建新窗口
+        var target = FindPopOutTarget(releasePos, null);
+        if (target != null)
+        {
+            tab.PopOut = true;
+            Plugin.SettingsWindow.SyncTabPopOut(tab.Identifier, true);
+            target.AddTabFromMain(tab);
+        }
+        else
+        {
+            _popOutPlaceId = tab.Identifier;
+            _popOutPlacePos = releasePos;
+            tab.PopOut = true;  // AddPopOutsToDraw 下一帧创建 PopOut
+        }
+        Plugin.SaveConfig(); // 拖出持久化（直拖合并/建窗两分支共用出口）
+    }
+
+    /// <summary>拖出幽灵：native = 三段式贴图跟随（半透明）；legacy/top/side = 半透明文字块。</summary>
+    private void DrawMainTabGhost(Tab tab, Vector2 ghostPos, float scale)
+    {
+        var fg = ImGui.GetForegroundDrawList();
+        if (Plugin.Config.NativeBackground)
+        {
+            var tabHeight = 17f * scale * Plugin.Config.TabScale;
+            var tabScale = tabHeight / 48f;
+            var capLeftSize = new Vector2(39f, 48f) * tabScale;
+            var capRightSize = new Vector2(40f, 48f) * tabScale;
+            var middleBaseSize = new Vector2(50f, 48f) * tabScale;
+            var tint = ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.75f));
+            if (NativeIcons.TabCapLeft is { } cl)
+            {
+                fg.AddImage(cl.Handle, ghostPos, ghostPos + capLeftSize, Vector2.Zero, Vector2.One, tint);
+                ghostPos.X += capLeftSize.X;
+            }
+            if (NativeIcons.TabMiddle is { } mid)
+            {
+                var nameW = ImGui.CalcTextSize(tab.Name).X;
+                var midSize = new Vector2(Math.Max(middleBaseSize.X, nameW + tabHeight * 0.6f * 0.5f * 2), tabHeight);
+                fg.AddImage(mid.Handle, ghostPos, ghostPos + midSize, Vector2.Zero, Vector2.One, tint);
+                ghostPos.X += midSize.X;
+            }
+            if (NativeIcons.TabCapRight is { } cr)
+                fg.AddImage(cr.Handle, ghostPos, ghostPos + capRightSize, Vector2.Zero, Vector2.One, tint);
+            return;
+        }
+        // 非原生：半透明深色块 + 文字
+        var textSize = ImGui.CalcTextSize(tab.Name);
+        var pad = 6f * scale;
+        var size = textSize + new Vector2(pad * 2, 4f * scale);
+        fg.AddRectFilled(ghostPos, ghostPos + size, ImGui.GetColorU32(new Vector4(0.12f, 0.12f, 0.12f, 0.85f)), 4f * scale);
+        fg.AddText(ghostPos + new Vector2(pad, 2f * scale), ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.8f)), tab.Name);
+    }
+
+    /// <summary>命中判定：鼠标是否在某弹出窗口 tab 栏矩形内（外扩 8px 容差）。self=null 时包含全部窗口（主窗口拖出用）。</summary>
+    public Popout? FindPopOutTarget(Vector2 mousePos, Popout? self)
+    {
+        var pad = 8f * ImGuiHelpers.GlobalScale;
+        foreach (var w in PopOutInstances.Values.Distinct())
+        {
+            if (w == self)
+                continue;
+            if (w.TabBarMin == Vector2.Zero) // 尚未 PostDraw 过（首帧未画），矩形无效
+                continue;
+            if (mousePos.X >= w.TabBarMin.X - pad && mousePos.X <= w.TabBarMax.X + pad
+                && mousePos.Y >= w.TabBarMin.Y - pad && mousePos.Y <= w.TabBarMax.Y + pad)
+                return w;
+        }
+        return null;
+    }
+
     private void AddPopOutsToDraw()
     {
-        if (PopOutDocked.Count != Plugin.Config.Tabs.Count)
-        {
-            PopOutDocked.Clear();
-            PopOutDocked.AddRange(Enumerable.Repeat(false, Plugin.Config.Tabs.Count));
-        }
-
         for (var i = 0; i < Plugin.Config.Tabs.Count; i++)
         {
             var tab = Plugin.Config.Tabs[i];
@@ -2584,27 +2658,50 @@ public partial class ChatLog : Window, IChatWindow
             if (PopOutInstances.ContainsKey(tab.Identifier))
                 continue;
 
-            var window = new Popout(Plugin, tab, i);
-
-            // ：窗口建在释放点（跟随指针拖出后松手定位，不突兀）。
-            // 修复①：PositionCondition 必须 Once——默认 0 会被 ImGui 当 Always，
-            // 每帧 SetNextWindowPos 强制回释放点 → 窗口"钉死"不可拖动。
-            // 修复②：释放点做视口限制——靠近屏幕边缘时窗口被裁（底部 tab 行
-            // 出屏 → tab 文字看起来"错位"），钳制到视口内保证整体可见
+            // 窗口建在释放点（跟随指针拖出后松手定位，不突兀）：换算按 Popout 内部
+            // TabBarPlace 分支（Bottom=底部 tab 条、Top=顶部、Side=左侧，见
+            // Popout.PosFromReleasePoint），主窗口不需要知道 tab 条位置细节；
+            // 钳制视口内保证整体可见。修复：不再用 Position+Once——
+            // Once 对曾用过的窗口名失效（ImGui WindowSettings 有记录 → 回落旧位置），
+            // 改由 Popout 首帧 SetWindowPos 强制定位（_pendingInitialPos）
+            Vector2? placePos = null;
             if (_popOutPlaceId == tab.Identifier)
             {
-                var vp = ImGuiHelpers.MainViewport;
-                var winSize = new Vector2(350f, 350f) * ImGuiHelpers.GlobalScale;  // Popout 默认尺寸
-                var pos = _popOutPlacePos;
-                pos.X = Math.Clamp(pos.X, vp.Pos.X, vp.Pos.X + Math.Max(0f, vp.Size.X - winSize.X));
-                pos.Y = Math.Clamp(pos.Y, vp.Pos.Y, vp.Pos.Y + Math.Max(0f, vp.Size.Y - winSize.Y));
-                window.Position = pos;
-                window.PositionCondition = ImGuiCond.Once;
+                placePos = _popOutPlacePos;
                 _popOutPlaceId = null;
             }
 
+            var window = new Popout(Plugin, tab, placePos);
             Plugin.WindowSystem.AddWindow(window);
             PopOutInstances[tab.Identifier] = window;
+        }
+
+        // 弹出后主窗口切走：LastTab 指向的 tab 已弹出 → 显示第一个未弹出 tab
+        //（例：正在看"通常"弹出"通常"后，主窗口应显示第一个 tab 内容）
+        if (Plugin.LastTab >= 0 && Plugin.LastTab < Plugin.Config.Tabs.Count
+            && Plugin.Config.Tabs[Plugin.LastTab].PopOut)
+        {
+            var newIdx = Plugin.Config.Tabs.FindIndex(t => !t.PopOut);
+            if (newIdx >= 0 && newIdx != Plugin.LastTab)
+            {
+                Plugin.WantedTab = newIdx;
+                Plugin.LastTab = newIdx;
+                Plugin.Config.Tabs[newIdx].Unread = 0;
+            }
+        }
+
+        // 自愈：弹出窗口逐帧同步（移除被收回/删除的 tab、空窗请求关闭）
+        if (PopOutInstances.Count > 0)
+        {
+            foreach (var w in PopOutInstances.Values.Distinct().ToList())
+                w.SyncTabs();
+            // 清理映射中已不在任何窗口的条目（tab 被收回/删除/合并迁走）
+            var stale = PopOutInstances
+                .Where(kv => !kv.Value.ContainsTab(kv.Key))
+                .Select(kv => kv.Key)
+                .ToList();
+            foreach (var k in stale)
+                PopOutInstances.Remove(k);
         }
     }
 }

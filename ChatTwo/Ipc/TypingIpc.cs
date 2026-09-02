@@ -41,9 +41,6 @@ public sealed class TypingIpc : IDisposable
             ChannelType: channelType);
     }
 
-    private ChatInputState GetState()
-        => BuildState();
-
     public void Update()
     {
         var state = BuildState();
