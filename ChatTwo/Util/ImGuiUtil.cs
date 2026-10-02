@@ -494,6 +494,35 @@ public static class ImGuiUtil
         return textEnd;
     }
 
+    /// <summary>
+    /// 首个断行单元宽度，供 chunk 边界续行判定用。单位与 FindBlockEnd/WrapTextSpaced 完全一致：
+    /// 遇到可断空格 → 该块（拉丁词整体）；没有可断空格 → 单字符（CJK/长串按字符断行）。
+    /// </summary>
+    public static unsafe float FirstUnitWidth(string text, float letterSpacing = 0f)
+    {
+        if (string.IsNullOrEmpty(text))
+            return 0f;
+
+        var bytes = Encoding.UTF8.GetBytes(text);
+        fixed (byte* raw = bytes)
+        {
+            var start = raw;
+            var end = raw + bytes.Length;
+            // 行首空格不占宽度（WrapText 行首跳空格）
+            while (start < end && *start == (byte)' ')
+                ++start;
+            if (start >= end)
+                return 0f;
+
+            var blockEnd = FindBlockEnd(start, end);
+            // !!! 无可断空格时 FindBlockEnd 返回行尾（整段），此处必须退化成单字符，
+            // 否则整段正文会被当成一个不可断单元 → 永远另起一行
+            if (blockEnd >= end)
+                blockEnd = start + Utf8CharLen(start, end);
+            return MeasureClusterWidth(start, blockEnd, letterSpacing);
+        }
+    }
+
     /// <summary>累计簇宽度（含每字符间距）。</summary>
     private static unsafe float MeasureClusterWidth(byte* start, byte* end, float spacing)
     {

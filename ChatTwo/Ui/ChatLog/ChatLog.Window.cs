@@ -1528,7 +1528,8 @@ public partial class ChatLog : Window, IChatWindow
                         {
                             lastTimestamp = timestamp;
                             DrawTimestampInline(timestamp);
-                            ImGui.SameLine();
+                            // 时间戳占满一行时不能把发送者名粘上去（同 DrawChunks 的边界判定）
+                            InputHandler.ChunkHandler.SameLineBefore(message.Sender.Count > 0 ? message.Sender : message.Content);
                         }
                     }
                 }
@@ -1537,7 +1538,8 @@ public partial class ChatLog : Window, IChatWindow
                 if (message.Sender.Count > 0)
                 {
                     InputHandler.ChunkHandler.DrawChunks(message.Sender, true, handler, lineWidth);
-                    ImGui.SameLine();
+                    // 发送者末行放不下正文首单元 → 正文另起一行（否则 SameLine 会把正文顶出右边界）
+                    InputHandler.ChunkHandler.SameLineBefore(message.Content);
                 }
 
                 // We need to draw something otherwise the item visibility check below won't work.

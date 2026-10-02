@@ -24,6 +24,9 @@ public class MessageManager : IAsyncDisposable
     private Plugin Plugin { get; }
     public MessageStore Store { get; }
 
+    // 实际生效的库文件路径：自定义目录失效时是回退后的默认路径
+    public string StorePath { get; private set; } = string.Empty;
+
     private Dictionary<ChatType, NameFormatting> Formats { get; } = [];
     private ulong LastContentId { get; set; }
 
@@ -86,7 +89,7 @@ public class MessageManager : IAsyncDisposable
 
         try
         {
-            Store = new MessageStore(plugin, DatabasePath());
+            Store = OpenStore();
         }
         catch(Exception ex)
         {
@@ -94,7 +97,7 @@ public class MessageManager : IAsyncDisposable
             if (Plugin.Config.MigrationStatus == MigrationStatus.Failed)
             {
                 Plugin.Log.Warning("Migration failed, attempting fresh database");
-                Store = new MessageStore(plugin, DatabasePath());
+                Store = OpenStore();
 
                 Plugin.Config.MigrationStatus = MigrationStatus.Finished;
                 Plugin.SaveConfig();
@@ -146,7 +149,31 @@ public class MessageManager : IAsyncDisposable
         var custom = Plugin.Config.DatabasePath;
         if (!string.IsNullOrWhiteSpace(custom))
             return Path.Join(custom, "chat-sqlite.db");
-        return Path.Join(Plugin.Interface.ConfigDirectory.FullName, "chat-sqlite.db");
+        return DefaultDatabasePath();
+    }
+
+    private static string DefaultDatabasePath()
+        => Path.Join(Plugin.Interface.ConfigDirectory.FullName, "chat-sqlite.db");
+
+    // 自定义目录失效（被删除/改名/无写权限）时回退默认目录：一个坏路径不应让整个插件加载失败
+    private MessageStore OpenStore()
+    {
+        var path = DatabasePath();
+        var fallback = DefaultDatabasePath();
+        try
+        {
+            var store = new MessageStore(Plugin, path);
+            StorePath = path;
+            return store;
+        }
+        catch (Exception ex) when (path != fallback)
+        {
+            Plugin.Log.Error(ex, $"自定义聊天记录目录不可用，回退默认目录: {path}");
+            var store = new MessageStore(Plugin, fallback);
+            StorePath = fallback;
+            WrapperUtil.AddNotification($"聊天记录目录不可用（{Plugin.Config.DatabasePath}），本次使用默认目录。", NotificationType.Warning);
+            return store;
+        }
     }
 
     private void Logout(int _, int __)
@@ -319,7 +346,17 @@ public class MessageManager : IAsyncDisposable
         var isBattle = message.Code.IsBattle();
         var isCraftOrGather = message.Code.IsCraftOrGather();
         if ((!isBattle && !isCraftOrGather) || (isBattle && Plugin.Config.DatabaseBattleMessages) || (isCraftOrGather && Plugin.Config.DatabaseGatherCraftMessages))
-            Store.UpsertMessage(message);
+        {
+            // !!! 入库在进 tab 之前：写库失败若直接抛出，消息既不入库也不进任何 tab（玩家彻底看不到）
+            try
+            {
+                Store.UpsertMessage(message);
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.Error(ex, "Error saving message to database");
+            }
+        }
 
         var currentMatches = Plugin.CurrentTab.Matches(message);
         // 消息属于"当前正在看的 tab" → 立即标记 Seen（必须在遍历前！否则 tab 列表前面的

@@ -106,6 +106,10 @@ public sealed class Database : ISettingsTab
                         WrapperUtil.AddNotification(Language.Options_Database_Path_Restart, NotificationType.Info);
                     }
                 }, string.IsNullOrEmpty(Mutable.DatabasePath) ? null : Mutable.DatabasePath, true);
+
+            // 配置的目录不存在（被改名/删除）时会回退默认目录：明示出来，避免误判为记录丢失
+            if (!string.IsNullOrWhiteSpace(Plugin.Config.DatabasePath) && !Directory.Exists(Plugin.Config.DatabasePath))
+                ImGuiUtil.WarningText($"此目录不存在，实际使用：{Plugin.MessageManager.StorePath}");
         }
         ImGui.Spacing();
         ImGui.Separator();
@@ -126,10 +130,10 @@ public sealed class Database : ISettingsTab
 
             // Copy the directory path instead of the file path so people can
             // paste it into their file explorer.
-            ImGuiUtil.HelpText(string.Format(Language.Options_Database_Metadata_Path, MessageManager.DatabasePath()));
+            ImGuiUtil.HelpText(string.Format(Language.Options_Database_Metadata_Path, Plugin.MessageManager.StorePath));
             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
             {
-                var path = Path.GetDirectoryName(MessageManager.DatabasePath());
+                var path = Path.GetDirectoryName(Plugin.MessageManager.StorePath);
                 ImGui.SetClipboardText(path);
                 WrapperUtil.AddNotification(Language.Options_Database_Metadata_CopyConfigPathNotification, NotificationType.Info);
             }
