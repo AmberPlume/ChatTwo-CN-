@@ -917,6 +917,30 @@
   <data name="Options_HideInLoadingScreens_Description" xml:space="preserve">
         <value>在加载界面中时隐藏{0}</value>
     </data>
+  <data name="Options_AnonymousMode_Name" xml:space="preserve">
+        <value>匿名模式</value>
+    </data>
+  <data name="Options_AnonymousMode_Description" xml:space="preserve">
+        <value>聊天框里显示的玩家名统一替换为「玩家000001」这种编号。只改变显示：链接、右键菜单与悬停功能照常可用，关闭后立刻恢复真名。</value>
+    </data>
+  <data name="Options_AnonymousReplaceContent_Name" xml:space="preserve">
+        <value>同时替换正文里出现的玩家名</value>
+    </data>
+  <data name="Options_AnonymousReplaceContent_Description" xml:space="preserve">
+        <value>连消息内容里写到的玩家名一起替换。最常见的是复活宏「玩家名@服务器名！这里不让睡觉！」，这类名字是普通文字、不带玩家链接，所以需要这个开关才会被替换。</value>
+    </data>
+  <data name="Options_AnonymousReplaceContent_Risk" xml:space="preserve">
+        <value>注意：消息内容属于自由文本，插件只能拿它已知的玩家名去逐字匹配，无法判断文字里哪一段才是名字。因此可能出现误替换——例如某位玩家的名字恰好是另一位玩家名字的前缀，正文里提到后者时会被错切；同理，正文中与某位玩家同名的词也会被替换。若你在意这种误伤，请保持关闭。</value>
+    </data>
+  <data name="Options_AnonymousMode_Count" xml:space="preserve">
+        <value>已分配编号：{0} 人</value>
+    </data>
+  <data name="Options_AnonymousMode_Clear" xml:space="preserve">
+        <value>清空编号记录</value>
+    </data>
+  <data name="Options_AnonymousMode_Clear_Description" xml:space="preserve">
+        <value>忘记所有已分配的编号，之后按遇到顺序重新编号。</value>
+    </data>
   <data name="Options_ClearDatabase_Button">
     <value>清除历史消息数据库</value>
   </data>

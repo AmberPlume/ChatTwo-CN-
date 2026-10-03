@@ -164,6 +164,32 @@ public class ChunkHandler
                 content = PlayerUtil.HidePlayerInString(content, Plugin.PlayerState.CharacterName, Plugin.PlayerState.HomeWorld.RowId);
         }
 
+        // 匿名模式：玩家链接的显示名换成编号。
+        // !!! 只改这里用于绘制的字符串，chunk.Link 保持原样，右键菜单与悬停仍按真名工作
+        if (Plugin.Config.AnonymousMode)
+        {
+            if (chunk.Link is PlayerPayload anonymousPayload)
+                content = PlayerUtil.Anonymize(content, anonymousPayload.PlayerName, anonymousPayload.World.RowId);
+
+            // 自己发言：游戏不给自己消息带发送者 payload（Sender.Payloads.Count == 0 → 渲染端
+            // 整段跳过 message.Sender），名字只以纯文本出现 → 用本地玩家名兜底（与截图模式同口径）。
+            // !!! 挂在主开关而不是正文开关：自己是谁暴露得最彻底，这是匿名的主承诺，不该由附加开关决定。
+            // 频道名里的自己（悄话目标等）走 ChatLog.Window.cs 的 GenerateTellTargetName。
+            if (Plugin.PlayerState.IsLoaded)
+                content = PlayerUtil.Anonymize(content, Plugin.PlayerState.CharacterName, Plugin.PlayerState.HomeWorld.RowId);
+
+            // 正文替换是独立开关（默认关）：正文是自由文本，只能按已知真名做字符串匹配，
+            // 名字恰好是他人名字前缀时会误切（见设置页风险说明）。
+            if (Plugin.Config.AnonymousReplaceContent)
+            {
+                // 发送者名块与正文里的纯文本名字都不带玩家链接，用本条消息发送者的真名替换。
+                // 正文里的复活宏（名字@区服）就是这一路径：替换掉名字这个词即可。
+                var senderName = SenderNameOf(chunk);
+                if (senderName.Length > 0)
+                    content = PlayerUtil.Anonymize(content, senderName, SenderPayloadOf(chunk)?.World.RowId ?? 0);
+            }
+        }
+
         if (wrap)
         {
             // 正文字间距：只给消息内容（Content）传间距，时间戳/发送者名保持原样
@@ -180,5 +206,25 @@ public class ChunkHandler
 
         if (text.Italic)
             disposableFont.Pop();
+    }
+
+    /// <summary>本条消息发送者的真名（从 SenderSource 的玩家 payload 取，取不到返回空）。</summary>
+    private static string SenderNameOf(Chunk chunk)
+    {
+        return SenderPayloadOf(chunk)?.PlayerName ?? string.Empty;
+    }
+
+    private static PlayerPayload? SenderPayloadOf(Chunk chunk)
+    {
+        if (chunk.Message?.SenderSource is not { } source)
+            return null;
+
+        foreach (var payload in source.Payloads)
+        {
+            if (payload is PlayerPayload player)
+                return player;
+        }
+
+        return null;
     }
 }

@@ -912,6 +912,30 @@
     <data name="Options_HideInLoadingScreens_Description" xml:space="preserve">
         <value>Hide {0} during loading screens.</value>
     </data>
+    <data name="Options_AnonymousMode_Name" xml:space="preserve">
+        <value>Anonymous mode</value>
+    </data>
+    <data name="Options_AnonymousMode_Description" xml:space="preserve">
+        <value>Replace every displayed player name with an ID like 玩家000001. Only affects what is drawn: links, right-click menus and tooltips keep working, and names come back as soon as you turn this off.</value>
+    </data>
+    <data name="Options_AnonymousReplaceContent_Name" xml:space="preserve">
+        <value>Also replace names inside message text</value>
+    </data>
+    <data name="Options_AnonymousReplaceContent_Description" xml:space="preserve">
+        <value>Also replace player names written out in the message itself. The most common case is a raise macro like "Name@World! Wake up!", where the name is plain text with no player link attached, so it is only replaced when this option is on.</value>
+    </data>
+    <data name="Options_AnonymousReplaceContent_Risk" xml:space="preserve">
+        <value>Note: message text is free-form, so the plugin can only match it against player names it already knows and cannot tell which part of the text is actually a name. This can cause false replacements - for example, if one player's name happens to be the prefix of another's, the longer name will be cut incorrectly; likewise any ordinary word matching a known player name will be replaced. Keep this off if that bothers you.</value>
+    </data>
+    <data name="Options_AnonymousMode_Count" xml:space="preserve">
+        <value>IDs assigned: {0}</value>
+    </data>
+    <data name="Options_AnonymousMode_Clear" xml:space="preserve">
+        <value>Clear ID records</value>
+    </data>
+    <data name="Options_AnonymousMode_Clear_Description" xml:space="preserve">
+        <value>Forget every assigned ID. Players will be numbered again in the order they appear.</value>
+    </data>
     <data name="Options_ClearDatabase_Button">
         <value>Clear the message history database</value>
     </data>

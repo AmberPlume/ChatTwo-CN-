@@ -1164,12 +1164,16 @@ public partial class ChatLog : Window, IChatWindow
 
             channelNameChunks = [new TextChunk(ChunkSource.None, null, $"{overrideName}{warning}")];
         }
-        else if (PlayerUtil.ScreenshotMode && activeTab.CurrentChannel.Channel is InputChannel.Tell && activeTab.CurrentChannel.TellTarget != null)
+        else if (activeTab.CurrentChannel.Channel is InputChannel.Tell
+                 && activeTab.CurrentChannel.TellTarget != null
+                 && (PlayerUtil.ScreenshotMode || Plugin.Config.AnonymousMode))
         {
             if (!string.IsNullOrWhiteSpace(activeTab.CurrentChannel.TellTarget.Name) && activeTab.CurrentChannel.TellTarget.World != 0)
             {
                 // Note: don't use HidePlayerInString here because abbreviation settings do not affect this.
-                var playerName = PlayerUtil.HashPlayer(activeTab.CurrentChannel.TellTarget.Name, activeTab.CurrentChannel.TellTarget.World);
+                var playerName = PlayerUtil.ScreenshotMode
+                    ? PlayerUtil.HashPlayer(activeTab.CurrentChannel.TellTarget.Name, activeTab.CurrentChannel.TellTarget.World)
+                    : PlayerUtil.AnonymousName(activeTab.CurrentChannel.TellTarget.Name, activeTab.CurrentChannel.TellTarget.World);
                 var world = Sheets.WorldSheet.TryGetRow(activeTab.CurrentChannel.TellTarget.World, out var worldRow)
                     ? worldRow.Name.ToString()
                     : "???";
@@ -1205,6 +1209,8 @@ public partial class ChatLog : Window, IChatWindow
             // Note: don't use HidePlayerInString here because
             // abbreviation settings do not affect this.
             playerName = PlayerUtil.HashPlayer(tellTarget.Name, tellTarget.World);
+        else if (Plugin.Config.AnonymousMode)
+            playerName = PlayerUtil.AnonymousName(tellTarget.Name, tellTarget.World);
 
         var world = Sheets.WorldSheet.TryGetRow(tellTarget.World, out var worldRow)
             ? worldRow.Name.ToString()

@@ -2506,6 +2506,54 @@ namespace ChatTwo.Resources {
             }
         }
 
+        internal static string Options_AnonymousMode_Name {
+            get {
+                return ResourceManager.GetString("Options_AnonymousMode_Name", resourceCulture);
+            }
+        }
+
+        internal static string Options_AnonymousMode_Description {
+            get {
+                return ResourceManager.GetString("Options_AnonymousMode_Description", resourceCulture);
+            }
+        }
+
+        internal static string Options_AnonymousReplaceContent_Name {
+            get {
+                return ResourceManager.GetString("Options_AnonymousReplaceContent_Name", resourceCulture);
+            }
+        }
+
+        internal static string Options_AnonymousReplaceContent_Description {
+            get {
+                return ResourceManager.GetString("Options_AnonymousReplaceContent_Description", resourceCulture);
+            }
+        }
+
+        internal static string Options_AnonymousReplaceContent_Risk {
+            get {
+                return ResourceManager.GetString("Options_AnonymousReplaceContent_Risk", resourceCulture);
+            }
+        }
+
+        internal static string Options_AnonymousMode_Count {
+            get {
+                return ResourceManager.GetString("Options_AnonymousMode_Count", resourceCulture);
+            }
+        }
+
+        internal static string Options_AnonymousMode_Clear {
+            get {
+                return ResourceManager.GetString("Options_AnonymousMode_Clear", resourceCulture);
+            }
+        }
+
+        internal static string Options_AnonymousMode_Clear_Description {
+            get {
+                return ResourceManager.GetString("Options_AnonymousMode_Clear_Description", resourceCulture);
+            }
+        }
+
         /// <summary>
         /// Looks up a localized string similar to Hide during loading screens.
         /// </summary>

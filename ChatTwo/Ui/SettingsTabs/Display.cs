@@ -35,6 +35,31 @@ public sealed class Display : ISettingsTab
         ImGuiUtil.OptionCheckbox(ref Mutable.HideInLoadingScreens, Language.Options_HideInLoadingScreens_Name, string.Format(Language.Options_HideInLoadingScreens_Description, Plugin.PluginName));
         ImGui.Spacing();
 
+        // 匿名模式：聊天框里显示的玩家名统一换成「玩家000001」，编号跨会话恒定
+        ImGuiUtil.OptionCheckbox(ref Mutable.AnonymousMode, Language.Options_AnonymousMode_Name, Language.Options_AnonymousMode_Description);
+        if (Mutable.AnonymousMode)
+        {
+            ImGui.Spacing();
+
+            // 正文替换独立开关（默认关）：正文是自由文本，只能按已知真名匹配，会误切
+            ImGuiUtil.OptionCheckbox(ref Mutable.AnonymousReplaceContent, Language.Options_AnonymousReplaceContent_Name, Language.Options_AnonymousReplaceContent_Description);
+            if (Mutable.AnonymousReplaceContent)
+                ImGuiUtil.WarningText(Language.Options_AnonymousReplaceContent_Risk);
+            ImGui.Spacing();
+
+            ImGui.TextUnformatted(string.Format(Language.Options_AnonymousMode_Count, Mutable.AnonymousIds.Count));
+            if (ImGui.Button(Language.Options_AnonymousMode_Clear))
+            {
+                PlayerUtil.ResetAnonymousIds();
+                // !!! 必须同时清副本：编号在绘制时写入 Plugin.Config，Mutable 是打开设置时的快照。
+                // 只清 Config 会导致①显示的数字不变②之后保存时 UpdateFrom(Mutable) 把旧编号写回
+                Mutable.AnonymousIds.Clear();
+            }
+            ImGuiUtil.TooltipOnLastItem(Language.Options_AnonymousMode_Clear_Description);
+        }
+
+        ImGui.Spacing();
+
         // "在战斗中隐藏" / "非活动时隐藏"已删除：保持关闭
 
         ImGui.Separator();

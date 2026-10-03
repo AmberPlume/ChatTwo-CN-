@@ -41,6 +41,25 @@ public class Configuration : IPluginConfiguration
     public int InactivityHideTimeout = 10;
     public bool InactivityHideActiveDuringBattle = true;
 
+    /// <summary>
+    /// 匿名模式：聊天框里显示的玩家名统一替换为「玩家000001」这种编号。
+    /// 只改绘制文本，不动 chunk.Link / 数据库 / 右键菜单，关掉立刻恢复真名。
+    /// </summary>
+    public bool AnonymousMode;
+
+    /// <summary>
+    /// 匿名正文替换：把消息正文里出现的已知玩家真名也换成编号（如复活宏「名字@区服！...」）。
+    /// 默认关闭——正文里是自由文本，只能按已知真名做字符串匹配，
+    /// 名字是他人名字前缀等情况下会误切（详见设置页风险说明）。
+    /// </summary>
+    public bool AnonymousReplaceContent;
+
+    /// <summary>
+    /// 匿名编号表：键 = "名字@区服"，值 = 编号（从 1 起）。跨会话恒定，
+    /// 同一玩家始终拿到同一编号；清空后重新按遇到顺序分配。
+    /// </summary>
+    public Dictionary<string, int> AnonymousIds = [];
+
     [Obsolete("Use InactivityHideChannelsV2 instead")]
     public Dictionary<ChatType, ChatSource> InactivityHideChannels = [];
 
@@ -249,6 +268,9 @@ public class Configuration : IPluginConfiguration
         HideWhenInactive = other.HideWhenInactive;
         InactivityHideTimeout = other.InactivityHideTimeout;
         InactivityHideActiveDuringBattle = other.InactivityHideActiveDuringBattle;
+        AnonymousMode = other.AnonymousMode;
+        AnonymousReplaceContent = other.AnonymousReplaceContent;
+        AnonymousIds = other.AnonymousIds.ToDictionary(pair => pair.Key, pair => pair.Value);
         InactivityHideChannelsV2 = other.InactivityHideChannelsV2.ToDictionary(pair => pair.Key, pair => pair.Value);
         InactivityHideExtraChatAll = other.InactivityHideExtraChatAll;
         InactivityHideExtraChatChannels = other.InactivityHideExtraChatChannels.ToHashSet();
