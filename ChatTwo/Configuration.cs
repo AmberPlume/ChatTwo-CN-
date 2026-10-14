@@ -235,6 +235,8 @@ public class Configuration : IPluginConfiguration
     public UnreadNotifyMode UnreadNotifyMode = UnreadNotifyMode.Highlight;
     // 快捷锁定：聊天框锁定按钮状态（记忆上次锁定/解锁，重启不丢）
     public bool MoveLocked;
+    // 锁定窗口大小调整：开启后不绘制缩放手柄，拖动手柄无效（主窗口/聊天记录/弹出窗口全局生效）
+    public bool SizeLocked;
     public Dictionary<ChatType, uint> ChatColours = new();
     public List<Tab> Tabs = [];
 
@@ -338,6 +340,7 @@ public class Configuration : IPluginConfiguration
         NativeBackground = other.NativeBackground;
         UnreadNotifyMode = other.UnreadNotifyMode;
         MoveLocked = other.MoveLocked;
+        SizeLocked = other.SizeLocked;
         ChatColours = other.ChatColours.ToDictionary(entry => entry.Key, entry => entry.Value);
         // Clone 不拷贝 Messages（内存消息列表，非配置字段）——若直接替换列表，
         // 每次保存（UpdateFrom）都会把消息区清空（旧 Tab 的 Messages 全丢，只有

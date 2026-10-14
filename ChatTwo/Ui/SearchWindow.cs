@@ -137,7 +137,14 @@ public class SearchWindow : Window
 
         // 缩放手柄 hit-test（与绘制位置一致——锚点=消息区容器右上角，用上一帧 MsgArea 记录；
         // PreDraw 在 Begin 前读 GetWindowPos 不可靠，故用 DrawMessageArea 里记录的矩形）
-        if (Plugin.Config.CanResize)
+        // 锁定窗口大小：手柄不绘制 → hit-test 不参与；缩放途中开启锁定则立即结束
+        if (Plugin.Config.SizeLocked)
+        {
+            IsResizingTopRight = false;
+            MouseOverResizeHandle = false;
+        }
+
+        if (Plugin.Config.CanResize && !Plugin.Config.SizeLocked)
         {
             var st = ImGui.GetStyle();
             var hSize = NativeIcons.ResizeHandleSize();  // 原生手柄素材尺寸
@@ -206,7 +213,7 @@ public class SearchWindow : Window
         DrawStatusRow();
         DrawTabPickerPopup();
 
-        if (Plugin.Config.CanResize)
+        if (Plugin.Config.CanResize && !Plugin.Config.SizeLocked)
             DrawTopRightResizeHandle();
     }
 
@@ -865,7 +872,7 @@ public class SearchWindow : Window
     // （前台 dl；锚点 = 消息区矩形 MsgAreaMin/Max，与 DrawTopRightResizeHandle 一致）
     public override void PostDraw()
     {
-        if (!Plugin.Config.CanResize)
+        if (!Plugin.Config.CanResize || Plugin.Config.SizeLocked)
             return;
         var windowPos = ImGui.GetWindowPos();
         var windowSize = ImGui.GetWindowSize();

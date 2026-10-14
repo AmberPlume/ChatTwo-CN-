@@ -1294,6 +1294,12 @@ Your old database can still be recovered, please contact the plugin author for h
     <data name="Options_MoveLocked_Description">
         <value>The message area is always non-draggable (prevents accidentally dragging the window while selecting text). When enabled, the entire window cannot be moved; when disabled, drag the window via the input box or tab bar area.</value>
     </data>
+    <data name="Options_SizeLocked_Name">
+        <value>Lock window size</value>
+    </data>
+    <data name="Options_SizeLocked_Description">
+        <value>When enabled, the resize handle is hidden and windows cannot be resized by dragging the handle (applies to the main window, chat log history and pop-out windows).</value>
+    </data>
     <data name="Search_Title">
         <value>Chat Log History</value>
     </data>

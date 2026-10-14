@@ -2760,6 +2760,24 @@ namespace ChatTwo.Resources {
             }
         }
 
+        /// <summary>
+        /// Looks up a localized string similar to Lock window size.
+        /// </summary>
+        internal static string Options_SizeLocked_Name {
+            get {
+                return ResourceManager.GetString("Options_SizeLocked_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        /// Looks up a localized string similar to When enabled, the resize handle is hidden and windows cannot be resized by dragging the handle (applies to the main window, chat log history and pop-out windows)..
+        /// </summary>
+        internal static string Options_SizeLocked_Description {
+            get {
+                return ResourceManager.GetString("Options_SizeLocked_Description", resourceCulture);
+            }
+        }
+
 
 
         /// <summary>

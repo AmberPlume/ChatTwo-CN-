@@ -530,8 +530,13 @@ public partial class ChatLog : Window, IChatWindow
             LastWindowPos.Y + st.WindowPadding.Y + insetY + GetTopTabBarHeight());
         var handleMax = handleMin + new Vector2(hSize, hSize);
         var mp = ImGui.GetIO().MousePos;
-        MouseOverResizeHandle = mp.X >= handleMin.X && mp.X <= handleMax.X
+        // 锁定窗口大小：手柄不绘制 → hit-test 不参与（隐形手柄占 NoMove 会局部禁拖）
+        MouseOverResizeHandle = !Plugin.Config.SizeLocked
+                              && mp.X >= handleMin.X && mp.X <= handleMax.X
                               && mp.Y >= handleMin.Y && mp.Y <= handleMax.Y;
+        // 缩放途中开启锁定 → 立即结束缩放（否则 IsResizingTopRight 卡住 → 窗口永久 NoMove）
+        if (Plugin.Config.SizeLocked)
+            IsResizingTopRight = false;
 
         // 消息区任何情况下都不可拖（不依赖锁定开关），
         // NoMove 只禁窗口拖动、不影响插件自身文本选取；未锁定时其余区域（tab/输入框/空白）
@@ -610,7 +615,7 @@ public partial class ChatLog : Window, IChatWindow
 
         // ：child 有独立 dl 且后渲染会盖住 Draw 里的手柄 →
         // 用前台 dl 在 PostDraw 重画（绝对最上层）；End 后 GetWindowPos 不可靠 → 用 LastWindowPos
-        if (Plugin.Config.CanResize)
+        if (Plugin.Config.CanResize && !Plugin.Config.SizeLocked)
             DrawResizeHandleOverlay();
     }
 
@@ -696,7 +701,7 @@ public partial class ChatLog : Window, IChatWindow
         {
             DrawChatLog();
 
-            if (Plugin.Config.CanResize)
+            if (Plugin.Config.CanResize && !Plugin.Config.SizeLocked)
             {
                 DrawTopRightResizeHandle();
 

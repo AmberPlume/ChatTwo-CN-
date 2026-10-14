@@ -75,6 +75,10 @@ public sealed class Display : ISettingsTab
         ImGuiUtil.OptionCheckbox(ref Mutable.MoveLocked, Language.Options_MoveLocked_Name, Language.Options_MoveLocked_Description);
         ImGui.Spacing();
 
+        // 锁定窗口大小调整：开启后缩放手柄不再绘制，拖动无效（全局，含弹出窗口与聊天记录）
+        ImGuiUtil.OptionCheckbox(ref Mutable.SizeLocked, Language.Options_SizeLocked_Name, Language.Options_SizeLocked_Description);
+        ImGui.Spacing();
+
         // 标签页位置：仿原生窗口（NativeBackground）下固定底部（三段式贴图只支持底部），选项置灰。
         // Disabled 必须限制在块级作用域——用 using var 会延到方法末尾，把下面所有设置项一起置灰
         using (ImRaii.Disabled(Mutable.NativeBackground))

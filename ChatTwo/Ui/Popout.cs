@@ -340,9 +340,15 @@ public class Popout : Window, IChatWindow
         if (IsMouseOverMessageAreaPublic() || Plugin.Config.MoveLocked || _tabDrag.Dragging != null)
             Flags |= ImGuiWindowFlags.NoMove;
 
-        var canResize = CurrentTab.CanResize;
+        // 可缩放 = 本 tab 允许 且 全局未锁定窗口大小
+        var canResize = CurrentTab.CanResize && !Plugin.Config.SizeLocked;
         if (!canResize)
+        {
             Flags |= ImGuiWindowFlags.NoResize;
+            // 缩放途中开启锁定 → 立即结束缩放（否则 IsResizingTopRight 卡住 → 窗口永久 NoMove）
+            IsResizingTopRight = false;
+            MouseOverResizeHandle = false;
+        }
 
         if (canResize)
         {
@@ -494,7 +500,7 @@ public class Popout : Window, IChatWindow
         }
 
         // 仿原生金字塔缩放手柄（右上角，与主窗口一致）
-        if (CurrentTab.CanResize)
+        if (CurrentTab.CanResize && !Plugin.Config.SizeLocked)
         {
             DrawTopRightResizeHandle();
 
@@ -1233,7 +1239,7 @@ public class Popout : Window, IChatWindow
             StyleModel.GetConfiguredStyles()?.FirstOrDefault(style => style.Name == Plugin.Config.ChosenStyle)?.Pop();
 
         // （前台 dl；End 后 GetWindowPos 不可靠 → 用 LastWindowPos）
-        if (CurrentTab.CanResize)
+        if (CurrentTab.CanResize && !Plugin.Config.SizeLocked)
         {
             var style = ImGui.GetStyle();
             var hSize = NativeIcons.ResizeHandleSize();
